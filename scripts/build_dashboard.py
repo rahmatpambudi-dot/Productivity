@@ -173,6 +173,13 @@ def build():
                 r0 = raw["data"][0]
                 cap_val = r0[cols['capArmada']] if cols['capArmada']>=0 and cols['capArmada']<len(r0) else 'OUT OF RANGE'
                 print(f"  {s['name']} row0 cap='{cap_val}' len={len(r0)}")
+                # Count non-empty cap values
+                cap_idx = cols['capArmada']
+                non_empty = sum(1 for r in raw["data"] if cap_idx>=0 and cap_idx<len(r) and r[cap_idx].strip()!='')
+                print(f"  {s['name']} cap non-empty: {non_empty}/{len(raw['data'])}")
+                # Sample a few rows with empty cap
+                empty_samples = [r[cap_idx] if cap_idx<len(r) else 'SHORT' for r in raw["data"][1:6]]
+                print(f"  {s['name']} cap samples[1:6]: {empty_samples}")
 
             for r in raw["data"]:
                 row = slim_row(r, cols, s["name"], s["site"])
