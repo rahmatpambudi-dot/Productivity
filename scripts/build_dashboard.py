@@ -72,10 +72,24 @@ def parse_date_str(s):
     """Normalize date to YYYY-MM-DD string"""
     if not s: return None
     s = str(s).strip()
+    # Standard formats
     for fmt in ("%m/%d/%Y","%d/%m/%Y","%Y-%m-%d","%d-%b-%Y","%d %b %Y"):
         try:
             return datetime.datetime.strptime(s, fmt).strftime("%Y-%m-%d")
         except: pass
+    # Handle M/D/YYYY or D/M/YYYY without leading zeros
+    import re
+    m = re.match(r'^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$', s)
+    if m:
+        p1, p2, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        # Assume M/D/YYYY if p1 <= 12
+        if p1 <= 12:
+            try: return datetime.date(year, p1, p2).strftime("%Y-%m-%d")
+            except: pass
+        # Try D/M/YYYY
+        if p2 <= 12:
+            try: return datetime.date(year, p2, p1).strftime("%Y-%m-%d")
+            except: pass
     return None
 
 def cell(r, idx):
