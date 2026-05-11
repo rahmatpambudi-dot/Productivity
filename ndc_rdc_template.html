@@ -305,7 +305,7 @@ const SHEETS = [
 const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
 const SITE_LABELS = { JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora' };
 
-let RAW = {};
+// {{EMBEDDED_DATA}}
 let currentMode = 'fullmonth';
 let currentSite = 'ALL';
 let currentPeriod = '2026-04';
@@ -378,27 +378,24 @@ function mapCols(headers) {
 // =============================================
 // LOAD
 // =============================================
-async function loadAll() {
-  document.getElementById('content').innerHTML = `<div class="loading-state"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>`;
-  RAW = {};
-  for (let i=0; i<SHEETS.length; i++) {
-    const s = SHEETS[i];
-    document.getElementById('loadMsg').textContent = `Memuat ${s.name} (${i+1}/${SHEETS.length})...`;
-    try {
-      const url = `${BASE}?gid=${s.gid}&single=true&output=csv`;
-      const res = await fetch(url);
-      const text = await res.text();
-      const parsed = Papa.parse(text, { skipEmptyLines:true });
-      const rows = parsed.data;
-      if (rows.length < 2) { RAW[s.name] = {cols:{},data:[],headers:[]}; continue; }
-      RAW[s.name] = { cols: mapCols(rows[0]), data: rows.slice(1), headers: rows[0] };
-    } catch(e) {
-      RAW[s.name] = { cols:{}, data:[], headers:[], error:e.message };
-    }
+function loadAll() {
+  // Data is pre-computed and embedded by build script
+  if (typeof EMBEDDED_DATA === 'undefined' || !EMBEDDED_DATA.length) {
+    document.getElementById('content').innerHTML = `<div class="loading-state"><p style="color:var(--red)">⚠️ Data belum tersedia. Jalankan GitHub Actions terlebih dahulu.</p></div>`;
+    return;
   }
-  // Update timestamp
-  const now = new Date();
-  document.getElementById('updateTime').textContent = now.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) + ' ' + now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  // Populate period selector from embedded data
+  const sel = document.getElementById('periodSelect');
+  sel.innerHTML = '';
+  EMBEDDED_DATA.slice().reverse().forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.period;
+    opt.textContent = p.label;
+    sel.appendChild(opt);
+  });
+  // Default to latest period
+  currentPeriod = EMBEDDED_DATA[EMBEDDED_DATA.length-1].period;
+  sel.value = currentPeriod;
   render();
 }
 
@@ -441,8 +438,8 @@ function computeJababeka(start, end) {
     rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.owner]||'').toUpperCase()!=='FBI'&&(r[c.kategori]||'').toUpperCase()==='NON REGULAR').forEach(r=>dpNR.push(parseFloat(r[c.dp])||0));
     const drR=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.owner]||'').toUpperCase()!=='FBI'&&(r[c.typeArmada]||'').toUpperCase()!=='PICKUP'&&(r[c.kategori]||'').toUpperCase()==='REGULAR');
     drR.forEach(r=>{dpRg.push(parseFloat(r[c.dp])||0);doTr.push(parseFloat(r[c.do_])||0);doDpK+=parseFloat(r[c.do_])||0;doDpN+=parseFloat(r[c.dp])||0;});
-    rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&(r[c.shipArea]||'').toUpperCase().includes('DALAM KOTA')).forEach(r=>{const t=parseTAT(r[c.tat]);if(t!==null&&t>=0&&t<=1)tatD.push(t);});
-    rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='store'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&(r[c.shipArea]||'').toUpperCase().includes('DALAM KOTA')).forEach(r=>{const t=parseTAT(r[c.tat]);if(t!==null&&t>=0&&t<=1)tatS.push(t);});
+    rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&(r[c.shipArea]||'').toUpperCase().includes('DALAM KOTA')).forEach(r=>{const t=parseTAT(r[c.tat]);if(t!==null&&t>=0&&t<=24)tatD.push(t);});
+    rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='store'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&(r[c.shipArea]||'').toUpperCase().includes('DALAM KOTA')).forEach(r=>{const t=parseTAT(r[c.tat]);if(t!==null&&t>=0&&t<=24)tatS.push(t);});
   }
   return {site:'JABABEKA',ritase:avg(ritVals),olf:oM>0?oL/oM:null,dpStore:avg(dpSt),dpMix:avg(dpMx),dpNonReg:avg(dpNR),dpReg:avg(dpRg),doTrip:avg(doTr),doDp:doDpN>0?doDpK/doDpN:null,tatDirect:avg(tatD),tatStore:avg(tatS)};
 }
@@ -467,8 +464,8 @@ function computeCikupa(start, end) {
   const drR=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.typeArmada]||'').toUpperCase()!=='PICKUP'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&satCol>=0&&(r[satCol]||'').toUpperCase().includes('NON SATELIT'));
   const dpRg=drR.map(r=>parseFloat(r[c.dp])||0),doTr=drR.map(r=>parseFloat(r[c.do_])||0);
   const doDpK=sum(drR.map(r=>parseFloat(r[c.do_])||0)),doDpN=sum(drR.map(r=>parseFloat(r[c.dp])||0));
-  const tatD=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&satCol>=0&&(r[satCol]||'').toUpperCase().includes('NON SATELIT')).map(r=>parseTAT(r[tatCol])).filter(t=>t!==null&&t>=0&&t<=1);
-  const tatS=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='store'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&satCol>=0&&(r[satCol]||'').toUpperCase().includes('NON SATELIT')).map(r=>parseTAT(r[tatCol])).filter(t=>t!==null&&t>=0&&t<=1);
+  const tatD=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&satCol>=0&&(r[satCol]||'').toUpperCase().includes('NON SATELIT')).map(r=>parseTAT(r[tatCol])).filter(t=>t!==null&&t>=0&&t<=24);
+  const tatS=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='store'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&satCol>=0&&(r[satCol]||'').toUpperCase().includes('NON SATELIT')).map(r=>parseTAT(r[tatCol])).filter(t=>t!==null&&t>=0&&t<=24);
   return {site:'CIKUPA',ritase:avg(ritVals),olf:oM>0?oL/oM:null,dpStore:avg(dpSt),dpMix:avg(dpMx),dpNonReg:avg(dpNR),dpReg:avg(dpRg),doTrip:avg(doTr),doDp:doDpN>0?doDpK/doDpN:null,tatDirect:avg(tatD),tatStore:avg(tatS)};
 }
 
@@ -487,8 +484,8 @@ function computeSimple(sn, siteName, start, end, hasFBI) {
   const drR=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.typeArmada]||'').toUpperCase()!=='PICKUP'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&fbi(r));
   const dpRg=drR.map(r=>parseFloat(r[c.dp])||0),doTr=drR.map(r=>parseFloat(r[c.do_])||0);
   const doDpK=sum(drR.map(r=>parseFloat(r[c.do_])||0)),doDpN=sum(drR.map(r=>parseFloat(r[c.dp])||0));
-  const tatD=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&(r[c.shipArea]||'').toUpperCase().includes('DALAM KOTA')).map(r=>parseTAT(r[c.tat])).filter(t=>t!==null&&t>=0&&t<=1);
-  const tatS=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='store'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&(r[c.shipArea]||'').toUpperCase().includes('DALAM KOTA')).map(r=>parseTAT(r[c.tat])).filter(t=>t!==null&&t>=0&&t<=1);
+  const tatD=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='customer'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&(r[c.shipArea]||'').toUpperCase().includes('DALAM KOTA')).map(r=>parseTAT(r[c.tat])).filter(t=>t!==null&&t>=0&&t<=24);
+  const tatS=rows.filter(r=>(r[c.typeDelivery]||'').toLowerCase()==='store'&&(r[c.kategori]||'').toUpperCase()==='REGULAR'&&(r[c.shipArea]||'').toUpperCase().includes('DALAM KOTA')).map(r=>parseTAT(r[c.tat])).filter(t=>t!==null&&t>=0&&t<=24);
   return {site:siteName,ritase:avg(ritVals),olf:oM>0?oL/oM:null,dpStore:avg(dpSt),dpMix:avg(dpMx),dpNonReg:avg(dpNR),dpReg:avg(dpRg),doTrip:avg(doTr),doDp:doDpN>0?doDpK/doDpN:null,tatDirect:avg(tatD),tatStore:avg(tatS)};
 }
 
@@ -511,22 +508,23 @@ function makeSummary(results) {
 // RENDER
 // =============================================
 function render() {
-  const { start, end } = getPeriodRange(currentPeriod, currentMode);
-  let results = computeAll(start, end);
+  const periodData = EMBEDDED_DATA.find(p => p.period === currentPeriod);
+  if (!periodData) return;
+
+  let results = periodData.sites;
   if (currentSite !== 'ALL') results = results.filter(r => r.site === currentSite);
-  const summary = makeSummary(results);
+  const summary = currentSite === 'ALL' ? periodData.summary : results[0] || periodData.summary;
 
-  const periodLabel = new Date(currentPeriod+'-01').toLocaleString('id-ID',{month:'long',year:'numeric'});
-  document.getElementById('topbarTitle').textContent = `Overview — ${periodLabel}${currentMode==='mtd'?' (MTD)':''}`;
-
+  // MTD — just use the data as-is (build script handles date range)
+  document.getElementById('topbarTitle').textContent = `Overview — ${periodData.label}${currentMode==='mtd'?' (MTD)':''}`;
   document.getElementById('content').innerHTML = `
     <div id="kpiRow" class="kpi-row"></div>
     <div class="cards-grid-3" id="barsRow"></div>
     <div class="cards-grid" id="chartsRow"></div>
     <div class="panel" id="tablePanel">
-      <div class="panel-header"><h3>Detail Per Site</h3><span class="tag">${periodLabel}</span></div>
+      <div class="panel-header"><h3>Detail Per Site</h3><span class="tag">${periodData.label}</span></div>
       <div class="panel-body" style="padding:0">
-        <div class="table-wrap"><table class="data-table" id="mainTable">
+        <div class="table-wrap"><table class="data-table">
           <thead><tr>
             <th>SITE</th><th class="num">RITASE</th><th class="num">OLF STORE</th>
             <th class="num">DP STORE</th><th class="num">DP MIX</th>
@@ -539,7 +537,6 @@ function render() {
       </div>
     </div>
   `;
-
   renderKPI(results, summary);
   renderBars(results);
   renderCharts(results);

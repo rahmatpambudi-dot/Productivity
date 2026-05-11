@@ -3,7 +3,7 @@ name: Update NDC RDC Dashboard
 on:
   schedule:
     - cron: '0 5 * * *'  # 12:00 WIB (UTC+7)
-  workflow_dispatch:      # manual trigger
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,7 +20,12 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install dependencies
+        run: pip install google-auth google-auth-httplib2 google-api-python-client
+
       - name: Build dashboard
+        env:
+          GSHEET_SERVICE_ACCOUNT: ${{ secrets.GSHEET_SERVICE_ACCOUNT }}
         run: python scripts/build_dashboard.py
 
       - name: Commit and push if changed
@@ -28,5 +33,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add dashboard_ndc_rdc.html
-          git diff --staged --quiet || git commit -m "Auto-update dashboard $(date +'%Y-%m-%d %H:%M') WIB"
+          git diff --staged --quiet || git commit -m "Auto-update dashboard $(TZ='Asia/Jakarta' date +'%Y-%m-%d %H:%M') WIB"
           git push
