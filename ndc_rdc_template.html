@@ -279,7 +279,7 @@ function computeSite(rows, site) {
     if(r.td !== 'store') return false;
     if(isJAB && r.owner === 'FBI') return false;
     if(isJAB && r.kat !== 'REGULAR') return false;
-    if(isCIK && !r.od.includes('non cikande')) return false;
+    if(isCIK && !(r.od||'').includes('non cikande')) return false;
     if(isSDA && (r.owner === 'FBI' || r.kat !== 'REGULAR')) return false;
     if(!isJAB && !isCIK && !isSDA && r.kat !== 'REGULAR') return false;
     return true;
@@ -303,7 +303,7 @@ function computeSite(rows, site) {
     if(r.kat !== 'REGULAR') return false;
     if(isJAB && r.owner === 'FBI') return false;
     if(isSDA && r.owner === 'FBI') return false;
-    if(isCIK && !r.sat.includes('NON SATELIT')) return false;
+    if(isCIK && !(r.sat||'').includes('NON SATELIT')) return false;
     return true;
   });
   const dpRg = drR.map(r=>parseFloat(r.dp)||0);

@@ -122,7 +122,7 @@ def slim_row(r, cols, sheet_name, site):
         "sa":    cell(r, cols["shipArea"]).upper(),
         "kat":   cell(r, cols["kategori"]).upper(),
         "tat":   cell(r, cols["tat"]),
-        "od":    cell(r, cols["olfDet"]).lower() if cols["olfDet"] >= 0 else "",
+        "od":    cell(r, cols["olfDet"]).strip().lower() if cols["olfDet"] >= 0 else "",
         "sat":   cell(r, cols["satelite"]).upper() if cols["satelite"] >= 0 else "",
     }
 
