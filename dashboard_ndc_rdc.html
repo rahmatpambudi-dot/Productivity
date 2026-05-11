@@ -271,12 +271,12 @@ function computeSite(rows, site) {
   );
   const byDate = {};
   ritRows.forEach(r => {
-    if(!byDate[r.date]) byDate[r.date]={t:new Set(),doSum:0};
-    byDate[r.date].t.add(r.lc);
-    byDate[r.date].doSum += parseFloat(r.do)||0;
+    if(!byDate[r.date]) byDate[r.date]={trips:new Set(),nopols:new Set()};
+    byDate[r.date].trips.add(r.lc);
+    if(r.nopol) byDate[r.date].nopols.add(r.nopol);
   });
   const ritVals = Object.values(byDate).map(v=>{
-    return v.doSum>0 ? v.t.size/v.doSum : null;
+    return v.nopols.size>0 ? v.trips.size/v.nopols.size : null;
   }).filter(x=>x!=null);
 
   // OLF
