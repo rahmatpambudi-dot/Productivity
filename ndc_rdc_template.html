@@ -6,6 +6,7 @@
 <title>NDC & RDC — Performance Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 :root {
   --sw: 220px; --bg: #f5f6fa; --white: #fff; --border: #e8eaed;
@@ -195,6 +196,9 @@ const SL = { JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo'
 const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
 
 // ── LOAD ───────────────────────────────────────────────────────
+// Register datalabels plugin
+if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
+
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>';
   try {
@@ -427,7 +431,23 @@ function renderOverview(results, summary, start, end) {
   renderBars('bRIT', results, r=>r.ritase, v=>pf(v,2), 'o');
 
   const labs = results.map(r=>r.label);
-  const co = {responsive:true,plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368'}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}},y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}}}};
+  const co = {
+    responsive:true,
+    plugins:{
+      legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},
+      tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368'},
+      datalabels:{
+        anchor:'end', align:'top', color:'#1a1d23',
+        font:{family:'Inter',size:9,weight:'600'},
+        formatter:(v)=>v!=null?v.toFixed(1):'',
+        padding:2
+      }
+    },
+    scales:{
+      x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}},
+      y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}}
+    }
+  };
 
   charts.dp = new Chart(document.getElementById('cDP').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'DP Store',data:results.map(r=>r.dpStore),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
@@ -522,7 +542,23 @@ function renderDetail(results, summary, start, end) {
   `;
 
   const labs = results.map(r=>r.label);
-  const co = {responsive:true,plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368'}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}},y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}}}};
+  const co = {
+    responsive:true,
+    plugins:{
+      legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},
+      tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368'},
+      datalabels:{
+        anchor:'end', align:'top', color:'#1a1d23',
+        font:{family:'Inter',size:9,weight:'600'},
+        formatter:(v)=>v!=null?v.toFixed(1):'',
+        padding:2
+      }
+    },
+    scales:{
+      x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}},
+      y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}}
+    }
+  };
 
   charts.dOLF = new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF Store (%)',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
 
