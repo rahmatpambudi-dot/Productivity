@@ -234,9 +234,12 @@ function ssum(a){ return a.filter(x=>x!=null&&!isNaN(x)).reduce((s,x)=>s+x,0); }
 function pf(v,d=2){ return v==null?'—':v.toFixed(d); }
 function pp(v){ return v==null?'—':(v*100).toFixed(1)+'%'; }
 function parseTAT(s){
-  if(!s)return null;
+  if(!s||s==='—')return null;
+  s=s.toString().trim();
+  // H:MM:SS or H:MM
   const m=s.match(/^(-?\d+):(\d{2})(?::(\d{2}))?$/);
-  if(m) return +m[1]+m[2]/60+(m[3]?+m[3]:0)/3600;
+  if(m) return +m[1]+parseInt(m[2])/60+(m[3]?parseInt(m[3]):0)/3600;
+  // Excel fraction (0-2 = 0-48 hours)
   const n=parseFloat(s); if(!isNaN(n)&&n>0&&n<2)return n*24;
   return null;
 }

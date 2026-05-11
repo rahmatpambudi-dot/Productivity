@@ -35,7 +35,9 @@ def get_service():
 def fetch_sheet(service, sheet_name):
     result = service.spreadsheets().values().get(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A:AE"
+        range=f"'{sheet_name}'!A:AE",
+        valueRenderOption="FORMATTED_VALUE",
+        dateTimeRenderOption="FORMATTED_STRING"
     ).execute()
     rows = result.get("values", [])
     if len(rows) < 2:
@@ -73,23 +75,28 @@ def parse_date_str(s):
     if not s: return None
     s = str(s).strip()
     # Standard formats
-    for fmt in ("%m/%d/%Y","%d/%m/%Y","%Y-%m-%d","%d-%b-%Y","%d %b %Y"):
+    for fmt in ("%m/%d/%Y","%d/%m/%Y","%Y-%m-%d","%d-%b-%Y","%d %b %Y","%m/%d/%y","%d/%m/%y"):
         try:
             return datetime.datetime.strptime(s, fmt).strftime("%Y-%m-%d")
         except: pass
-    # Handle M/D/YYYY or D/M/YYYY without leading zeros
-    import re
-    m = re.match(r'^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$', s)
+    # Handle M/D/YYYY or D/M/YYYY without leading zeros (e.g. 1/1/2026)
+    m = re.match(r"^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})$", s)
     if m:
         p1, p2, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        # Assume M/D/YYYY if p1 <= 12
-        if p1 <= 12:
+        if year < 100: year += 2000
+        if 1 <= p1 <= 12 and 1 <= p2 <= 31:
             try: return datetime.date(year, p1, p2).strftime("%Y-%m-%d")
             except: pass
-        # Try D/M/YYYY
-        if p2 <= 12:
+        if 1 <= p2 <= 12 and 1 <= p1 <= 31:
             try: return datetime.date(year, p2, p1).strftime("%Y-%m-%d")
             except: pass
+    # Excel serial number
+    try:
+        n = int(s)
+        if 40000 < n < 60000:
+            d = datetime.date(1899, 12, 30) + datetime.timedelta(days=n)
+            return d.strftime("%Y-%m-%d")
+    except: pass
     return None
 
 def cell(r, idx):
