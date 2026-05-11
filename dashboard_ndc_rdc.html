@@ -279,8 +279,11 @@ function computeSite(rows, site) {
     return v.nopols.size>0 ? v.trips.size/v.nopols.size : null;
   }).filter(x=>x!=null);
 
+  // For JABABEKA: exclude KLS sheet for all metrics except RITASE
+  const srMain = isJAB ? sr.filter(r => r.sheet !== 'KLS JABABEKA') : sr;
+
   // OLF
-  const olfR = sr.filter(r => {
+  const olfR = srMain.filter(r => {
     if(r.td !== 'store') return false;
     if(isJAB && r.owner === 'FBI') return false;
     if(isJAB && r.kat !== 'REGULAR') return false;
@@ -308,13 +311,13 @@ function computeSite(rows, site) {
   const dpSt = olfR.map(r=>parseFloat(r.dp)||0);
 
   // DP Mix
-  const dpMx = sr.filter(r => r.td==='customer' && !(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')).map(r=>parseFloat(r.dp)||0);
+  const dpMx = srMain.filter(r => r.td==='customer' && !(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')).map(r=>parseFloat(r.dp)||0);
 
   // DP Non Reg
-  const dpNR = sr.filter(r => r.td==='customer' && r.kat==='NON REGULAR' && !(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')).map(r=>parseFloat(r.dp)||0);
+  const dpNR = srMain.filter(r => r.td==='customer' && r.kat==='NON REGULAR' && !(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')).map(r=>parseFloat(r.dp)||0);
 
   // Direct filter
-  const drR = sr.filter(r => {
+  const drR = srMain.filter(r => {
     if(r.td !== 'customer') return false;
     if(r.ta === 'PICKUP') return false;
     if(r.kat !== 'REGULAR') return false;
@@ -329,14 +332,14 @@ function computeSite(rows, site) {
   const doDpN = ssum(drR.map(r=>parseFloat(r.dp)||0));
 
   // TAT Direct
-  const tatD = sr.filter(r => {
+  const tatD = srMain.filter(r => {
     if(r.td !== 'customer' || r.kat !== 'REGULAR') return false;
     if(isCIK) return r.sat.includes('NON SATELIT');
     return r.sa.includes('DALAM KOTA');
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=24);
 
   // TAT Store
-  const tatS = sr.filter(r => {
+  const tatS = srMain.filter(r => {
     if(r.td !== 'store' || r.kat !== 'REGULAR') return false;
     if(isCIK) return r.sat.includes('NON SATELIT');
     return r.sa.includes('DALAM KOTA');
