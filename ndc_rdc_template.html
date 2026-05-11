@@ -286,6 +286,18 @@ function computeSite(rows, site) {
   });
   const oL = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
   const oM = ssum(olfR.map(r=>parseFloat(r.cap)||0));
+  // Debug
+  const storeRows = sr.filter(r=>r.td==='store');
+  console.log(`[${site}] store rows: ${storeRows.length}, olfR: ${olfR.length}, oL: ${oL}, oM: ${oM}`);
+  if(isCIK) {
+    const odVals = [...new Set(storeRows.map(r=>r.od))].slice(0,5);
+    console.log(`[CIKUPA] od unique vals:`, odVals);
+  }
+  if(isSDA) {
+    const katVals = [...new Set(storeRows.map(r=>r.kat))].slice(0,5);
+    const ownVals = [...new Set(storeRows.map(r=>r.owner))].slice(0,5);
+    console.log(`[SDA] kat vals:`, katVals, 'owner vals:', ownVals);
+  }
 
   // DP Store
   const dpSt = olfR.map(r=>parseFloat(r.dp)||0);
