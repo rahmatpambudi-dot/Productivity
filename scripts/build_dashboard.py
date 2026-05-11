@@ -151,8 +151,19 @@ def build():
                 if tat_cols: cols["tat"] = tat_cols[-1]
                 sat_i = next((i for i, h in enumerate(h_up) if "SATELIT" in h), -1)
                 cols["satelite"] = sat_i
-                olf_i = next((i for i, h in enumerate(h_up) if "OLF" in h or "DETERMINE" in h), -1)
+                # OLF DETERMINE col - try exact then partial
+                olf_i = next((i for i, h in enumerate(h_up) if "OLF DETERMINE" in h), -1)
+                if olf_i < 0:
+                    olf_i = next((i for i, h in enumerate(h_up) if "OLF" in h), -1)
+                if olf_i < 0:
+                    olf_i = next((i for i, h in enumerate(h_up) if "DETERMINE" in h), -1)
                 cols["olfDet"] = olf_i
+                print(f"  CIKUPA cols: tat={cols['tat']}, sat={cols['satelite']}, olfDet={cols['olfDet']}")
+                if cols["olfDet"] >= 0:
+                    print(f"  CIKUPA olfDet header: {raw['headers'][cols['olfDet']]}")
+                    # Sample values
+                    samples = [r[cols["olfDet"]] if cols["olfDet"] < len(r) else "" for r in raw["data"][:5]]
+                    print(f"  CIKUPA olfDet samples: {samples}")
 
             for r in raw["data"]:
                 row = slim_row(r, cols, s["name"], s["site"])
