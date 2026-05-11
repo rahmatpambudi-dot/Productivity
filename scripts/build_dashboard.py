@@ -165,13 +165,14 @@ def build():
                     samples = [r[cols["olfDet"]] if cols["olfDet"] < len(r) else "" for r in raw["data"][:5]]
                     print(f"  CIKUPA olfDet samples: {samples}")
 
-            # Debug: print col indices for first run
-            if total == 0:
-                print(f"  {s['name']} col indices: do={cols['do_']} cbm={cols['cbm']} cap={cols['capArmada']} dp={cols['dp']} kat={cols['kategori']}")
-                print(f"  {s['name']} headers[M]={raw['headers'][12] if len(raw['headers'])>12 else 'N/A'} headers[cap]={raw['headers'][cols['capArmada']] if cols['capArmada']>=0 and cols['capArmada']<len(raw['headers']) else 'N/A'}")
-                if len(raw["data"]) > 0:
-                    r0 = raw["data"][0]
-                    print(f"  {s['name']} row0 cap val={r0[cols['capArmada']] if cols['capArmada']>=0 and cols['capArmada']<len(r0) else 'OUT OF RANGE'}")
+            # Debug: print col indices for all sheets
+            print(f"  {s['name']} col indices: do={cols['do_']} cbm={cols['cbm']} cap={cols['capArmada']} dp={cols['dp']} kat={cols['kategori']}")
+            if cols['capArmada'] >= 0 and cols['capArmada'] < len(raw['headers']):
+                print(f"  {s['name']} cap header='{raw['headers'][cols['capArmada']]}'")
+            if len(raw["data"]) > 0:
+                r0 = raw["data"][0]
+                cap_val = r0[cols['capArmada']] if cols['capArmada']>=0 and cols['capArmada']<len(r0) else 'OUT OF RANGE'
+                print(f"  {s['name']} row0 cap='{cap_val}' len={len(r0)}")
 
             for r in raw["data"]:
                 row = slim_row(r, cols, s["name"], s["site"])
