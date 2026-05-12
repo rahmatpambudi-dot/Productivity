@@ -1025,47 +1025,50 @@ function renderDetail(results, summary, start, end) {
     { key:'doTrip', label:'DO/Trip Direct',color:'#1a73e8', axis:'yL', align:'top',    fmt:v=>+v.toFixed(1),       disp:v=>v.toFixed(1)     },
     { key:'dpReg',  label:'DP Regular',    color:'#d93025', axis:'yL', align:'top',    fmt:v=>+v.toFixed(1),       disp:v=>v.toFixed(1)     },
     { key:'dpMix',  label:'DP Mix',        color:'#a142f4', axis:'yL', align:'bottom', fmt:v=>+v.toFixed(1),       disp:v=>v.toFixed(1)     },
-    { key:'doDp',   label:'DO/DP Direct',  color:'#0f9d58', axis:'yL', align:'bottom', fmt:v=>+v.toFixed(2),       disp:v=>v.toFixed(2)     },
+    { key:'dpNonReg',label:'DP Non Regular',color:'#0f9d58', axis:'yL', align:'bottom', fmt:v=>+v.toFixed(1),       disp:v=>v.toFixed(1)     },
     { key:'ritase', label:'Ritase',        color:'#1a1d23', axis:'yL', align:'top',    fmt:v=>+v.toFixed(2),       disp:v=>v.toFixed(2)     },
   ];
 
-  const trendDatasets = trendSeries.map(s => ({
-    label: s.label,
-    data: trendData.map(d => d[s.key]!=null ? s.fmt(d[s.key]) : null),
-    borderColor: s.color, pointBackgroundColor: s.color,
-    backgroundColor: 'transparent',
-    borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
-    tension: 0.3, fill: false, yAxisID: s.axis,
-    datalabels: {
-      display: true,
-      anchor: s.align==='bottom'?'start':'end',
-      align: s.align, offset: 6,
-      color: s.color, font:{family:'Inter',size:9,weight:'700'},
-      formatter: v => v!=null ? s.disp(v) : '',
-      backgroundColor: 'rgba(255,255,255,0.85)',
-      borderRadius: 3, padding:{top:2,bottom:2,left:3,right:3}
-    }
-  }));
-
-  const endLabelPlugin = {
+  var endLabelPlugin = {
     id: 'endLabel',
-    afterDatasetsDraw(chart) {
-      const {ctx, chartArea:{right}} = chart;
-      chart.data.datasets.forEach((ds, i) => {
-        const meta = chart.getDatasetMeta(i);
+    afterDatasetsDraw: function(chart) {
+      var ctx=chart.ctx, right=chart.chartArea.right;
+      trendSeries.forEach(function(s,i) {
+        var meta=chart.getDatasetMeta(i);
         if(meta.hidden) return;
-        const last = meta.data[meta.data.length-1];
+        var last=meta.data[meta.data.length-1];
         if(!last) return;
         ctx.save();
-        ctx.font = 'bold 10px Inter,sans-serif';
-        ctx.fillStyle = trendSeries[i].color;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(trendSeries[i].label, right+10, last.y);
+        ctx.font='bold 10px Inter,sans-serif';
+        ctx.fillStyle=s.color;
+        ctx.textAlign='left';
+        ctx.textBaseline = s.align==='bottom'?'top':'bottom';
+        ctx.fillText(s.label, right+10, last.y + (s.align==='bottom'?4:-4));
         ctx.restore();
       });
     }
   };
+
+  var trendDatasets = trendSeries.map(function(s) {
+    return {
+      label: s.label,
+      data: trendData.map(function(d){ return d[s.key]!=null ? s.fmt(d[s.key]) : null; }),
+      borderColor: s.color, pointBackgroundColor: s.color,
+      backgroundColor: 'transparent',
+      borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+      tension: 0.3, fill: false, yAxisID: s.axis,
+      datalabels: {
+        display: function(ctx2){ return ctx2.dataIndex===0||ctx2.dataIndex===trendData.length-1; },
+        anchor: s.align==='bottom'?'start':'end',
+        align:  s.align==='bottom'?'bottom':'top',
+        offset: 4, color: s.color,
+        font: {family:'Inter', size:9, weight:'700'},
+        formatter: function(v,ctx2){ return s.disp(trendData[ctx2.dataIndex][s.key]!=null?trendData[ctx2.dataIndex][s.key]:v); },
+        backgroundColor: 'rgba(255,255,255,0.9)',
+        borderRadius: 3, padding:{top:1,bottom:1,left:2,right:2}
+      }
+    };
+  });
 
   charts.dTREND = new Chart(document.getElementById('dTREND').getContext('2d'), {
     type: 'line',
@@ -1075,15 +1078,23 @@ function renderDetail(results, summary, start, end) {
       responsive: true, maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: { backgroundColor:'#fff', borderColor:'#e8eaed', borderWidth:1, titleColor:'#1a1d23', bodyColor:'#5f6368' },
+        tooltip: {
+          backgroundColor:'#fff', borderColor:'#e8eaed', borderWidth:1,
+          titleColor:'#1a1d23', bodyColor:'#5f6368',
+          callbacks: { label: function(ctx) {
+            var s=trendSeries[ctx.datasetIndex];
+            var raw=trendData[ctx.dataIndex][s.key];
+            return s.label+': '+(raw!=null?s.disp(raw):'—');
+          }}
+        },
         datalabels: { clip: false }
       },
       scales: {
         x: { ticks:{color:'#9aa0a6',font:{family:'Inter',size:11}}, grid:{color:'#f0f0f0'} },
-        yL: { display:false, min:0, max:25 },
+        yL: { display:false, min:0, max:20 },
         yR: { display:false, min:0, max:100 }
       },
-      layout: { padding:{ top:30, right:130, bottom:24, left:4 } }
+      layout: { padding:{ top:24, right:140, bottom:16, left:4 } }
     }
   });
 }
