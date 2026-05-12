@@ -352,6 +352,9 @@ function computeSite(rows, site) {
     console.log('[CIKUPA TAT Store] sample vals:',tatSVals.slice(0,10));
     const highTAT = tatSVals.filter(t=>t>10);
     console.log('[CIKUPA TAT Store] vals >10h:',highTAT.length, highTAT.slice(0,5));
+    // Check rows with high TAT
+    const highRows = srMain.filter(r=>r.td==='store'&&r.kat==='REGULAR'&&(r.sat||'').includes('NON SATELIT')).filter(r=>{const t=parseTAT(r.tat);return t!=null&&t>10;});
+    console.log('[CIKUPA TAT Store] high TAT rows sample:', highRows.slice(0,3).map(r=>({tat:r.tat,sat:r.sat,od:r.od,td:r.td})));
   }
 
   return {
