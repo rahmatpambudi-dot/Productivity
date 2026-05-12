@@ -1022,63 +1022,69 @@ function renderDetail(results, summary, start, end) {
     return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
   });
 
-  // Dynamic axis ranges
-  const leftVals = [
-    ...trendData.map(d=>d.dpMix).filter(v=>v!=null),
-    ...trendData.map(d=>d.dpReg).filter(v=>v!=null),
-    ...trendData.map(d=>d.doTrip).filter(v=>v!=null),
+  const trendSeries = [
+    { key:'olf',    label:'OLF Store (%)', color:'#e37400', axis:'yR', align:'top',    fmt:v=>+(v*100).toFixed(1), disp:v=>v.toFixed(1)+'%' },
+    { key:'doTrip', label:'DO/Trip Direct',color:'#1a73e8', axis:'yL', align:'top',    fmt:v=>+v.toFixed(1),       disp:v=>v.toFixed(1)     },
+    { key:'dpReg',  label:'DP Regular',    color:'#d93025', axis:'yL', align:'top',    fmt:v=>+v.toFixed(1),       disp:v=>v.toFixed(1)     },
+    { key:'dpMix',  label:'DP Mix',        color:'#a142f4', axis:'yL', align:'bottom', fmt:v=>+v.toFixed(1),       disp:v=>v.toFixed(1)     },
+    { key:'ritase', label:'Ritase',        color:'#1a1d23', axis:'yL', align:'top',    fmt:v=>+v.toFixed(2),       disp:v=>v.toFixed(2)     },
   ];
-  const lMin = leftVals.length ? Math.max(0, Math.floor(Math.min(...leftVals)) - 1) : 0;
-  const lMax = leftVals.length ? Math.ceil(Math.max(...leftVals)) + 5 : 20;
 
-  const ritVals = trendData.map(d=>d.ritase).filter(v=>v!=null);
-  const ritMin = ritVals.length ? +(Math.min(...ritVals) - 0.05).toFixed(2) : 0;
-  const ritMax = ritVals.length ? +(Math.max(...ritVals) + 0.05).toFixed(2) : 2;
+  const trendDatasets = trendSeries.map(s => ({
+    label: s.label,
+    data: trendData.map(d => d[s.key]!=null ? s.fmt(d[s.key]) : null),
+    borderColor: s.color, pointBackgroundColor: s.color,
+    backgroundColor: 'transparent',
+    borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
+    tension: 0.3, fill: false, yAxisID: s.axis,
+    datalabels: {
+      display: true,
+      anchor: s.align==='bottom'?'start':'end',
+      align: s.align, offset: 6,
+      color: s.color, font:{family:'Inter',size:9,weight:'700'},
+      formatter: v => v!=null ? s.disp(v) : '',
+      backgroundColor: 'rgba(255,255,255,0.85)',
+      borderRadius: 3, padding:{top:2,bottom:2,left:3,right:3}
+    }
+  }));
+
+  const endLabelPlugin = {
+    id: 'endLabel',
+    afterDatasetsDraw(chart) {
+      const {ctx, chartArea:{right}} = chart;
+      chart.data.datasets.forEach((ds, i) => {
+        const meta = chart.getDatasetMeta(i);
+        if(meta.hidden) return;
+        const last = meta.data[meta.data.length-1];
+        if(!last) return;
+        ctx.save();
+        ctx.font = 'bold 10px Inter,sans-serif';
+        ctx.fillStyle = trendSeries[i].color;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(trendSeries[i].label, right+10, last.y);
+        ctx.restore();
+      });
+    }
+  };
 
   charts.dTREND = new Chart(document.getElementById('dTREND').getContext('2d'), {
     type: 'line',
-    data: {
-      labels: trendLabels,
-      datasets: [
-        mkTrend('DO/Trip Direct','#1a73e8', trendData.map(d=>d.doTrip!=null?+d.doTrip.toFixed(1):null),  'yL',   v=>v.toFixed(1),   'top'),
-        mkTrend('OLF Store (%)', '#e37400', trendData.map(d=>d.olf!=null?+(d.olf*100).toFixed(1):null),  'yOlf', v=>v.toFixed(1)+'%','top'),
-        mkTrend('DP Regular',    '#d93025', trendData.map(d=>d.dpReg!=null?+d.dpReg.toFixed(1):null),    'yL',   v=>v.toFixed(1),   'bottom'),
-        mkTrend('DP Mix',        '#a142f4', trendData.map(d=>d.dpMix!=null?+d.dpMix.toFixed(1):null),    'yL',   v=>v.toFixed(1),   'top'),
-        mkTrend('Ritase',        '#1a1d23', trendData.map(d=>d.ritase!=null?+d.ritase.toFixed(2):null),  'yRit', v=>v.toFixed(2),   'bottom'),
-      ]
-    },
+    data: { labels: trendLabels, datasets: trendDatasets },
+    plugins: [endLabelPlugin],
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: 'right',
-          labels: { color:'#5f6368', font:{family:'Inter',size:10}, boxWidth:10, usePointStyle:true, padding:14 }
-        },
+        legend: { display: false },
         tooltip: { backgroundColor:'#fff', borderColor:'#e8eaed', borderWidth:1, titleColor:'#1a1d23', bodyColor:'#5f6368' },
         datalabels: { clip: false }
       },
       scales: {
         x: { ticks:{color:'#9aa0a6',font:{family:'Inter',size:11}}, grid:{color:'#f0f0f0'} },
-        yL: {
-          position: 'left',
-          min: lMin, max: lMax,
-          grid: { color:'#f0f0f0' },
-          ticks: { color:'#9aa0a6', font:{family:'Inter',size:10} }
-        },
-        yOlf: {
-          position: 'right',
-          min: 0, max: 100,
-          grid: { drawOnChartArea: false },
-          ticks: { color:'#e37400', font:{family:'Inter',size:10}, callback: v => v+'%' }
-        },
-        yRit: {
-          position: 'right',
-          min: ritMin, max: ritMax,
-          grid: { drawOnChartArea: false },
-          display: false
-        }
+        yL: { display:false, min:0, max:25 },
+        yR: { display:false, min:0, max:100 }
       },
-      layout: { padding:{ top:28, right:12, bottom:8 } }
+      layout: { padding:{ top:30, right:130, bottom:24, left:4 } }
     }
   });
 }
