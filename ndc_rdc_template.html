@@ -336,14 +336,14 @@ function computeSite(rows, site) {
     if(r.td !== 'customer' || r.kat !== 'REGULAR') return false;
     if(isCIK) return r.sat.includes('NON SATELIT');
     return r.sa.includes('DALAM KOTA');
-  }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=24);
+  }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&(isCIK?t<=1:t<=24));
 
   // TAT Store
   const tatS = srMain.filter(r => {
     if(r.td !== 'store' || r.kat !== 'REGULAR') return false;
-    if(isCIK) return r.sat.includes('NON SATELIT');
+    if(isCIK) return (r.sat||'').includes('NON SATELIT');
     return r.sa.includes('DALAM KOTA');
-  }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=24);
+  }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&(isCIK?t<=1:t<=24));
 
   // Debug TAT Cikupa
   if(isCIK) {
