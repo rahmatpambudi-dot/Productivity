@@ -121,6 +121,53 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 
 canvas{max-height:200px;}
 
+/* COMPARISON PANEL */
+.cmp-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.cmp-ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;background:var(--white);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;}
+.cmp-ctrl label{font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;}
+.cmp-period{display:flex;align-items:center;gap:6px;}
+.cmp-dot-a{width:8px;height:8px;border-radius:50%;background:#1a73e8;flex-shrink:0;}
+.cmp-dot-b{width:8px;height:8px;border-radius:50%;background:#e37400;flex-shrink:0;}
+.cmp-sep{color:var(--t3);font-size:11px;}
+.btn-cmp{background:var(--green);color:#fff;border:none;padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
+.btn-cmp:hover{background:var(--gm);}
+
+/* ACHIEVEMENT */
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px;}
+.ach-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow);}
+.ach-card .ac-lbl{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
+.ach-card .ac-val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1;}
+.ach-card .ac-tgt{font-size:10px;color:var(--t3);margin-top:3px;}
+.ach-card .ac-badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 8px;border-radius:10px;margin-top:5px;letter-spacing:.3px;}
+.ac-badge.hit{background:var(--gbg);color:var(--green);}
+.ac-badge.warn{background:#fff8e6;color:#b06000;}
+.ac-badge.miss{background:var(--rbg);color:var(--red);}
+
+/* DELTA */
+.d-up{color:var(--gm);font-weight:600;font-size:11px;}
+.d-dn{color:var(--red);font-weight:600;font-size:11px;}
+.d-nt{color:var(--t3);font-size:11px;}
+.arrow-up::before{content:'▲ ';}
+.arrow-dn::before{content:'▼ ';}
+
+/* INSIGHT TABLE */
+.ins-tbl thead th{background:var(--bg);}
+.ins-tbl .col-a{color:#1a73e8;font-weight:600;}
+.ins-tbl .col-b{color:#e37400;font-weight:600;}
+.ins-tbl .gap-pos{color:var(--gm);font-weight:600;}
+.ins-tbl .gap-neg{color:var(--red);font-weight:600;}
+
+/* KESIMPULAN */
+.kesimpulan{border-radius:var(--r);padding:14px 16px;margin-top:14px;}
+.kesimpulan.baik{background:var(--gbg);border:1px solid var(--gl);}
+.kesimpulan.evaluasi{background:#fff8e6;border:1px solid #f9c825;}
+.kesimpulan h4{font-size:12px;font-weight:700;margin-bottom:8px;}
+.kesimpulan ul{list-style:none;display:flex;flex-direction:column;gap:4px;}
+.kesimpulan ul li{font-size:11px;color:var(--t2);}
+.kesimpulan ul li::before{margin-right:6px;}
+.kesimpulan.baik h4{color:var(--green);}
+.kesimpulan.evaluasi h4{color:#b06000;}
+
 /* TABS */
 .tabs{display:flex;gap:2px;background:var(--bg);border-radius:7px;padding:3px;margin-bottom:16px;width:fit-content;}
 .tab{padding:6px 16px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);transition:all .15s;}
@@ -174,7 +221,7 @@ canvas{max-height:200px;}
         <option value="TALLO">Tallo</option>
         <option value="TAMORA">Tamora</option>
       </select>
-      <div class="upd-info">Update: <span id="updTime">12 May 2026 11:24 WIB</span></div>
+      <div class="upd-info">Update: <span id="updTime">12 May 2026 14:36 WIB</span></div>
       <button class="btn-ref" onclick="loadData()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
         Refresh
@@ -195,6 +242,27 @@ let charts = {};
 const SL = { JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora' };
 const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
 
+// ── TARGETS ────────────────────────────────────────────────────
+const TARGETS = {
+  olf:      { label:'OLF Store (%)', target: 0.85,  dir:'up',   fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'85%' },
+  ritase:   { label:'Ritase',        targetBySite:{ JABABEKA:1.15, CIKUPA:1.05, SDA:1.07, TALLO:1.25, TAMORA:1.25, NATIONAL:1.15 }, targetNational:1.15, dir:'up', fmt: v=>v!=null?v.toFixed(2):'—', tgtFmt:'site-specific' },
+  dpMix:    { label:'DP Mix',        target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
+  dpReg:    { label:'DP Regular',    target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
+  doTrip:   { label:'DO/Trip',       target: 11.0,  dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
+};
+// Undefined targets - show in table, no badge
+const TARGETS_UNDEF = {
+  dpStore:  { label:'DP Store',       fmt: v=>v!=null?v.toFixed(1):'—' },
+  dpNonReg: { label:'DP Non Regular', fmt: v=>v!=null?v.toFixed(1):'—' },
+  doDp:     { label:'DO/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
+  tatDirect:{ label:'TAT Direct',     fmt: v=>tatStr(v) },
+  tatStore: { label:'TAT Store',      fmt: v=>tatStr(v) },
+};
+
+// ── COMPARISON STATE ───────────────────────────────────────────
+let cmpA = { start:'', end:'' };
+let cmpB = { start:'', end:'' };
+
 // ── LOAD ───────────────────────────────────────────────────────
 // Register datalabels plugin
 if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
@@ -206,7 +274,7 @@ async function loadData() {
     if (!res.ok) throw new Error('data.json not found');
     const json = await res.json();
     ROWS = json.rows || [];
-    document.getElementById('updTime').textContent = json.timestamp || '12 May 2026 11:24 WIB';
+    document.getElementById('updTime').textContent = json.timestamp || '12 May 2026 14:36 WIB';
     render();
   } catch(e) {
     document.getElementById('content').innerHTML = `<div class="loading"><p style="color:var(--red)">⚠️ ${e.message}. Pastikan GitHub Actions sudah dijalankan.</p></div>`;
@@ -484,6 +552,209 @@ function renderBars(id, results, getFn, fmtFn, cls) {
 }
 
 // ── DETAIL METRIK ──────────────────────────────────────────────
+// ── ACHIEVEMENT HELPERS ────────────────────────────────────────
+function getTarget(key, site) {
+  const t = TARGETS[key];
+  if(!t) return null;
+  if(t.targetBySite) return t.targetBySite[site] || t.targetNational;
+  return t.target;
+}
+
+function achPct(key, val, site) {
+  const t = TARGETS[key];
+  if(!t || val==null) return null;
+  const tgt = getTarget(key, site);
+  if(!tgt) return null;
+  // For TAT (lower is better): achievement = target/actual * 100
+  // For others (higher is better): achievement = actual/target * 100
+  return t.dir==='up' ? (val/tgt*100) : (tgt/val*100);
+}
+
+function achBadge(key, val, site) {
+  const pct = achPct(key, val, site);
+  if(pct==null) return '';
+  const cls = pct>=100 ? 'hit' : pct>=90 ? 'warn' : 'miss';
+  return `<span class="ac-badge ${cls}">${pct.toFixed(1)}%</span>`;
+}
+
+function fmtDelta(vA, vB, key, higherIsBetter) {
+  if(vA==null||vB==null) return '<span class="d-nt">—</span>';
+  const d = vB - vA;
+  const pct = vA!==0 ? (d/Math.abs(vA)*100) : 0;
+  const up = d > 0;
+  const good = higherIsBetter ? up : !up;
+  const cls = d===0 ? 'd-nt' : (good ? 'd-up arrow-up' : 'd-dn arrow-dn');
+  // for TAT show H:MM diff
+  if(key==='tatDirect'||key==='tatStore') {
+    const sign = d>=0?'+':'-';
+    const abs = Math.abs(d);
+    const h=Math.floor(abs); const m=Math.round((abs-h)*60);
+    return `<span class="${cls}">${sign}${h}:${String(m).padStart(2,'0')}</span>`;
+  }
+  if(key==='olf') return `<span class="${cls}">${d>=0?'+':''}${(d*100).toFixed(1)}%</span>`;
+  return `<span class="${cls}">${d>=0?'+':''}${Math.abs(d)<10?d.toFixed(2):d.toFixed(1)}</span>`;
+}
+
+// Higher is better for all except TAT
+const HIGHER_BETTER = { olf:true, ritase:true, dpStore:true, dpMix:true, dpNonReg:false, dpReg:true, doTrip:true, doDp:true, tatDirect:false, tatStore:false };
+
+function buildKesimpulan(resA, resB, sumA, sumB) {
+  const lines = { baik:[], perhatian:[] };
+  const checks = [
+    { key:'olf',   label:'OLF Store',    tgt:0.85, dir:'up',   fmtV: v=>(v*100).toFixed(1)+'%', fmtT:'85%' },
+    { key:'ritase',label:'Ritase',       tgtFn:(site)=>getTarget('ritase',site), dir:'up', fmtV:v=>v.toFixed(2) },
+    { key:'dpMix', label:'DP Mix',       tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
+    { key:'dpReg', label:'DP Regular',   tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
+    { key:'doTrip',label:'DO/Trip',      tgt:11.0, dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'11.0' },
+  ];
+
+  // Achievement vs target (period B)
+  const site = currentSite==='ALL' ? null : currentSite;
+  checks.forEach(c => {
+    const val = site ? (resB.find(r=>r.site===site)||{})[c.key] : sumB[c.key];
+    if(val==null) return;
+    const tgt = c.tgtFn ? c.tgtFn(site||'JABABEKA') : c.tgt;
+    const hit = c.dir==='up' ? val>=tgt : val<=tgt;
+    if(hit) lines.baik.push(`${c.label} ${c.fmtV(val)} mencapai target ${c.fmtT||tgt}`);
+    else lines.perhatian.push(`${c.label} ${c.fmtV(val)} belum mencapai target ${c.fmtT||tgt}`);
+  });
+
+  // MoM trend (if comparison data available)
+  if(sumA && sumB) {
+    const olfDelta = sumB.olf!=null&&sumA.olf!=null ? sumB.olf-sumA.olf : null;
+    const tatDDelta = sumB.tatDirect!=null&&sumA.tatDirect!=null ? sumB.tatDirect-sumA.tatDirect : null;
+    const tatSDelta = sumB.tatStore!=null&&sumA.tatStore!=null ? sumB.tatStore-sumA.tatStore : null;
+    const doTDelta = sumB.doTrip!=null&&sumA.doTrip!=null ? sumB.doTrip-sumA.doTrip : null;
+    const ritDelta = sumB.ritase!=null&&sumA.ritase!=null ? sumB.ritase-sumA.ritase : null;
+
+    if(olfDelta!=null) {
+      if(olfDelta>0) lines.baik.push(`OLF naik +${(olfDelta*100).toFixed(1)}% dibanding periode sebelumnya`);
+      else if(olfDelta<-0.01) lines.perhatian.push(`OLF turun ${(olfDelta*100).toFixed(1)}% dibanding periode sebelumnya`);
+    }
+    if(tatDDelta!=null) {
+      const h=Math.floor(Math.abs(tatDDelta)); const m=Math.round((Math.abs(tatDDelta)-h)*60);
+      if(tatDDelta<0) lines.baik.push(`TAT Direct membaik ${h}:${String(m).padStart(2,'0')} jam lebih cepat`);
+      else if(tatDDelta>0.1) lines.perhatian.push(`TAT Direct melambat +${h}:${String(m).padStart(2,'0')} jam`);
+    }
+    if(tatSDelta!=null) {
+      const h=Math.floor(Math.abs(tatSDelta)); const m=Math.round((Math.abs(tatSDelta)-h)*60);
+      if(tatSDelta<0) lines.baik.push(`TAT Store membaik ${h}:${String(m).padStart(2,'0')} jam lebih cepat`);
+      else if(tatSDelta>0.1) lines.perhatian.push(`TAT Store melambat +${h}:${String(m).padStart(2,'0')} jam`);
+    }
+    if(doTDelta!=null) {
+      if(doTDelta>0) lines.baik.push(`DO/Trip naik +${doTDelta.toFixed(1)} (lebih produktif)`);
+      else if(doTDelta<-0.5) lines.perhatian.push(`DO/Trip turun ${doTDelta.toFixed(1)}`);
+    }
+    if(ritDelta!=null) {
+      if(ritDelta>0) lines.baik.push(`Ritase naik +${ritDelta.toFixed(2)} (kepadatan armada membaik)`);
+      else if(ritDelta<-0.02) lines.perhatian.push(`Ritase turun ${ritDelta.toFixed(2)}`);
+    }
+  }
+
+  const isGood = lines.perhatian.length === 0 || lines.baik.length > lines.perhatian.length;
+  const cls = lines.perhatian.length > lines.baik.length ? 'evaluasi' : 'baik';
+  const title = lines.perhatian.length === 0 ? '✅ Operasional Efisien' : (lines.baik.length >= lines.perhatian.length ? '⚠️ Cukup Baik, Ada yang Perlu Diperhatikan' : '⚠️ Perlu Evaluasi');
+
+  let html = `<div class="kesimpulan ${cls}"><h4>${title}</h4><ul>`;
+  lines.baik.forEach(l => html += `<li>✓ ${l}</li>`);
+  lines.perhatian.forEach(l => html += `<li>⚠ ${l}</li>`);
+  html += '</ul></div>';
+  return html;
+}
+
+function renderComparison() {
+  const s1=cmpA.start, e1=cmpA.end, s2=cmpB.start, e2=cmpB.end;
+  if(!s1||!e1||!s2||!e2) {
+    document.getElementById('cmpResult').innerHTML = '<p style="color:var(--t3);font-size:12px;padding:12px">Pilih kedua periode lalu klik Bandingkan.</p>';
+    return;
+  }
+
+  const rowsA = filterRows(ROWS, s1, e1, currentSite);
+  const rowsB = filterRows(ROWS, s2, e2, currentSite);
+  const resA = currentSite==='ALL' ? computeAll(rowsA) : [computeSite(rowsA, currentSite)];
+  const resB = currentSite==='ALL' ? computeAll(rowsB) : [computeSite(rowsB, currentSite)];
+  const sumA = makeSummary(resA);
+  const sumB = makeSummary(resB);
+
+  const allMetrics = [
+    { key:'olf',      label:'OLF Store (%)', fmtA:v=>v!=null?(v*100).toFixed(1)+'%':'—', fmtB:v=>v!=null?(v*100).toFixed(1)+'%':'—' },
+    { key:'ritase',   label:'Ritase' },
+    { key:'dpStore',  label:'DP Store' },
+    { key:'dpMix',    label:'DP Mix' },
+    { key:'dpNonReg', label:'DP Non Regular' },
+    { key:'dpReg',    label:'DP Regular' },
+    { key:'doTrip',   label:'DO/Trip Direct' },
+    { key:'doDp',     label:'DO/DP Direct' },
+    { key:'tatDirect',label:'TAT Direct', isTAT:true },
+    { key:'tatStore', label:'TAT Store',  isTAT:true },
+  ];
+
+  const fmt = (key, v) => {
+    if(v==null) return '—';
+    if(key==='olf') return (v*100).toFixed(1)+'%';
+    if(key==='tatDirect'||key==='tatStore') return tatStr(v);
+    if(key==='doDp') return v.toFixed(2);
+    return v.toFixed(1);
+  };
+
+  // Build table rows using summary (ALL) or single site
+  const vA = currentSite==='ALL' ? sumA : (resA[0]||{});
+  const vB = currentSite==='ALL' ? sumB : (resB[0]||{});
+
+  let tableRows = allMetrics.map(m => {
+    const a=vA[m.key], b=vB[m.key];
+    const hib = HIGHER_BETTER[m.key];
+    const delta = fmtDelta(a, b, m.key, hib);
+    return `<tr>
+      <td><strong>${m.label}</strong></td>
+      <td class="num col-a">${fmt(m.key,a)}</td>
+      <td class="num col-b">${fmt(m.key,b)}</td>
+      <td class="num">${delta}</td>
+    </tr>`;
+  }).join('');
+
+  // Per-site rows if ALL
+  let siteSection = '';
+  if(currentSite==='ALL') {
+    siteSection = `<div class="panel" style="margin-top:14px"><div class="ph"><h3>Perbandingan per Site</h3><span class="tag">Periode A vs B</span></div>
+    <div class="tw"><table class="dt ins-tbl"><thead><tr>
+      <th>SITE</th>
+      ${allMetrics.map(m=>`<th class="num">${m.label}</th>`).join('')}
+    </tr></thead><tbody>`;
+
+    SITES.forEach(site => {
+      const a = resA.find(r=>r.site===site)||{};
+      const b = resB.find(r=>r.site===site)||{};
+      siteSection += `<tr><td><strong>${SL[site]}</strong></td>`;
+      allMetrics.forEach(m => {
+        const d = fmtDelta(a[m.key], b[m.key], m.key, HIGHER_BETTER[m.key]);
+        siteSection += `<td class="num" style="font-size:11px">${fmt(m.key,a[m.key])} → ${fmt(m.key,b[m.key])} ${d}</td>`;
+      });
+      siteSection += '</tr>';
+    });
+    siteSection += '</tbody></table></div></div>';
+  }
+
+  const labelA = `${s1} — ${e1}`;
+  const labelB = `${s2} — ${e2}`;
+
+  document.getElementById('cmpResult').innerHTML = `
+    <div class="panel"><div class="ph">
+      <h3>Tabel Perbandingan</h3>
+      <span class="tag"><span style="color:#1a73e8">■</span> Periode A &nbsp; <span style="color:#e37400">■</span> Periode B</span>
+    </div>
+    <div class="tw"><table class="dt ins-tbl"><thead><tr>
+      <th>METRIK</th>
+      <th class="num col-a">A: ${labelA}</th>
+      <th class="num col-b">B: ${labelB}</th>
+      <th class="num">DELTA (B−A)</th>
+    </tr></thead><tbody>${tableRows}</tbody></table></div>
+    </div>
+    ${siteSection}
+    ${buildKesimpulan(resB, resB, sumA, sumB)}
+  `;
+}
+
 function renderDetail(results, summary, start, end) {
   // Compute daily trend data for charts
   const {start:s, end:e} = getRange();
@@ -510,7 +781,70 @@ function renderDetail(results, summary, start, end) {
     { key:'tatStore', label:'TAT Store',            fmt: v=>tatStr(v) },
   ];
 
+  // ── ACHIEVEMENT CARDS ─────────────────────────────────────────
+  const achMetrics = [
+    { key:'olf',    label:'OLF Store',   fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'Target ≥85%' },
+    { key:'ritase', label:'Ritase',      fmt:v=>v!=null?v.toFixed(2):'—',           tgtFmt:(site)=>`Target ≥${getTarget('ritase',site)||1.15}` },
+    { key:'dpMix',  label:'DP Mix',      fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
+    { key:'dpReg',  label:'DP Regular',  fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
+    { key:'doTrip', label:'DO/Trip',     fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥11.0' },
+  ];
+
+  // For single site use that site result, for ALL use summary
+  const achResults = currentSite==='ALL'
+    ? results.map(r=>({...r, _isSite:true}))
+    : results;
+
+  // Build achievement cards per site or summary
+  const achDisplay = currentSite==='ALL' ? [...results, {...summary, site:'NDC_RDC_AVG', label:'AVG'}] : results;
+
+  let achCards = '';
+  achDisplay.forEach(r => {
+    const site = r.site;
+    achMetrics.forEach(m => {
+      const val = r[m.key];
+      const tgt = typeof m.tgtFmt==='function' ? m.tgtFmt(site) : m.tgtFmt;
+      const badge = achBadge(m.key, val, site);
+      if(currentSite==='ALL' && r.site!=='NDC_RDC_AVG') return; // only show AVG cards when ALL
+      achCards += `<div class="ach-card">
+        <div class="ac-lbl">${m.label}${currentSite!=='ALL'?'':''}</div>
+        <div class="ac-val">${m.fmt(val)}</div>
+        <div class="ac-tgt">${tgt}</div>
+        ${badge}
+      </div>`;
+    });
+  });
+
+  // Per-site achievement if single site
+  let siteAchTable = '';
+  if(currentSite==='ALL') {
+    const rows = achMetrics.map(m=>`
+      <tr><td><strong>${m.label}</strong></td>
+      ${results.map(r=>{
+        const pct = achPct(m.key, r[m.key], r.site);
+        const cls = pct==null?'':pct>=100?'hit':pct>=90?'warn':'miss';
+        const badge = pct!=null ? `<span class="ac-badge ${cls}">${pct.toFixed(1)}%</span>` : '';
+        return `<td class="num">${m.fmt(r[m.key])} ${badge}</td>`;
+      }).join('')}
+      <td class="num"><strong>${m.fmt(summary[m.key])}</strong> ${(()=>{const p=achPct(m.key,summary[m.key],'NATIONAL');return p!=null?`<span class="ac-badge ${p>=100?'hit':p>=90?'warn':'miss'}">${p.toFixed(1)}%</span>`:'';})()} </td>
+      </tr>`).join('');
+    siteAchTable = `<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement per Site</h3><span class="tag">vs target</span></div>
+      <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
+      <tbody>${rows}</tbody></table></div></div>`;
+  } else {
+    siteAchTable = `<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement — ${results[0]?.label||currentSite}</h3><span class="tag">vs target</span></div>
+      <div class="ach-grid" style="padding:14px 16px">${achCards}</div></div>`;
+  }
+
+  // ── COMPARISON CONTROLS ────────────────────────────────────────
+  const today = new Date().toISOString().slice(0,10);
+  const prevMonthStart = new Date(new Date().getFullYear(), new Date().getMonth()-1, 1).toISOString().slice(0,10);
+  const prevMonthEnd   = new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().slice(0,10);
+  if(!cmpA.start) { cmpA.start=prevMonthStart; cmpA.end=prevMonthEnd; }
+  if(!cmpB.start) { const {start:cs,end:ce}=getRange(); cmpB.start=cs; cmpB.end=ce; }
+
   document.getElementById('content').innerHTML = `
+    ${currentSite==='ALL' ? siteAchTable : siteAchTable}
     <div class="g2" style="margin-bottom:14px">
       <div class="panel"><div class="ph"><h3>Ringkasan Metrik</h3><span class="tag">range terpilih</span></div>
         <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
@@ -530,6 +864,36 @@ function renderDetail(results, summary, start, end) {
     <div class="g2">
       <div class="panel"><div class="ph"><h3>DO/Trip & DO/DP</h3><span class="tag">efficiency</span></div><div class="pb"><canvas id="dDO"></canvas></div></div>
       <div class="panel"><div class="ph"><h3>Ritase Harian</h3><span class="tag">avg per hari</span></div><div class="pb"><canvas id="dRIT"></canvas></div></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <div class="ph"><h3>Trendline Bulanan</h3><span class="tag">berdasarkan filter periode & site</span></div>
+      <div style="padding:16px;height:280px;position:relative"><canvas id="dTREND"></canvas></div>
+    </div>
+
+    <!-- COMPARISON SECTION -->
+    <div class="panel" style="margin-top:14px">
+      <div class="ph"><h3>Perbandingan Periode</h3><span class="tag">MoM / custom</span></div>
+      <div style="padding:12px 16px">
+        <div class="cmp-ctrl" style="border:none;padding:0;margin-bottom:12px;background:none">
+          <div class="cmp-period">
+            <span class="cmp-dot-a"></span>
+            <label>Periode A:</label>
+            <input type="date" class="date-in" id="cmpAStart" value="${cmpA.start}">
+            <span class="cmp-sep">—</span>
+            <input type="date" class="date-in" id="cmpAEnd" value="${cmpA.end}">
+          </div>
+          <span style="color:var(--t3);font-size:13px;margin:0 8px">vs</span>
+          <div class="cmp-period">
+            <span class="cmp-dot-b"></span>
+            <label>Periode B:</label>
+            <input type="date" class="date-in" id="cmpBStart" value="${cmpB.start}">
+            <span class="cmp-sep">—</span>
+            <input type="date" class="date-in" id="cmpBEnd" value="${cmpB.end}">
+          </div>
+          <button class="btn-cmp" onclick="applyCmp()">Bandingkan</button>
+        </div>
+        <div id="cmpResult"><p style="color:var(--t3);font-size:12px">Pilih kedua periode lalu klik Bandingkan.</p></div>
+      </div>
     </div>
   `;
 
@@ -571,15 +935,142 @@ function renderDetail(results, summary, start, end) {
     {label:'DO/DP',data:results.map(r=>r.doDp),backgroundColor:'rgba(227,116,0,.5)',borderColor:'#e37400',borderWidth:1,borderRadius:4},
   ]},options:co});
 
-  // Ritase line chart by date
-  const ritByDate = dates.map(d => {
-    const dRows = filterRows(dailyMap[d]||[], d, d, currentSite);
-    const byLc = {}; dRows.forEach(r=>{ if(!byLc[r.date])byLc[r.date]={t:new Set(),d:[]}; byLc[r.date].t.add(r.lc); byLc[r.date].d.push(r.do); });
-    const vals = Object.values(byLc).map(v=>{ const dc=v.d.filter(x=>x!=='').length; return dc>0?v.t.size/dc:null; });
-    return avg(vals);
+  // ── MONTHLY TRENDLINE ──────────────────────────────────────────
+  const monthMap = {};
+  filtered.forEach(r => {
+    if(!r.date) return;
+    const mo = r.date.slice(0,7);
+    if(!monthMap[mo]) monthMap[mo] = [];
+    monthMap[mo].push(r);
   });
-  const shortDates = dates.map(d=>d.slice(5));
-  charts.dRIT = new Chart(document.getElementById('dRIT').getContext('2d'),{type:'line',data:{labels:shortDates,datasets:[{label:'Ritase',data:ritByDate,borderColor:'#34a85a',backgroundColor:'rgba(52,168,90,.1)',borderWidth:2,pointRadius:2,tension:.3,fill:true}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0}}}});
+  const months = Object.keys(monthMap).sort();
+  const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const moLabels = months.map(m => {
+    const [y,mn] = m.split('-');
+    return moNames[parseInt(mn)-1] + ' ' + y;
+  });
+  const moData = months.map(mo => {
+    const moRows = monthMap[mo] || [];
+    return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
+  });
+
+  function mkTrend(label, color, data, yAxis, fmtFn) {
+    return {
+      label, yAxisID: yAxis,
+      data,
+      borderColor: color, backgroundColor: 'transparent',
+      borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: color,
+      pointHoverRadius: 6, tension: 0.3, fill: false,
+      datalabels: {
+        display: true, anchor:'end', align:'top', offset:3,
+        color, font:{family:'Inter', size:9, weight:'700'},
+        formatter: v => v!=null ? fmtFn(v) : ''
+      }
+    };
+  }
+
+  // ── TRENDLINE: apple-to-apple by day-of-month range ──────────
+  // Extract day range from current filter (e.g. 1-11 → use day 1-11 each month)
+  const filterD1 = parseInt(s.slice(8,10));
+  const filterD2 = parseInt(e.slice(8,10));
+  const filterStartYM = s.slice(0,7); // YYYY-MM of start
+
+  // Build all months from Jan of start-year up to end month
+  const allMonths = [];
+  const [endY, endM] = e.slice(0,7).split('-').map(Number);
+  const [startY] = s.slice(0,7).split('-').map(Number);
+  for(let y=startY; y<=endY; y++) {
+    const mStart = 1;
+    const mEnd = (y===endY) ? endM : 12;
+    for(let m=mStart; m<=mEnd; m++) {
+      allMonths.push(`${y}-${String(m).padStart(2,'0')}`);
+    }
+  }
+
+  const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const trendLabels = allMonths.map(mo => {
+    const [y,mn] = mo.split('-');
+    return moNames[parseInt(mn)-1] + ' ' + y;
+  });
+
+  // For each month, compute using same day range as filter
+  const trendData = allMonths.map(mo => {
+    const d1 = `${mo}-${String(filterD1).padStart(2,'0')}`;
+    // Last day of month capped at filterD2
+    const daysInMonth = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+    const d2 = `${mo}-${String(Math.min(filterD2, daysInMonth)).padStart(2,'0')}`;
+    const moRows = filterRows(ROWS, d1, d2, currentSite);
+    return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
+  });
+
+  // Dynamic axis ranges
+  const leftVals = [
+    ...trendData.map(d=>d.dpMix).filter(v=>v!=null),
+    ...trendData.map(d=>d.dpReg).filter(v=>v!=null),
+    ...trendData.map(d=>d.doTrip).filter(v=>v!=null),
+  ];
+  const lMin = leftVals.length ? Math.max(0, Math.floor(Math.min(...leftVals)) - 1) : 0;
+  const lMax = leftVals.length ? Math.ceil(Math.max(...leftVals)) + 3 : 20;
+
+  const ritVals = trendData.map(d=>d.ritase).filter(v=>v!=null);
+  const ritMin = ritVals.length ? +(Math.min(...ritVals) - 0.05).toFixed(2) : 0;
+  const ritMax = ritVals.length ? +(Math.max(...ritVals) + 0.05).toFixed(2) : 2;
+
+  charts.dTREND = new Chart(document.getElementById('dTREND').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: trendLabels,
+      datasets: [
+        mkTrend('Ritase',        '#1a1d23', trendData.map(d=>d.ritase!=null?+d.ritase.toFixed(2):null),  'yRit', v=>v.toFixed(2)),
+        mkTrend('OLF Store (%)', '#e37400', trendData.map(d=>d.olf!=null?+(d.olf*100).toFixed(1):null),  'yOlf', v=>v.toFixed(1)+'%'),
+        mkTrend('DP Mix',        '#a142f4', trendData.map(d=>d.dpMix!=null?+d.dpMix.toFixed(1):null),    'yL',   v=>v.toFixed(1)),
+        mkTrend('DP Regular',    '#d93025', trendData.map(d=>d.dpReg!=null?+d.dpReg.toFixed(1):null),    'yL',   v=>v.toFixed(1)),
+        mkTrend('DO/Trip Direct','#1a73e8', trendData.map(d=>d.doTrip!=null?+d.doTrip.toFixed(1):null),  'yL',   v=>v.toFixed(1)),
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: { color:'#5f6368', font:{family:'Inter',size:10}, boxWidth:10, usePointStyle:true, padding:14 }
+        },
+        tooltip: { backgroundColor:'#fff', borderColor:'#e8eaed', borderWidth:1, titleColor:'#1a1d23', bodyColor:'#5f6368' },
+        datalabels: { clip: false }
+      },
+      scales: {
+        x: { ticks:{color:'#9aa0a6',font:{family:'Inter',size:11}}, grid:{color:'#f0f0f0'} },
+        yL: {
+          position: 'left',
+          min: lMin, max: lMax,
+          grid: { color:'#f0f0f0' },
+          ticks: { color:'#9aa0a6', font:{family:'Inter',size:10} }
+        },
+        yOlf: {
+          position: 'right',
+          min: 0, max: 100,
+          grid: { drawOnChartArea: false },
+          ticks: { color:'#e37400', font:{family:'Inter',size:10}, callback: v => v+'%' }
+        },
+        yRit: {
+          position: 'right',
+          min: ritMin, max: ritMax,
+          grid: { drawOnChartArea: false },
+          display: false
+        }
+      },
+      layout: { padding:{ top:28, right:12, bottom:8 } }
+    }
+  });
+}
+
+// ── COMPARISON APPLY ───────────────────────────────────────────
+function applyCmp() {
+  cmpA.start = document.getElementById('cmpAStart')?.value || '';
+  cmpA.end   = document.getElementById('cmpAEnd')?.value   || '';
+  cmpB.start = document.getElementById('cmpBStart')?.value || '';
+  cmpB.end   = document.getElementById('cmpBEnd')?.value   || '';
+  renderComparison();
 }
 
 // ── CONTROLS ───────────────────────────────────────────────────
