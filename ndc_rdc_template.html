@@ -345,6 +345,15 @@ function computeSite(rows, site) {
     return r.sa.includes('DALAM KOTA');
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=24);
 
+  // Debug TAT Cikupa
+  if(isCIK) {
+    const tatSVals = srMain.filter(r=>r.td==='store'&&r.kat==='REGULAR'&&(r.sat||'').includes('NON SATELIT')).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=24);
+    console.log('[CIKUPA TAT Store] count:',tatSVals.length,'avg:',tatSVals.length?tatSVals.reduce((a,b)=>a+b,0)/tatSVals.length:null);
+    console.log('[CIKUPA TAT Store] sample vals:',tatSVals.slice(0,10));
+    const highTAT = tatSVals.filter(t=>t>10);
+    console.log('[CIKUPA TAT Store] vals >10h:',highTAT.length, highTAT.slice(0,5));
+  }
+
   return {
     site, label: SL[site]||site,
     ritase: avg(ritVals), olf: oM>0?oL/oM:null,
