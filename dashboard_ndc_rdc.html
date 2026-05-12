@@ -221,7 +221,7 @@ canvas{max-height:200px;}
         <option value="TALLO">Tallo</option>
         <option value="TAMORA">Tamora</option>
       </select>
-      <div class="upd-info">Update: <span id="updTime">12 May 2026 14:36 WIB</span></div>
+      <div class="upd-info">Update: <span id="updTime">12 May 2026 16:37 WIB</span></div>
       <button class="btn-ref" onclick="loadData()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
         Refresh
@@ -255,6 +255,8 @@ const TARGETS_UNDEF = {
   dpStore:  { label:'DP Store',       fmt: v=>v!=null?v.toFixed(1):'—' },
   dpNonReg: { label:'DP Non Regular', fmt: v=>v!=null?v.toFixed(1):'—' },
   doDp:     { label:'DO/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
+  cbmDo:    { label:'CBM/DO',          fmt: v=>v!=null?v.toFixed(2):'—' },
+  cbmDp:    { label:'CBM/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
   tatDirect:{ label:'TAT Direct',     fmt: v=>tatStr(v) },
   tatStore: { label:'TAT Store',      fmt: v=>tatStr(v) },
 };
@@ -274,7 +276,7 @@ async function loadData() {
     if (!res.ok) throw new Error('data.json not found');
     const json = await res.json();
     ROWS = json.rows || [];
-    document.getElementById('updTime').textContent = json.timestamp || '12 May 2026 14:36 WIB';
+    document.getElementById('updTime').textContent = json.timestamp || '12 May 2026 16:37 WIB';
     render();
   } catch(e) {
     document.getElementById('content').innerHTML = `<div class="loading"><p style="color:var(--red)">⚠️ ${e.message}. Pastikan GitHub Actions sudah dijalankan.</p></div>`;
@@ -386,6 +388,7 @@ function computeSite(rows, site) {
   const doTr = drR.map(r=>parseFloat(r.do)||0);
   const doDpK = ssum(drR.map(r=>parseFloat(r.do)||0));
   const doDpN = ssum(drR.map(r=>parseFloat(r.dp)||0));
+  const cbmTotal = ssum(drR.map(r=>parseFloat(r.cbm)||0));
 
   // TAT Direct
   const tatD = srMain.filter(r => {
@@ -406,6 +409,8 @@ function computeSite(rows, site) {
     ritase: avg(ritVals), olf: oM>0?oL/oM:null,
     dpStore: avg(dpSt), dpMix: avg(dpMx), dpNonReg: avg(dpNR), dpReg: avg(dpRg),
     doTrip: avg(doTr), doDp: doDpN>0?doDpK/doDpN:null,
+    cbmDo: doDpK>0?cbmTotal/doDpK:null,
+    cbmDp: doDpN>0?cbmTotal/doDpN:null,
     tatDirect: avg(tatD), tatStore: avg(tatS),
     rowCount: sr.length,
   };
@@ -416,7 +421,7 @@ function computeAll(rows) {
 }
 
 function makeSummary(results) {
-  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','tatDirect','tatStore'];
+  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore'];
   return { site:'NDC & RDC', label:'NDC & RDC', ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])) };
 }
 
@@ -596,7 +601,7 @@ function fmtDelta(vA, vB, key, higherIsBetter) {
 }
 
 // Higher is better for all except TAT
-const HIGHER_BETTER = { olf:true, ritase:true, dpStore:true, dpMix:true, dpNonReg:false, dpReg:true, doTrip:true, doDp:true, tatDirect:false, tatStore:false };
+const HIGHER_BETTER = { olf:true, ritase:true, dpStore:true, dpMix:true, dpNonReg:false, dpReg:true, doTrip:true, doDp:true, cbmDo:true, cbmDp:true, tatDirect:false, tatStore:false };
 
 function buildKesimpulan(resA, resB, sumA, sumB) {
   const lines = { baik:[], perhatian:[] };
@@ -685,6 +690,8 @@ function renderComparison() {
     { key:'dpReg',    label:'DP Regular' },
     { key:'doTrip',   label:'DO/Trip Direct' },
     { key:'doDp',     label:'DO/DP Direct' },
+    { key:'cbmDo',    label:'CBM/DO' },
+    { key:'cbmDp',    label:'CBM/DP' },
     { key:'tatDirect',label:'TAT Direct', isTAT:true },
     { key:'tatStore', label:'TAT Store',  isTAT:true },
   ];
@@ -693,7 +700,7 @@ function renderComparison() {
     if(v==null) return '—';
     if(key==='olf') return (v*100).toFixed(1)+'%';
     if(key==='tatDirect'||key==='tatStore') return tatStr(v);
-    if(key==='doDp') return v.toFixed(2);
+    if(key==='doDp'||key==='cbmDo'||key==='cbmDp') return v.toFixed(2);
     return v.toFixed(1);
   };
 
@@ -701,58 +708,57 @@ function renderComparison() {
   const vA = currentSite==='ALL' ? sumA : (resA[0]||{});
   const vB = currentSite==='ALL' ? sumB : (resB[0]||{});
 
-  let tableRows = allMetrics.map(m => {
+  let tableRows = '';
+  allMetrics.forEach(m => {
     const a=vA[m.key], b=vB[m.key];
-    const hib = HIGHER_BETTER[m.key];
-    const delta = fmtDelta(a, b, m.key, hib);
-    return `<tr>
-      <td><strong>${m.label}</strong></td>
-      <td class="num col-a">${fmt(m.key,a)}</td>
-      <td class="num col-b">${fmt(m.key,b)}</td>
-      <td class="num">${delta}</td>
-    </tr>`;
-  }).join('');
+    const delta = fmtDelta(a, b, m.key, HIGHER_BETTER[m.key]);
+    tableRows += '<tr>'
+      +'<td><strong>'+m.label+'</strong></td>'
+      +'<td class="num col-a">'+fmt(m.key,a)+'</td>'
+      +'<td class="num col-b">'+fmt(m.key,b)+'</td>'
+      +'<td class="num">'+delta+'</td>'
+      +'</tr>';
+  });
 
   // Per-site rows if ALL
   let siteSection = '';
   if(currentSite==='ALL') {
-    siteSection = `<div class="panel" style="margin-top:14px"><div class="ph"><h3>Perbandingan per Site</h3><span class="tag">Periode A vs B</span></div>
-    <div class="tw"><table class="dt ins-tbl"><thead><tr>
-      <th>SITE</th>
-      ${allMetrics.map(m=>`<th class="num">${m.label}</th>`).join('')}
-    </tr></thead><tbody>`;
-
+    let siteThead = '<tr><th>SITE</th>';
+    allMetrics.forEach(m => { siteThead += '<th class="num">'+m.label+'</th>'; });
+    siteThead += '</tr>';
+    let siteTbody = '';
     SITES.forEach(site => {
       const a = resA.find(r=>r.site===site)||{};
       const b = resB.find(r=>r.site===site)||{};
-      siteSection += `<tr><td><strong>${SL[site]}</strong></td>`;
+      let tr = '<tr><td><strong>'+SL[site]+'</strong></td>';
       allMetrics.forEach(m => {
         const d = fmtDelta(a[m.key], b[m.key], m.key, HIGHER_BETTER[m.key]);
-        siteSection += `<td class="num" style="font-size:11px">${fmt(m.key,a[m.key])} → ${fmt(m.key,b[m.key])} ${d}</td>`;
+        tr += '<td class="num" style="font-size:11px">'+fmt(m.key,a[m.key])+' → '+fmt(m.key,b[m.key])+' '+d+'</td>';
       });
-      siteSection += '</tr>';
+      tr += '</tr>';
+      siteTbody += tr;
     });
-    siteSection += '</tbody></table></div></div>';
+    siteSection = '<div class="panel" style="margin-top:14px"><div class="ph"><h3>Perbandingan per Site</h3><span class="tag">Periode A vs B</span></div>'
+      +'<div class="tw"><table class="dt ins-tbl"><thead>'+siteThead+'</thead><tbody>'+siteTbody+'</tbody></table></div></div>';
   }
 
-  const labelA = `${s1} — ${e1}`;
-  const labelB = `${s2} — ${e2}`;
+  const labelA = s1+' — '+e1;
+  const labelB = s2+' — '+e2;
 
-  document.getElementById('cmpResult').innerHTML = `
-    <div class="panel"><div class="ph">
-      <h3>Tabel Perbandingan</h3>
-      <span class="tag"><span style="color:#1a73e8">■</span> Periode A &nbsp; <span style="color:#e37400">■</span> Periode B</span>
-    </div>
-    <div class="tw"><table class="dt ins-tbl"><thead><tr>
-      <th>METRIK</th>
-      <th class="num col-a">A: ${labelA}</th>
-      <th class="num col-b">B: ${labelB}</th>
-      <th class="num">DELTA (B−A)</th>
-    </tr></thead><tbody>${tableRows}</tbody></table></div>
-    </div>
-    ${siteSection}
-    ${buildKesimpulan(resB, resB, sumA, sumB)}
-  `;
+  document.getElementById('cmpResult').innerHTML =
+    '<div class="panel"><div class="ph">'
+    +'<h3>Tabel Perbandingan</h3>'
+    +'<span class="tag"><span style="color:#1a73e8">■</span> Periode A &nbsp; <span style="color:#e37400">■</span> Periode B</span>'
+    +'</div>'
+    +'<div class="tw"><table class="dt ins-tbl"><thead><tr>'
+    +'<th>METRIK</th>'
+    +'<th class="num col-a">A: '+labelA+'</th>'
+    +'<th class="num col-b">B: '+labelB+'</th>'
+    +'<th class="num">DELTA (B−A)</th>'
+    +'</tr></thead><tbody>'+tableRows+'</tbody></table></div>'
+    +'</div>'
+    +siteSection
+    +buildKesimpulan(resB, resB, sumA, sumB);
 }
 
 function renderDetail(results, summary, start, end) {
@@ -777,6 +783,8 @@ function renderDetail(results, summary, start, end) {
     { key:'dpReg',    label:'DP Regular',           fmt: v=>pf(v,1) },
     { key:'doTrip',   label:'DO/Trip Direct',       fmt: v=>pf(v,1) },
     { key:'doDp',     label:'DO/DP Direct',         fmt: v=>pf(v,2) },
+    { key:'cbmDo',    label:'CBM/DO',               fmt: v=>pf(v,2) },
+    { key:'cbmDp',    label:'CBM/DP',               fmt: v=>pf(v,2) },
     { key:'tatDirect',label:'TAT Direct',           fmt: v=>tatStr(v) },
     { key:'tatStore', label:'TAT Store',            fmt: v=>tatStr(v) },
   ];
@@ -817,23 +825,31 @@ function renderDetail(results, summary, start, end) {
 
   // Per-site achievement if single site
   let siteAchTable = '';
+  function mkBadge(pct) {
+    if(pct==null) return '';
+    const cls = pct>=100?'hit':pct>=90?'warn':'miss';
+    return '<span class="ac-badge '+cls+'">'+pct.toFixed(1)+'%</span>';
+  }
   if(currentSite==='ALL') {
-    const rows = achMetrics.map(m=>`
-      <tr><td><strong>${m.label}</strong></td>
-      ${results.map(r=>{
+    let thead = '<tr><th>METRIK</th>';
+    results.forEach(r=>{ thead += '<th class="num">'+r.label+'</th>'; });
+    thead += '<th class="num">AVG</th></tr>';
+    let tbody = '';
+    achMetrics.forEach(m => {
+      let tr = '<tr><td><strong>'+m.label+'</strong></td>';
+      results.forEach(r => {
         const pct = achPct(m.key, r[m.key], r.site);
-        const cls = pct==null?'':pct>=100?'hit':pct>=90?'warn':'miss';
-        const badge = pct!=null ? `<span class="ac-badge ${cls}">${pct.toFixed(1)}%</span>` : '';
-        return `<td class="num">${m.fmt(r[m.key])} ${badge}</td>`;
-      }).join('')}
-      <td class="num"><strong>${m.fmt(summary[m.key])}</strong> ${(()=>{const p=achPct(m.key,summary[m.key],'NATIONAL');return p!=null?`<span class="ac-badge ${p>=100?'hit':p>=90?'warn':'miss'}">${p.toFixed(1)}%</span>`:'';})()} </td>
-      </tr>`).join('');
-    siteAchTable = `<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement per Site</h3><span class="tag">vs target</span></div>
-      <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
-      <tbody>${rows}</tbody></table></div></div>`;
+        tr += '<td class="num">'+m.fmt(r[m.key])+' '+mkBadge(pct)+'</td>';
+      });
+      const avgPct = achPct(m.key, summary[m.key], 'NATIONAL');
+      tr += '<td class="num"><strong>'+m.fmt(summary[m.key])+'</strong> '+mkBadge(avgPct)+'</td></tr>';
+      tbody += tr;
+    });
+    siteAchTable = '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement per Site</h3><span class="tag">vs target</span></div>'
+      +'<div class="tw"><table class="dt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div></div>';
   } else {
-    siteAchTable = `<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement — ${results[0]?.label||currentSite}</h3><span class="tag">vs target</span></div>
-      <div class="ach-grid" style="padding:14px 16px">${achCards}</div></div>`;
+    siteAchTable = '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement — '+(results[0]?.label||currentSite)+'</h3><span class="tag">vs target</span></div>'
+      +'<div class="ach-grid" style="padding:14px 16px">'+achCards+'</div></div>';
   }
 
   // ── COMPARISON CONTROLS ────────────────────────────────────────
