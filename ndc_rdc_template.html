@@ -9,32 +9,32 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 :root {
-  --sw: 220px; --bg: #f5f6fa; --white: #fff; --border: #e8eaed;
+  --sw: 220px; --bg: #eef2f7; --white: #fff; --border: #dde3ec;
   --text: #1a1d23; --t2: #5f6368; --t3: #9aa0a6;
   --green: #1e7e4e; --gbg: #e8f5ee; --gm: #34a85a; --gl: #81c995;
   --blue: #1a73e8; --bbg: #e8f0fe;
   --red: #d93025; --rbg: #fce8e6;
   --orange: #e37400; --obg: #fef3e2;
   --shadow: 0 1px 3px rgba(0,0,0,.08); --shadow-md: 0 4px 12px rgba(0,0,0,.08);
-  --r: 8px;
+  --r: 10px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:13px;}
 
 /* SIDEBAR */
-.sidebar{width:var(--sw);background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10;overflow-y:auto;}
-.s-logo{padding:18px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sidebar{width:var(--sw);background:#1e2a3a;border-right:none;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10;overflow-y:auto;}
+.s-logo{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px;}
 .s-icon{width:32px;height:32px;background:var(--green);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;}
-.s-title{font-weight:700;font-size:13px;}.s-sub{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;}
+.s-title{font-weight:700;font-size:13px;color:#fff;}.s-sub{font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.8px;}
 .s-sec{padding:14px 12px 6px;}
-.s-lbl{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin-bottom:4px;}
-.s-item{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:6px;cursor:pointer;transition:all .15s;color:var(--t2);font-size:12.5px;}
-.s-item:hover{background:var(--bg);}
-.s-item.active{background:var(--gbg);color:var(--green);font-weight:600;}
+.s-lbl{font-size:10px;font-weight:600;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;padding:0 4px;margin-bottom:4px;}
+.s-item{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:6px;cursor:pointer;transition:all .15s;color:rgba(255,255,255,.65);font-size:12.5px;}
+.s-item:hover{background:rgba(255,255,255,.07);}
+.s-item.active{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}
 .s-dot{width:7px;height:7px;border-radius:50%;background:var(--border);flex-shrink:0;margin-right:6px;}
 .s-dot.ndc{background:#1a73e8;}.s-dot.rdc{background:#e37400;}
-.s-badge{background:var(--border);color:var(--t2);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;}
-.s-div{height:1px;background:var(--border);margin:6px 12px;}
+.s-badge{background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;}
+.s-div{height:1px;background:rgba(255,255,255,.1);margin:6px 12px;}
 
 /* MAIN */
 .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;}
@@ -89,14 +89,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 
 /* TABLE */
 .tw{overflow-x:auto;}
-.dt{width:100%;border-collapse:collapse;font-size:12px;}
+.dt{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
 .dt thead th{padding:8px 11px;text-align:left;font-weight:600;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);white-space:nowrap;background:var(--bg);}
-.dt tbody td{padding:8px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;}
+.dt tbody td{padding:7px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;font-variant-numeric:tabular-nums;}
 .dt tbody tr:last-child td{border-bottom:none;}
 .dt tbody tr.sum{background:var(--gbg);font-weight:600;}
 .dt tbody tr.sum td{color:var(--green);border-top:2px solid var(--gl);border-bottom:none;}
 .dt tbody tr:not(.sum):hover td{background:var(--bg);}
-.num{text-align:right;font-family:'JetBrains Mono',monospace;}
+.num{text-align:right;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
 .bg{background:var(--gbg);color:var(--green);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
 .bm{background:var(--obg);color:var(--orange);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
 .br{background:var(--rbg);color:var(--red);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
@@ -151,6 +151,7 @@ canvas{display:block;}
 .arrow-dn::before{content:'▼ ';}
 
 /* INSIGHT TABLE */
+.ins-tbl{table-layout:fixed;}
 .ins-tbl thead th{background:var(--bg);}
 .ins-tbl .col-a{color:#1a73e8;font-weight:600;}
 .ins-tbl .col-b{color:#e37400;font-weight:600;}
@@ -720,44 +721,86 @@ function renderComparison() {
       +'</tr>';
   });
 
-  // Per-site rows if ALL
+  // Per-site rows if ALL — layout: rows=metrik, cols=site with A→B delta
   let siteSection = '';
   if(currentSite==='ALL') {
-    let siteThead = '<tr><th>SITE</th>';
-    allMetrics.forEach(m => { siteThead += '<th class="num">'+m.label+'</th>'; });
-    siteThead += '</tr>';
-    let siteTbody = '';
+    // Build per-site grid: 5 site cards, each showing metrik rows
+    let cards = '';
     SITES.forEach(site => {
       const a = resA.find(r=>r.site===site)||{};
       const b = resB.find(r=>r.site===site)||{};
-      let tr = '<tr><td><strong>'+SL[site]+'</strong></td>';
+      let rows = '';
       allMetrics.forEach(m => {
+        const va = fmt(m.key,a[m.key]), vb = fmt(m.key,b[m.key]);
         const d = fmtDelta(a[m.key], b[m.key], m.key, HIGHER_BETTER[m.key]);
-        tr += '<td class="num" style="font-size:11px">'+fmt(m.key,a[m.key])+' → '+fmt(m.key,b[m.key])+' '+d+'</td>';
+        rows += '<tr>'
+          +'<td style="font-size:11px;color:var(--t2);padding:5px 8px;border-bottom:0.5px solid var(--border)">'+m.label+'</td>'
+          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border);color:#1a73e8">'+va+'</td>'
+          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border);color:#e37400">'+vb+'</td>'
+          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border)">'+d+'</td>'
+          +'</tr>';
       });
-      tr += '</tr>';
-      siteTbody += tr;
+      cards += '<div style="background:var(--white);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden;min-width:0">'
+        +'<div style="background:var(--bg);padding:7px 10px;font-size:11px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border)">'+SL[site]+'</div>'
+        +'<table style="width:100%;border-collapse:collapse"><thead>'
+        +'<tr><th style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:left;font-weight:600">Metrik</th>'
+        +'<th style="font-size:9px;color:#1a73e8;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">A</th>'
+        +'<th style="font-size:9px;color:#e37400;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">B</th>'
+        +'<th style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">Δ</th>'
+        +'</tr></thead><tbody>'+rows+'</tbody></table>'
+        +'</div>';
     });
     siteSection = '<div class="panel" style="margin-top:14px"><div class="ph"><h3>Perbandingan per Site</h3><span class="tag">Periode A vs B</span></div>'
-      +'<div class="tw"><table class="dt ins-tbl"><thead>'+siteThead+'</thead><tbody>'+siteTbody+'</tbody></table></div></div>';
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:2px 0">'+cards+'</div></div>';
   }
 
   const labelA = s1+' — '+e1;
   const labelB = s2+' — '+e2;
 
+  // Site cards html (strip outer panel wrapper from siteSection)
+  var siteCardsHtml = '';
+  if(siteSection) {
+    var tmp = document.createElement('div');
+    tmp.innerHTML = siteSection;
+    var grid = tmp.querySelector('[style*="auto-fill"]');
+    if(grid) siteCardsHtml = grid.innerHTML;
+  }
+
+  // Shorten date labels: "2026-03-31 — 2026-04-29" → "31 Mar — 29 Apr 26"
+  function shortDate(s) {
+    var mn=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    return s.replace(/(\d{4})-(\d{2})-(\d{2})\s*—\s*(\d{4})-(\d{2})-(\d{2})/,
+      function(_,y1,m1,d1,y2,m2,d2){
+        return d1+' '+mn[+m1-1]+' '+y1.slice(2)+'<br>— '+d2+' '+mn[+m2-1]+' '+y2.slice(2);
+      });
+  }
+  var hdrA = shortDate(labelA);
+  var hdrB = shortDate(labelB);
+
+  var summaryTable = '<table class="dt ins-tbl" style="font-size:11px;min-width:0"><thead><tr>'
+    +'<th style="width:130px">Metrik</th>'
+    +'<th class="num col-a" style="width:90px">'+hdrA+'</th>'
+    +'<th class="num col-b" style="width:90px">'+hdrB+'</th>'
+    +'<th class="num" style="width:55px">Δ</th>'
+    +'</tr></thead><tbody>'+tableRows+'</tbody></table>';
+
+  var legendTag = '<span class="tag"><span style="color:#1a73e8">■</span> A &nbsp;<span style="color:#e37400">■</span> B</span>';
+
+  var innerHtml = '';
+  if(currentSite==='ALL' && siteCardsHtml) {
+    innerHtml = '<div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start">'
+      +'<div><div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Ringkasan</div>'+summaryTable+'</div>'
+      +'<div><div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Per Site</div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px">'+siteCardsHtml+'</div></div>'
+      +'</div>';
+  } else {
+    innerHtml = summaryTable;
+  }
+
   document.getElementById('cmpResult').innerHTML =
-    '<div class="panel"><div class="ph">'
-    +'<h3>Tabel Perbandingan</h3>'
-    +'<span class="tag"><span style="color:#1a73e8">■</span> Periode A &nbsp; <span style="color:#e37400">■</span> Periode B</span>'
+    '<div class="panel"><div class="ph"><h3>Perbandingan Periode</h3>'+legendTag+'</div>'
+    +'<div style="padding:0 2px 4px">'+innerHtml+'</div>'
     +'</div>'
-    +'<div class="tw"><table class="dt ins-tbl"><thead><tr>'
-    +'<th>METRIK</th>'
-    +'<th class="num col-a">A: '+labelA+'</th>'
-    +'<th class="num col-b">B: '+labelB+'</th>'
-    +'<th class="num">DELTA (B−A)</th>'
-    +'</tr></thead><tbody>'+tableRows+'</tbody></table></div>'
-    +'</div>'
-    +siteSection
     +buildKesimpulan(resB, resB, sumA, sumB);
 }
 
