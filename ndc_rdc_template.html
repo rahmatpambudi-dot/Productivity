@@ -309,17 +309,35 @@ let cmpB = { start:'', end:'' };
 // Register datalabels plugin
 if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
 
+let MONTHLY = []; // pre-aggregated monthly data
+let RAW_LOADED = false; // flag: full data.json loaded
+
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>';
   try {
-    const res = await fetch('data.json?t=' + Date.now());
-    if (!res.ok) throw new Error('data.json not found');
-    const json = await res.json();
-    ROWS = json.rows || [];
-    document.getElementById('updTime').textContent = json.timestamp || '{{BUILD_TIMESTAMP}}';
+    // Step 1: Load monthly aggregated data (fast, ~6KB)
+    const mRes = await fetch('data_monthly.json?t=' + Date.now());
+    if (!mRes.ok) throw new Error('data_monthly.json not found. Pastikan GitHub Actions sudah dijalankan.');
+    const mJson = await mRes.json();
+    MONTHLY = mJson.monthly || [];
+    document.getElementById('updTime').textContent = mJson.timestamp || '{{BUILD_TIMESTAMP}}';
+
+    // Step 2: Render immediately with monthly data
     render();
+
+    // Step 3: Load full data.json in background for detail/filter
+    fetch('data.json?t=' + Date.now())
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if(d) {
+          ROWS = d.rows || [];
+          RAW_LOADED = true;
+          // Re-render if on Detail Metrik tab
+          if(currentNav === 'detail') render();
+        }
+      }).catch(() => {});
   } catch(e) {
-    document.getElementById('content').innerHTML = `<div class="loading"><p style="color:var(--red)">⚠️ ${e.message}. Pastikan GitHub Actions sudah dijalankan.</p></div>`;
+    document.getElementById('content').innerHTML = '<div class="loading"><p style="color:var(--red)">⚠ '+e.message+'</p></div>';
   }
 }
 
@@ -848,9 +866,9 @@ function buildMonthlyTrendTable(container) {
   if(!container) return;
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
-  // Get months within active filter range
+  // Use pre-aggregated MONTHLY data (fast, no need to scan ROWS)
   const {start:fs, end:fe} = getRange();
-  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].filter(mo=>mo>=fs.slice(0,7)&&mo<=fe.slice(0,7)).sort();
+  const allMonths = [...new Set(MONTHLY.map(r=>r.month))].filter(mo=>mo>=fs.slice(0,7)&&mo<=fe.slice(0,7)).sort();
 
   // Columns config: key, label, fmt, target(site), higherBetter, showPct
   const COLS = [
@@ -893,16 +911,13 @@ function buildMonthlyTrendTable(container) {
   COLS.forEach(c=>{ thead+='<th>'+c.label+'</th>'; });
   thead += '</tr>';
 
-  // Build rows — group by month first, then site
+  // Build rows from MONTHLY (pre-aggregated, instant)
   var tbody = '';
   allMonths.forEach(function(mo) {
     SITES_LIST.forEach(function(site) {
-      var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-      var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-      var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
-      var moRows = ROWS.filter(r=>r.site===site&&r.date&&r.date>=moD1&&r.date<=moD2);
-      if(!moRows.length) return;
-      var res = computeSite(moRows, site)||{};
+      var rec = MONTHLY.find(r=>r.month===mo&&r.site===site);
+      if(!rec) return;
+      var res = rec;
       var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
       var tr = '<tr>';
       tr += '<td style="color:var(--t2)">'+mn+'</td><td>'+SL[site]+'</td>';
@@ -1156,25 +1171,28 @@ function renderDetail(results, summary, start, end) {
     };
   }
 
-  // ── TRENDLINE: semua bulan dalam data, nilai dihitung pakai day-range filter ──
-  const filterD1 = parseInt(s.slice(8,10));
-  const filterD2 = parseInt(e.slice(8,10));
-
-  // Show all months available in ROWS (not limited to filter range)
-  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
-
+  // ── TRENDLINE: use pre-aggregated MONTHLY data (fast) ──────────
+  const allMonths = [...new Set(MONTHLY.map(r=>r.month))].sort();
+  const moNames2 = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const trendLabels = allMonths.map(mo => {
     const [y,mn] = mo.split('-');
-    return moNames[parseInt(mn)-1] + ' ' + y;
+    return moNames2[parseInt(mn)-1] + ' ' + y;
   });
 
-  // For each month use same day range as filter (apple-to-apple)
+  // Build summary per month from MONTHLY data
   const trendData = allMonths.map(mo => {
-    const daysInMonth = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-    const d1 = `${mo}-${String(filterD1).padStart(2,'0')}`;
-    const d2 = `${mo}-${String(Math.min(filterD2, daysInMonth)).padStart(2,'0')}`;
-    const moRows = filterRows(ROWS, d1, d2, currentSite);
-    return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
+    const moRecords = MONTHLY.filter(r => r.month === mo &&
+      (currentSite === 'ALL' || r.site === currentSite));
+    if(!moRecords.length) return {};
+    if(currentSite !== 'ALL') return moRecords[0];
+    // Average across sites
+    const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore'];
+    const out = {site:'ALL'};
+    keys.forEach(k => {
+      const vals = moRecords.map(r=>r[k]).filter(v=>v!=null);
+      out[k] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    });
+    return out;
   });
 
   const trendSeries = [
