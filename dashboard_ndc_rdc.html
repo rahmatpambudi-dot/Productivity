@@ -261,7 +261,7 @@ canvas{display:block;}
         <option value="TALLO">Tallo</option>
         <option value="TAMORA">Tamora</option>
       </select>
-      <div class="upd-info">Update: <span id="updTime">14 May 2026 10:21 WIB</span></div>
+      <div class="upd-info">Update: <span id="updTime">14 May 2026 13:43 WIB</span></div>
       <button class="btn-ref" onclick="loadData()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
         Refresh
@@ -316,7 +316,7 @@ async function loadData() {
     if (!res.ok) throw new Error('data.json not found');
     const json = await res.json();
     ROWS = json.rows || [];
-    document.getElementById('updTime').textContent = json.timestamp || '14 May 2026 10:21 WIB';
+    document.getElementById('updTime').textContent = json.timestamp || '14 May 2026 13:43 WIB';
     render();
   } catch(e) {
     document.getElementById('content').innerHTML = `<div class="loading"><p style="color:var(--red)">⚠️ ${e.message}. Pastikan GitHub Actions sudah dijalankan.</p></div>`;
@@ -1155,21 +1155,19 @@ function renderDetail(results, summary, start, end) {
     };
   }
 
-  // ── TRENDLINE: follow filter range, group by month ─────────────
+  // ── TRENDLINE: semua bulan dalam data, nilai dihitung pakai day-range filter ──
   const filterD1 = parseInt(s.slice(8,10));
   const filterD2 = parseInt(e.slice(8,10));
 
-  // Only months within the active filter range
-  const allMonths = [...new Set(
-    ROWS.filter(r=>r.date&&r.date>=s&&r.date<=e).map(r=>r.date.slice(0,7))
-  )].sort();
+  // Show all months available in ROWS (not limited to filter range)
+  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
 
   const trendLabels = allMonths.map(mo => {
     const [y,mn] = mo.split('-');
     return moNames[parseInt(mn)-1] + ' ' + y;
   });
 
-  // For each month use same day range as filter (apple-to-apple within filter)
+  // For each month use same day range as filter (apple-to-apple)
   const trendData = allMonths.map(mo => {
     const daysInMonth = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
     const d1 = `${mo}-${String(filterD1).padStart(2,'0')}`;
