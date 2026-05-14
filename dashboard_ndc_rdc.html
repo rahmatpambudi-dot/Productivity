@@ -261,7 +261,7 @@ canvas{display:block;}
         <option value="TALLO">Tallo</option>
         <option value="TAMORA">Tamora</option>
       </select>
-      <div class="upd-info">Update: <span id="updTime">14 May 2026 15:56 WIB</span></div>
+      <div class="upd-info">Update: <span id="updTime">14 May 2026 16:04 WIB</span></div>
       <button class="btn-ref" onclick="loadData()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
         Refresh
@@ -309,33 +309,56 @@ let cmpB = { start:'', end:'' };
 // Register datalabels plugin
 if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
 
-let MONTHLY = []; // pre-aggregated monthly data
-let RAW_LOADED = false; // flag: full data.json loaded
+// ── BUILD MONTHLY FROM ROWS (fallback if data_monthly.json not available) ──
+function buildMonthlyFromRows(rows) {
+  var result = [];
+  var months = [...new Set(rows.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
+  months.forEach(function(mo) {
+    SITES.forEach(function(site) {
+      var moRows = rows.filter(r=>r.site===site&&r.date&&r.date.slice(0,7)===mo);
+      if(!moRows.length) return;
+      var res = computeSite(moRows, site)||{};
+      result.push({site:site, label:SL[site], month:mo,
+        ritase:res.ritase, olf:res.olf, dpStore:res.dpStore, dpMix:res.dpMix,
+        dpNonReg:res.dpNonReg, dpReg:res.dpReg, doTrip:res.doTrip, doDp:res.doDp,
+        cbmDo:res.cbmDo, cbmDp:res.cbmDp, tatDirect:res.tatDirect, tatStore:res.tatStore});
+    });
+  });
+  return result;
+}
+
+let MONTHLY = [];
+let RAW_LOADED = false;
 
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>';
   try {
-    // Step 1: Load monthly aggregated data (fast, ~6KB)
-    const mRes = await fetch('data_monthly.json?t=' + Date.now());
-    if (!mRes.ok) throw new Error('data_monthly.json not found. Pastikan GitHub Actions sudah dijalankan.');
-    const mJson = await mRes.json();
-    MONTHLY = mJson.monthly || [];
-    document.getElementById('updTime').textContent = mJson.timestamp || '14 May 2026 15:56 WIB';
+    // Try data_monthly.json first (fast), fallback to data.json
+    let usedMonthly = false;
+    try {
+      const mRes = await fetch('data_monthly.json?t=' + Date.now());
+      if(mRes.ok) {
+        const mJson = await mRes.json();
+        MONTHLY = mJson.monthly || [];
+        document.getElementById('updTime').textContent = mJson.timestamp || '14 May 2026 16:04 WIB';
+        usedMonthly = true;
+      }
+    } catch(e2) {}
 
-    // Step 2: Render immediately with monthly data
+    // Always load data.json for full filter support
+    const res = await fetch('data.json?t=' + Date.now());
+    if (!res.ok) throw new Error('data.json not found. Pastikan GitHub Actions sudah dijalankan.');
+    const json = await res.json();
+    ROWS = json.rows || [];
+    RAW_LOADED = true;
+    if(!usedMonthly) {
+      document.getElementById('updTime').textContent = json.timestamp || '14 May 2026 16:04 WIB';
+      // Build MONTHLY from ROWS on the fly
+      MONTHLY = buildMonthlyFromRows(ROWS);
+    } else {
+      document.getElementById('updTime').textContent = json.timestamp || document.getElementById('updTime').textContent;
+    }
     render();
-
-    // Step 3: Load full data.json in background for detail/filter
-    fetch('data.json?t=' + Date.now())
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if(d) {
-          ROWS = d.rows || [];
-          RAW_LOADED = true;
-          // Re-render if on Detail Metrik tab
-          if(currentNav === 'detail') render();
-        }
-      }).catch(() => {});
   } catch(e) {
     document.getElementById('content').innerHTML = '<div class="loading"><p style="color:var(--red)">⚠ '+e.message+'</p></div>';
   }
