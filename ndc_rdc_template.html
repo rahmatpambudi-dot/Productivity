@@ -413,12 +413,9 @@ function computeSite(rows, site) {
   const sr = rows.filter(r => r.site === site);
 
   // RITASE
-  const ritSheets = isJAB
-    ? ['AHI JABABEKA','HCI JABABEKA','KLS JABABEKA']
-    : [sr[0]?.sheet].filter(Boolean);
   const ritRows = sr.filter(r =>
     r.td !== 'satelite' &&
-    !(isCIK && r.td === 'min van ops')
+    !(isCIK && (r.ja || '').toUpperCase() === 'MIN VAN OPS')
   );
   const byDate = {};
   ritRows.forEach(r => {
