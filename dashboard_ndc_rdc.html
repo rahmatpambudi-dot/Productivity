@@ -934,13 +934,16 @@ function buildMonthlyTrendTable(container) {
   COLS.forEach(c=>{ thead+='<th>'+c.label+'</th>'; });
   thead += '</tr>';
 
-  // Build rows from MONTHLY (pre-aggregated, instant)
+  // Build rows — compute from ROWS with exact date range (same as Achievement panel)
   var tbody = '';
   allMonths.forEach(function(mo) {
+    var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+    var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
+    var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
-      var rec = MONTHLY.find(r=>r.month===mo&&r.site===site);
-      if(!rec) return;
-      var res = rec;
+      var moFiltered = filterRows(ROWS, moD1, moD2, site);
+      if(!moFiltered.length) return;
+      var res = computeSite(moFiltered, site)||{};
       var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
       var tr = '<tr>';
       tr += '<td style="color:var(--t2)">'+mn+'</td><td>'+SL[site]+'</td>';
