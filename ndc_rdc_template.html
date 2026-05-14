@@ -1193,28 +1193,23 @@ function renderDetail(results, summary, start, end) {
     };
   }
 
-  // ── TRENDLINE: use pre-aggregated MONTHLY data (fast) ──────────
-  const allMonths = [...new Set(MONTHLY.map(r=>r.month))].sort();
+  // ── TRENDLINE: all months in data, values computed using filter day-range ──
+  const filterD1 = parseInt(s.slice(8,10));
+  const filterD2 = parseInt(e.slice(8,10));
+  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   const moNames2 = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const trendLabels = allMonths.map(mo => {
     const [y,mn] = mo.split('-');
     return moNames2[parseInt(mn)-1] + ' ' + y;
   });
 
-  // Build summary per month from MONTHLY data
+  // Each month uses same day-range as active filter (apple-to-apple)
   const trendData = allMonths.map(mo => {
-    const moRecords = MONTHLY.filter(r => r.month === mo &&
-      (currentSite === 'ALL' || r.site === currentSite));
-    if(!moRecords.length) return {};
-    if(currentSite !== 'ALL') return moRecords[0];
-    // Average across sites
-    const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore'];
-    const out = {site:'ALL'};
-    keys.forEach(k => {
-      const vals = moRecords.map(r=>r[k]).filter(v=>v!=null);
-      out[k] = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
-    });
-    return out;
+    const daysInMonth = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+    const d1 = mo+'-'+String(filterD1).padStart(2,'0');
+    const d2 = mo+'-'+String(Math.min(filterD2, daysInMonth)).padStart(2,'0');
+    const moRows = filterRows(ROWS, d1, d2, currentSite);
+    return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
   });
 
   const trendSeries = [
