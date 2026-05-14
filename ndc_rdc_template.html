@@ -284,16 +284,16 @@ const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
 
 // ── TARGETS ────────────────────────────────────────────────────
 const TARGETS = {
-  olf:      { label:'OLF Store (%)', target: 0.85,  dir:'up',   fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'85%' },
+  olf:      { label:'OLF', target: 0.85,  dir:'up',   fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'85%' },
   ritase:   { label:'Ritase',        targetBySite:{ JABABEKA:1.15, CIKUPA:1.05, SDA:1.07, TALLO:1.25, TAMORA:1.25, NATIONAL:1.15 }, targetNational:1.15, dir:'up', fmt: v=>v!=null?v.toFixed(2):'—', tgtFmt:'site-specific' },
   dpMix:    { label:'DP Mix',        target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
-  dpReg:    { label:'DP Regular',    target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
+  dpReg:    { label:'DP Reg',    target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
   doTrip:   { label:'DO/Trip',       target: 11.0,  dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
 };
 // Undefined targets - show in table, no badge
 const TARGETS_UNDEF = {
   dpStore:  { label:'DP Store',       fmt: v=>v!=null?v.toFixed(1):'—' },
-  dpNonReg: { label:'DP Non Regular', fmt: v=>v!=null?v.toFixed(1):'—' },
+  dpNonReg: { label:'DP Non Reg', fmt: v=>v!=null?v.toFixed(1):'—' },
   doDp:     { label:'DO/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
   cbmDo:    { label:'CBM/DO',          fmt: v=>v!=null?v.toFixed(2):'—' },
   cbmDp:    { label:'CBM/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
@@ -649,7 +649,7 @@ function buildKesimpulan(resA, resB, sumA, sumB) {
     { key:'olf',   label:'OLF Store',    tgt:0.85, dir:'up',   fmtV: v=>(v*100).toFixed(1)+'%', fmtT:'85%' },
     { key:'ritase',label:'Ritase',       tgtFn:(site)=>getTarget('ritase',site), dir:'up', fmtV:v=>v.toFixed(2) },
     { key:'dpMix', label:'DP Mix',       tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
-    { key:'dpReg', label:'DP Regular',   tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
+    { key:'dpReg', label:'DP Reg',   tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
     { key:'doTrip',label:'DO/Trip',      tgt:11.0, dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'11.0' },
   ];
 
@@ -722,13 +722,13 @@ function renderComparison() {
   const sumB = makeSummary(resB);
 
   const allMetrics = [
-    { key:'olf',      label:'OLF Store (%)', fmtA:v=>v!=null?(v*100).toFixed(1)+'%':'—', fmtB:v=>v!=null?(v*100).toFixed(1)+'%':'—' },
+    { key:'olf',      label:'OLF', fmtA:v=>v!=null?(v*100).toFixed(1)+'%':'—', fmtB:v=>v!=null?(v*100).toFixed(1)+'%':'—' },
     { key:'ritase',   label:'Ritase' },
     { key:'dpStore',  label:'DP Store' },
     { key:'dpMix',    label:'DP Mix' },
-    { key:'dpNonReg', label:'DP Non Regular' },
-    { key:'dpReg',    label:'DP Regular' },
-    { key:'doTrip',   label:'DO/Trip Direct' },
+    { key:'dpNonReg', label:'DP Non Reg' },
+    { key:'dpReg',    label:'DP Reg' },
+    { key:'doTrip',   label:'DO/Trip' },
     { key:'doDp',     label:'DO/DP Direct' },
     { key:'cbmDo',    label:'CBM/DO' },
     { key:'cbmDp',    label:'CBM/DP' },
@@ -850,7 +850,7 @@ function buildMonthlyTrendTable(container) {
 
   // Get months within active filter range
   const {start:fs, end:fe} = getRange();
-  const allMonths = [...new Set(ROWS.filter(r=>r.date&&r.date>=fs&&r.date<=fe).map(r=>r.date.slice(0,7)))].sort();
+  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
 
   // Columns config: key, label, fmt, target(site), higherBetter, showPct
   const COLS = [
@@ -860,7 +860,7 @@ function buildMonthlyTrendTable(container) {
     { key:'dpMix',   label:'DP (Mix)',      fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
     { key:'dpNonReg',label:'DP Non Reg',   fmt:v=>v!=null?v.toFixed(1):'—', tgt:null, hi:true  },
     { key:'dpReg',   label:'DP (Regular)', fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
-    { key:'doTrip',  label:'DO/Trip Direct',fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 11.0;}, hi:true  },
+    { key:'doTrip',  label:'DO/Trip',fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 11.0;}, hi:true  },
     { key:'tatDirect',label:'TAT (Direct)',fmt:v=>tatStr(v), tgt:null, hi:false },
     { key:'tatStore', label:'TAT (Store)', fmt:v=>tatStr(v), tgt:null, hi:false },
   ];
@@ -897,7 +897,11 @@ function buildMonthlyTrendTable(container) {
   var tbody = '';
   SITES_LIST.forEach(function(site) {
     allMonths.forEach(function(mo) {
-      var moRows = ROWS.filter(r=>r.site===site&&r.date&&r.date.slice(0,7)===mo&&r.date>=fs&&r.date<=fe);
+      // Use same day range as filter (apple-to-apple)
+      var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+      var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
+      var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
+      var moRows = ROWS.filter(r=>r.site===site&&r.date&&r.date>=moD1&&r.date<=moD2);
       if(!moRows.length) return;
       var res = computeSite(moRows, site)||{};
       var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
@@ -933,13 +937,13 @@ function renderDetail(results, summary, start, end) {
   const dates = Object.keys(dailyMap).sort();
 
   const metrics = [
-    { key:'olf',      label:'OLF Store (%)',       fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—' },
+    { key:'olf',      label:'OLF',       fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—' },
     { key:'ritase',   label:'Ritase',               fmt: v=>pf(v,2) },
     { key:'dpStore',  label:'DP Store',             fmt: v=>pf(v,1) },
     { key:'dpMix',    label:'DP Mix',               fmt: v=>pf(v,1) },
-    { key:'dpNonReg', label:'DP Non Regular',       fmt: v=>pf(v,1) },
-    { key:'dpReg',    label:'DP Regular',           fmt: v=>pf(v,1) },
-    { key:'doTrip',   label:'DO/Trip Direct',       fmt: v=>pf(v,1) },
+    { key:'dpNonReg', label:'DP Non Reg',       fmt: v=>pf(v,1) },
+    { key:'dpReg',    label:'DP Reg',           fmt: v=>pf(v,1) },
+    { key:'doTrip',   label:'DO/Trip',       fmt: v=>pf(v,1) },
     { key:'doDp',     label:'DO/DP Direct',         fmt: v=>pf(v,2) },
     { key:'cbmDo',    label:'CBM/DO',               fmt: v=>pf(v,2) },
     { key:'cbmDp',    label:'CBM/DP',               fmt: v=>pf(v,2) },
@@ -952,7 +956,7 @@ function renderDetail(results, summary, start, end) {
     { key:'olf',    label:'OLF Store',   fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'Target ≥85%' },
     { key:'ritase', label:'Ritase',      fmt:v=>v!=null?v.toFixed(2):'—',           tgtFmt:(site)=>`Target ≥${getTarget('ritase',site)||1.15}` },
     { key:'dpMix',  label:'DP Mix',      fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
-    { key:'dpReg',  label:'DP Regular',  fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
+    { key:'dpReg',  label:'DP Reg',  fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
     { key:'doTrip', label:'DO/Trip',     fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥11.0' },
   ];
 
@@ -1040,7 +1044,7 @@ function renderDetail(results, summary, start, end) {
     </div>
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Trendline Bulanan</h3><span class="tag">berdasarkan filter periode & site</span></div>
-      <div style="padding:8px 16px 16px;height:320px;position:relative"><canvas id="dTREND"></canvas></div>
+      <div style="padding:4px 16px 8px;height:340px;position:relative;max-width:900px"><canvas id="dTREND"></canvas></div>
     </div>
 
     <!-- MONTHLY TREND TABLE -->
@@ -1095,7 +1099,7 @@ function renderDetail(results, summary, start, end) {
     }
   };
 
-  charts.dOLF = new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF Store (%)',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
+  charts.dOLF = new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
 
   // Build monthly trend table
   buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));
@@ -1177,11 +1181,11 @@ function renderDetail(results, summary, start, end) {
   });
 
   const trendSeries = [
-    { key:'olf',     label:'OLF Store (%)',  color:'#e37400', axis:'yR', align:'top',    fmt:function(v){return v!=null?+(v*100).toFixed(1):null;}, disp:function(v){return v.toFixed(1)+'%';} },
-    { key:'doTrip',  label:'DO/Trip Direct', color:'#1a73e8', axis:'yL', align:'top',    fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}           },
-    { key:'dpReg',   label:'DP Regular',     color:'#d93025', axis:'yL', align:'top',    fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}           },
+    { key:'olf',     label:'OLF',  color:'#e37400', axis:'yR', align:'top',    fmt:function(v){return v!=null?+(v*100).toFixed(1):null;}, disp:function(v){return v.toFixed(1)+'%';} },
+    { key:'doTrip',  label:'DO/Trip', color:'#1a73e8', axis:'yL', align:'top',    fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}           },
+    { key:'dpReg',   label:'DP Reg',     color:'#d93025', axis:'yL', align:'top',    fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}           },
     { key:'dpMix',   label:'DP Mix',         color:'#a142f4', axis:'yL', align:'bottom', fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}           },
-    { key:'dpNonReg',label:'DP Non Regular', color:'#0f9d58', axis:'yL', align:'bottom', fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}           },
+    { key:'dpNonReg',label:'DP Non Reg', color:'#0f9d58', axis:'yL', align:'bottom', fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}           },
     { key:'ritase',  label:'Ritase',         color:'#555',    axis:'yL', align:'center', fmt:function(v){return v!=null?+v.toFixed(2):null;},        disp:function(v){return v.toFixed(2);}           },
   ];
 
@@ -1253,7 +1257,7 @@ function renderDetail(results, summary, start, end) {
         yL: { display:false, min:0, max:20 },
         yR: { display:false, min:0, max:100 }
       },
-      layout: { padding:{ top:28, right:160, bottom:16, left:4 } }
+      layout: { padding:{ top:22, right:80, bottom:8, left:4 } }
     }
   });
 }
