@@ -69,6 +69,7 @@ def map_cols(headers):
         "tat":         find("TAT"),
         "olfDet":      find("OLF DETERMINE", "OLF DET"),
         "satelite":    find("SATELITE", "SATELIT"),
+        "jenisArmada": find("JENIS ARMADA", "JENIS ARM"),
     }
 
 def parse_date_str(s):
@@ -126,136 +127,8 @@ def slim_row(r, cols, sheet_name, site):
         "tat":   cell(r, cols["tat"]),
         "od":    cell(r, cols["olfDet"]).strip().lower() if cols["olfDet"] >= 0 else "",
         "sat":   cell(r, cols["satelite"]).upper() if cols["satelite"] >= 0 else "",
+        "ja":    cell(r, cols["jenisArmada"]).upper() if cols.get("jenisArmada", -1) >= 0 else "",
     }
-
-def parse_tat(s):
-    if not s: return None
-    m = re.match(r'^(-?\d+):(\d{2})(?::(\d{2}))?$', str(s).strip())
-    if m:
-        return int(m.group(1)) + int(m.group(2))/60 + (int(m.group(3)) if m.group(3) else 0)/3600
-    try:
-        n = float(s)
-        if 0 < n < 2: return n * 24
-    except: pass
-    return None
-
-def avg(lst):
-    lst = [x for x in lst if x is not None]
-    return sum(lst)/len(lst) if lst else None
-
-def ssum(lst):
-    return sum(x for x in lst if x is not None)
-
-def aggregate_monthly(rows, timestamp):
-    """Pre-compute all metrics per site per month."""
-    SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA']
-    SL = {'JABABEKA':'Jababeka','CIKUPA':'Cikupa','SDA':'Sidoarjo','TALLO':'Tallo','TAMORA':'Tamora'}
-
-    # Group rows by (site, YYYY-MM)
-    from collections import defaultdict
-    buckets = defaultdict(list)
-    for r in rows:
-        if r.get('date') and r.get('site'):
-            mo = r['date'][:7]
-            buckets[(r['site'], mo)].append(r)
-
-    months = sorted(set(mo for _, mo in buckets.keys()))
-    result = []
-
-    for mo in months:
-        for site in SITES:
-            sr = buckets.get((site, mo), [])
-            if not sr: continue
-
-            isJAB = site == 'JABABEKA'
-            isCIK = site == 'CIKUPA'
-            isSDA = site == 'SDA'
-
-            srMain = [r for r in sr if r.get('sheet') != 'KLS JABABEKA'] if isJAB else sr
-
-            # OLF
-            olf_r = [r for r in srMain if r.get('td') == 'store' and r.get('kat') == 'REGULAR'
-                     and not (isJAB and r.get('owner') == 'FBI')
-                     and not (isSDA and r.get('owner') == 'FBI')
-                     and (not isCIK or 'non cikande' in (r.get('od') or ''))]
-            oL = ssum(float(r.get('cbm') or 0) for r in olf_r)
-            oM = ssum(float(r.get('cap') or 0) for r in olf_r)
-
-            # DP Store
-            dpSt = avg([float(r.get('dp') or 0) for r in olf_r])
-
-            # DP Mix
-            dpMx_r = [r for r in srMain if r.get('td') == 'customer'
-                      and not (isJAB and r.get('owner') == 'FBI')
-                      and not (isSDA and r.get('owner') == 'FBI')]
-            dpMx = avg([float(r.get('dp') or 0) for r in dpMx_r])
-
-            # DP Non Reg
-            dpNR_r = [r for r in srMain if r.get('td') == 'customer' and r.get('kat') == 'NON REGULAR'
-                      and not (isJAB and r.get('owner') == 'FBI')
-                      and not (isSDA and r.get('owner') == 'FBI')]
-            dpNR = avg([float(r.get('dp') or 0) for r in dpNR_r])
-
-            # DP Regular, DO/Trip, DO/DP, CBM
-            drR = [r for r in srMain if r.get('td') == 'customer' and r.get('ta') != 'PICKUP'
-                   and r.get('kat') == 'REGULAR'
-                   and not (isJAB and r.get('owner') == 'FBI')
-                   and not (isSDA and r.get('owner') == 'FBI')
-                   and (not isCIK or 'NON SATELIT' in (r.get('sat') or ''))]
-            dpRg = avg([float(r.get('dp') or 0) for r in drR])
-            doTr = avg([float(r.get('do') or 0) for r in drR])
-            doN  = ssum(float(r.get('do') or 0) for r in drR)
-            dpN  = ssum(float(r.get('dp') or 0) for r in drR)
-            cbmT = ssum(float(r.get('cbm') or 0) for r in drR)
-
-            # Ritase
-            from collections import defaultdict as dd2
-            daily = dd2(lambda: {'lc': set(), 'nopol': set()})
-            rit_r = [r for r in sr if r.get('td') not in ('satelite', 'min van ops')]
-            if isJAB:
-                rit_r = sr  # includes KLS
-            for r in rit_r:
-                if r.get('date'):
-                    daily[r['date']]['lc'].add(r.get('lc',''))
-                    daily[r['date']]['nopol'].add(r.get('nopol',''))
-            rit_vals = [len(v['lc'])/len(v['nopol']) for v in daily.values() if len(v['nopol']) > 0]
-            ritase = avg(rit_vals)
-
-            # TAT Direct
-            tatD_r = [r for r in srMain if r.get('td') == 'customer' and r.get('kat') == 'REGULAR'
-                      and (not isCIK or 'NON SATELIT' in (r.get('sat') or ''))
-                      and (isCIK or 'DALAM KOTA' in (r.get('sa') or ''))]
-            tatD_v = [t for r in tatD_r if (t := parse_tat(r.get('tat'))) is not None and 0 <= t <= 24]
-
-            # TAT Store
-            tatS_r = [r for r in srMain if r.get('td') == 'store' and r.get('kat') == 'REGULAR'
-                      and (not isCIK or 'NON SATELIT' in (r.get('sat') or ''))
-                      and (isCIK or 'DALAM KOTA' in (r.get('sa') or ''))]
-            cutoff = 12 if isCIK else 24
-            tatS_v = [t for r in tatS_r if (t := parse_tat(r.get('tat'))) is not None and 0 <= t <= cutoff]
-
-            def fmt(v, d=4):
-                return round(v, d) if v is not None else None
-
-            result.append({
-                'site': site, 'label': SL[site], 'month': mo,
-                'ritase':   fmt(ritase),
-                'olf':      fmt(oL/oM if oM > 0 else None),
-                'dpStore':  fmt(dpSt),
-                'dpMix':    fmt(dpMx),
-                'dpNonReg': fmt(dpNR),
-                'dpReg':    fmt(dpRg),
-                'doTrip':   fmt(doTr),
-                'doDp':     fmt(doN/dpN if dpN > 0 else None),
-                'cbmDo':    fmt(cbmT/doN if doN > 0 else None),
-                'cbmDp':    fmt(cbmT/dpN if dpN > 0 else None),
-                'tatDirect':fmt(avg(tatD_v)),
-                'tatStore': fmt(avg(tatS_v)),
-                'rows':     len(sr),
-            })
-
-    return {'timestamp': timestamp, 'monthly': result}
-
 
 def build():
     now_wib = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7)))
@@ -336,13 +209,6 @@ def build():
         json.dump({"timestamp": timestamp, "rows": all_rows}, f, ensure_ascii=False, separators=(',',':'))
     
     print(f"data.json: {os.path.getsize(data_path)/1024:.1f} KB")
-
-    # Build data_monthly.json — pre-aggregated per site per month
-    monthly_path = os.path.join(base, '..', 'data_monthly.json')
-    monthly = aggregate_monthly(all_rows, timestamp)
-    with open(monthly_path, 'w', encoding='utf-8') as f:
-        json.dump(monthly, f, ensure_ascii=False, separators=(',',':'))
-    print(f"data_monthly.json: {os.path.getsize(monthly_path)/1024:.1f} KB")
 
     # Build HTML
     with open(tpl_path, 'r', encoding='utf-8') as f:
