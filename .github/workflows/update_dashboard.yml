@@ -2,7 +2,7 @@ name: Update NDC RDC Dashboard
 
 on:
   schedule:
-    - cron: '0 5 * * *'  # 12:00 WIB (UTC+7)
+    - cron: '0 2 * * *'  # 09:00 WIB (UTC+7)
   workflow_dispatch:
 
 permissions:
@@ -32,6 +32,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add dashboard_ndc_rdc.html data.json
+          git add dashboard_ndc_rdc.html data.json data_monthly.json
           git diff --staged --quiet || git commit -m "Auto-update $(TZ='Asia/Jakarta' date +'%Y-%m-%d %H:%M') WIB"
           git push
