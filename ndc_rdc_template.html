@@ -850,7 +850,7 @@ function buildMonthlyTrendTable(container) {
 
   // Get months within active filter range
   const {start:fs, end:fe} = getRange();
-  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
+  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].filter(mo=>mo>=fs.slice(0,7)&&mo<=fe.slice(0,7)).sort();
 
   // Columns config: key, label, fmt, target(site), higherBetter, showPct
   const COLS = [
@@ -1098,8 +1098,8 @@ function renderDetail(results, summary, start, end) {
 
   charts.dOLF = new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
 
-  // Build monthly trend table
-  buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));
+  // Build monthly trend table — deferred to not block main render
+  setTimeout(function(){ buildMonthlyTrendTable(document.getElementById('monthlyTrendTable')); }, 50);
 
   charts.dTAT = new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'TAT Direct',data:results.map(r=>r.tatDirect!=null?+r.tatDirect.toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
