@@ -303,6 +303,13 @@ def build():
     
     print(f"data.json: {os.path.getsize(data_path)/1024:.1f} KB")
 
+    # Build data_monthly.json
+    monthly_path = os.path.join(base, '..', 'data_monthly.json')
+    monthly = aggregate_monthly(all_rows, timestamp)
+    with open(monthly_path, 'w', encoding='utf-8') as f:
+        json.dump(monthly, f, ensure_ascii=False, separators=(',',':'))
+    print(f"data_monthly.json: {os.path.getsize(monthly_path)/1024:.1f} KB")
+
     # Build HTML
     with open(tpl_path, 'r', encoding='utf-8') as f:
         html = f.read()
