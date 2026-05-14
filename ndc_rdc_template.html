@@ -437,7 +437,7 @@ function computeSite(rows, site) {
     if(isJAB && r.kat !== 'REGULAR') return false;
     if(isCIK && !(r.od||'').includes('non cikande')) return false;
     if(isSDA && (r.owner === 'FBI' || r.kat !== 'REGULAR')) return false;
-    if(!isJAB && !isCIK && !isSDA && r.kat !== 'REGULAR') return false;
+    // TALLO/TAMORA: no kat filter (per manual formula)
     return true;
   });
   const oL = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
