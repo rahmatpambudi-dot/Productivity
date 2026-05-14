@@ -1155,21 +1155,19 @@ function renderDetail(results, summary, start, end) {
     };
   }
 
-  // ── TRENDLINE: follow filter range, group by month ─────────────
+  // ── TRENDLINE: semua bulan dalam data, nilai dihitung pakai day-range filter ──
   const filterD1 = parseInt(s.slice(8,10));
   const filterD2 = parseInt(e.slice(8,10));
 
-  // Only months within the active filter range
-  const allMonths = [...new Set(
-    ROWS.filter(r=>r.date&&r.date>=s&&r.date<=e).map(r=>r.date.slice(0,7))
-  )].sort();
+  // Show all months available in ROWS (not limited to filter range)
+  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
 
   const trendLabels = allMonths.map(mo => {
     const [y,mn] = mo.split('-');
     return moNames[parseInt(mn)-1] + ' ' + y;
   });
 
-  // For each month use same day range as filter (apple-to-apple within filter)
+  // For each month use same day range as filter (apple-to-apple)
   const trendData = allMonths.map(mo => {
     const daysInMonth = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
     const d1 = `${mo}-${String(filterD1).padStart(2,'0')}`;
