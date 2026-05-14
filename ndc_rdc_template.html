@@ -121,7 +121,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 
 canvas{display:block;}
 
-/* COMPARISON PANEL */
+/* MONTHLY TREND TABLE */
+.mtt{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums;}
+.mtt th{background:var(--bg);color:var(--t3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:7px 10px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1;}
+.mtt th:first-child,.mtt th:nth-child(2){text-align:left;}
+.mtt td{padding:6px 10px;border-bottom:0.5px solid var(--border);text-align:center;white-space:nowrap;}
+.mtt td:first-child{text-align:left;font-weight:600;color:var(--text);}
+.mtt td:nth-child(2){text-align:left;color:var(--t2);}
+.mtt tr:last-child td{border-bottom:none;}
+.mtt tr.sum-row td{background:var(--bg);font-weight:700;border-top:1px solid var(--border);}
+.mtt .c-red{background:#fce8e6;color:#c0392b;font-weight:600;}
+.mtt .c-yel{background:#fff8e1;color:#b06000;font-weight:600;}
+.mtt .c-grn{background:#e8f5e9;color:#1e7e34;font-weight:600;}
+.mtt .c-def{color:var(--text);}
+.mtt .pct{font-size:9px;opacity:.75;}
 .cmp-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
 .cmp-ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;background:var(--white);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;}
 .cmp-ctrl label{font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;}
@@ -830,6 +843,82 @@ function renderComparison() {
     +buildKesimpulan(resB, resB, sumA, sumB);
 }
 
+// ── MONTHLY TREND TABLE ────────────────────────────────────────
+function buildMonthlyTrendTable(container) {
+  if(!container) return;
+  const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+
+  // Get months within active filter range
+  const {start:fs, end:fe} = getRange();
+  const allMonths = [...new Set(ROWS.filter(r=>r.date&&r.date>=fs&&r.date<=fe).map(r=>r.date.slice(0,7)))].sort();
+
+  // Columns config: key, label, fmt, target(site), higherBetter, showPct
+  const COLS = [
+    { key:'ritase',  label:'Ritase',        fmt:v=>v!=null?v.toFixed(2):'—', tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;}, hi:true  },
+    { key:'olf',     label:'OLF (Store)',   fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—', tgt:function(){return 0.85;}, hi:true  },
+    { key:'dpStore', label:'DP (Store)',    fmt:v=>v!=null?v.toFixed(1):'—', tgt:null, hi:true  },
+    { key:'dpMix',   label:'DP (Mix)',      fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
+    { key:'dpNonReg',label:'DP Non Reg',   fmt:v=>v!=null?v.toFixed(1):'—', tgt:null, hi:true  },
+    { key:'dpReg',   label:'DP (Regular)', fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
+    { key:'doTrip',  label:'DO/Trip Direct',fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 11.0;}, hi:true  },
+    { key:'tatDirect',label:'TAT (Direct)',fmt:v=>tatStr(v), tgt:null, hi:false },
+    { key:'tatStore', label:'TAT (Store)', fmt:v=>tatStr(v), tgt:null, hi:false },
+  ];
+
+  const SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+
+  // Color cell based on achievement vs target
+  function cellCls(key, val, site) {
+    var col = COLS.find(c=>c.key===key);
+    if(!col||!col.tgt||val==null) return 'c-def';
+    var t = col.tgt(site);
+    if(!t) return 'c-def';
+    var pct = col.hi ? val/t : t/val;
+    if(pct>=1.0) return 'c-grn';
+    if(pct>=0.9) return 'c-yel';
+    return 'c-red';
+  }
+
+  function pctStr(key, val, site) {
+    var col = COLS.find(c=>c.key===key);
+    if(!col||!col.tgt||val==null) return '';
+    var t = col.tgt(site);
+    if(!t) return '';
+    var pct = col.hi ? val/t*100 : t/val*100;
+    return '<br><span class="pct">'+pct.toFixed(0)+'%</span>';
+  }
+
+  // Build header
+  var thead = '<tr><th>Site</th><th>Bulan</th>';
+  COLS.forEach(c=>{ thead+='<th>'+c.label+'</th>'; });
+  thead += '</tr>';
+
+  // Build rows
+  var tbody = '';
+  SITES_LIST.forEach(function(site) {
+    allMonths.forEach(function(mo) {
+      var moRows = ROWS.filter(r=>r.site===site&&r.date&&r.date.slice(0,7)===mo&&r.date>=fs&&r.date<=fe);
+      if(!moRows.length) return;
+      var res = computeSite(moRows, site)||{};
+      var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+      var tr = '<tr>';
+      tr += '<td>'+SL[site]+'</td><td style="color:var(--t2)">'+mn+'</td>';
+      COLS.forEach(function(c){
+        var v = res[c.key];
+        var cls = cellCls(c.key, c.key==='olf'&&v!=null?v:v, site);
+        // OLF stored as fraction, pass raw
+        tr += '<td class="'+cls+'">'+c.fmt(v)+pctStr(c.key, c.key==='olf'&&v!=null?v:v, site)+'</td>';
+      });
+      tr += '</tr>';
+      tbody += tr;
+    });
+
+
+  });
+
+  container.innerHTML = '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
+}
+
 function renderDetail(results, summary, start, end) {
   // Compute daily trend data for charts
   const {start:s, end:e} = getRange();
@@ -954,6 +1043,12 @@ function renderDetail(results, summary, start, end) {
       <div style="padding:8px 16px 16px;height:320px;position:relative"><canvas id="dTREND"></canvas></div>
     </div>
 
+    <!-- MONTHLY TREND TABLE -->
+    <div class="panel" style="margin-top:14px">
+      <div class="ph"><h3>Trend Bulanan per Site</h3><span class="tag">color = vs target</span></div>
+      <div class="tw" id="monthlyTrendTable" style="padding:0 2px 4px"></div>
+    </div>
+
     <!-- COMPARISON SECTION -->
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Perbandingan Periode</h3><span class="tag">MoM / custom</span></div>
@@ -1001,6 +1096,9 @@ function renderDetail(results, summary, start, end) {
   };
 
   charts.dOLF = new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF Store (%)',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
+
+  // Build monthly trend table
+  buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));
 
   charts.dTAT = new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'TAT Direct',data:results.map(r=>r.tatDirect!=null?+r.tatDirect.toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
@@ -1057,34 +1155,24 @@ function renderDetail(results, summary, start, end) {
     };
   }
 
-  // ── TRENDLINE: apple-to-apple by day-of-month range ──────────
-  // Extract day range from current filter (e.g. 1-11 → use day 1-11 each month)
+  // ── TRENDLINE: follow filter range, group by month ─────────────
   const filterD1 = parseInt(s.slice(8,10));
   const filterD2 = parseInt(e.slice(8,10));
-  const filterStartYM = s.slice(0,7); // YYYY-MM of start
 
-  // Build all months from Jan of start-year up to end month
-  const allMonths = [];
-  const [endY, endM] = e.slice(0,7).split('-').map(Number);
-  const [startY] = s.slice(0,7).split('-').map(Number);
-  for(let y=startY; y<=endY; y++) {
-    const mStart = 1;
-    const mEnd = (y===endY) ? endM : 12;
-    for(let m=mStart; m<=mEnd; m++) {
-      allMonths.push(`${y}-${String(m).padStart(2,'0')}`);
-    }
-  }
+  // Only months within the active filter range
+  const allMonths = [...new Set(
+    ROWS.filter(r=>r.date&&r.date>=s&&r.date<=e).map(r=>r.date.slice(0,7))
+  )].sort();
 
   const trendLabels = allMonths.map(mo => {
     const [y,mn] = mo.split('-');
     return moNames[parseInt(mn)-1] + ' ' + y;
   });
 
-  // For each month, compute using same day range as filter
+  // For each month use same day range as filter (apple-to-apple within filter)
   const trendData = allMonths.map(mo => {
-    const d1 = `${mo}-${String(filterD1).padStart(2,'0')}`;
-    // Last day of month capped at filterD2
     const daysInMonth = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+    const d1 = `${mo}-${String(filterD1).padStart(2,'0')}`;
     const d2 = `${mo}-${String(Math.min(filterD2, daysInMonth)).padStart(2,'0')}`;
     const moRows = filterRows(ROWS, d1, d2, currentSite);
     return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
