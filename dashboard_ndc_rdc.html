@@ -433,7 +433,7 @@ function computeSite(rows, site) {
   // OLF
   const olfR = srMain.filter(r => {
     if(r.td !== 'store') return false;
-    if(isJAB && r.owner === 'FBI') return false;
+    if(isJAB && r.sheet === 'AHI JABABEKA' && r.owner === 'FBI') return false;
     if(isJAB && r.kat !== 'REGULAR') return false;
     if(isCIK && !(r.od||'').includes('non cikande')) return false;
     if(isSDA && (r.owner === 'FBI' || r.kat !== 'REGULAR')) return false;
@@ -1164,7 +1164,6 @@ function renderDetail(results, summary, start, end) {
     monthMap[mo].push(r);
   });
   const months = Object.keys(monthMap).sort();
-  const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const moLabels = months.map(m => {
     const [y,mn] = m.split('-');
     return moNames[parseInt(mn)-1] + ' ' + y;
