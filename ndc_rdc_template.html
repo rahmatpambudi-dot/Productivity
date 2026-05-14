@@ -889,15 +889,14 @@ function buildMonthlyTrendTable(container) {
   }
 
   // Build header
-  var thead = '<tr><th>Site</th><th>Bulan</th>';
+  var thead = '<tr><th>Bulan</th><th>Site</th>';
   COLS.forEach(c=>{ thead+='<th>'+c.label+'</th>'; });
   thead += '</tr>';
 
-  // Build rows
+  // Build rows — group by month first, then site
   var tbody = '';
-  SITES_LIST.forEach(function(site) {
-    allMonths.forEach(function(mo) {
-      // Use same day range as filter (apple-to-apple)
+  allMonths.forEach(function(mo) {
+    SITES_LIST.forEach(function(site) {
       var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
       var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
       var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
@@ -906,18 +905,16 @@ function buildMonthlyTrendTable(container) {
       var res = computeSite(moRows, site)||{};
       var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
       var tr = '<tr>';
-      tr += '<td>'+SL[site]+'</td><td style="color:var(--t2)">'+mn+'</td>';
+      tr += '<td style="color:var(--t2)">'+mn+'</td><td>'+SL[site]+'</td>';
       COLS.forEach(function(c){
         var v = res[c.key];
-        var cls = cellCls(c.key, c.key==='olf'&&v!=null?v:v, site);
-        // OLF stored as fraction, pass raw
-        tr += '<td class="'+cls+'">'+c.fmt(v)+pctStr(c.key, c.key==='olf'&&v!=null?v:v, site)+'</td>';
+        var cls = cellCls(c.key, v, site);
+        tr += '<td class="'+cls+'">'+c.fmt(v)+pctStr(c.key, v, site)+'</td>';
       });
       tr += '</tr>';
       tbody += tr;
     });
-
-
+  });
   });
 
   container.innerHTML = '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
@@ -1044,7 +1041,7 @@ function renderDetail(results, summary, start, end) {
     </div>
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Trendline Bulanan</h3><span class="tag">berdasarkan filter periode & site</span></div>
-      <div style="padding:4px 16px 8px;height:340px;position:relative;max-width:900px"><canvas id="dTREND"></canvas></div>
+      <div style="padding:4px 16px 8px;height:340px;position:relative;max-width:700px"><canvas id="dTREND"></canvas></div>
     </div>
 
     <!-- MONTHLY TREND TABLE -->
