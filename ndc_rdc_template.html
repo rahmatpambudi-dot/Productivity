@@ -35,6 +35,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .s-dot.ndc{background:#1a73e8;}.s-dot.rdc{background:#e37400;}
 .s-badge{background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;}
 .s-div{height:1px;background:rgba(255,255,255,.1);margin:6px 12px;}
+.s-group{overflow:hidden;transition:max-height .25s ease;}
+.s-group.collapsed{max-height:0;}
+.s-group.expanded{max-height:400px;}
+.s-item.parent{justify-content:space-between;}
+.s-chevron{font-size:9px;opacity:.5;transition:transform .2s;flex-shrink:0;}
+.s-chevron.open{transform:rotate(180deg);}
+.s-sub-item{display:flex;align-items:center;padding:5px 8px 5px 22px;border-radius:6px;cursor:pointer;transition:all .15s;color:rgba(255,255,255,.5);font-size:12px;}
+.s-sub-item:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);}
+.s-sub-item.active{background:rgba(255,255,255,.1);color:#fff;font-weight:600;}
+.s-sub-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.3);flex-shrink:0;margin-right:7px;}
 
 /* MAIN */
 .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;}
@@ -229,18 +239,42 @@ canvas{display:block;}
   <div class="s-div"></div>
   <div class="s-sec">
     <div class="s-lbl">Filter Site</div>
-    <div class="s-item" onclick="setSite('ALL')"><span>Semua Site</span><span class="s-badge">5</span></div>
+    <div class="s-item" id="site-ALL" onclick="setSite('ALL')"><span>Semua Site</span><span class="s-badge">5</span></div>
   </div>
   <div class="s-sec">
     <div class="s-lbl">NDC</div>
-    <div class="s-item" onclick="setSite('JABABEKA')"><span class="s-dot ndc"></span>Jababeka</div>
-    <div class="s-item" onclick="setSite('CIKUPA')"><span class="s-dot ndc"></span>Cikupa</div>
-    <div class="s-item" onclick="setSite('SDA')"><span class="s-dot ndc"></span>Sidoarjo</div>
+
+    <!-- Jababeka -->
+    <div class="s-item parent" id="site-JABABEKA" onclick="handleSiteClick('JABABEKA','grp-jab',event)">
+      <span style="display:flex;align-items:center;gap:0"><span class="s-dot ndc"></span>Jababeka</span>
+      <span class="s-chevron" id="chv-grp-jab">▼</span>
+    </div>
+    <div class="s-group collapsed" id="grp-jab">
+      <div class="s-sub-item" id="site-JAB_HCI" onclick="setSite('JAB_HCI')"><span class="s-sub-dot"></span>HCI</div>
+      <div class="s-sub-item" id="site-JAB_AHI" onclick="setSite('JAB_AHI')"><span class="s-sub-dot"></span>AHI</div>
+      <div class="s-sub-item" id="site-JAB_FBI" onclick="setSite('JAB_FBI')"><span class="s-sub-dot"></span>FBI</div>
+      <div class="s-sub-item" id="site-JAB_KLS" onclick="setSite('JAB_KLS')"><span class="s-sub-dot"></span>KLS</div>
+    </div>
+
+    <!-- Cikupa -->
+    <div class="s-item" id="site-CIKUPA" onclick="setSite('CIKUPA')"><span class="s-dot ndc"></span>Cikupa</div>
+
+    <!-- Sidoarjo -->
+    <div class="s-item parent" id="site-SDA" onclick="handleSiteClick('SDA','grp-sda',event)">
+      <span style="display:flex;align-items:center;gap:0"><span class="s-dot ndc"></span>Sidoarjo</span>
+      <span class="s-chevron" id="chv-grp-sda">▼</span>
+    </div>
+    <div class="s-group collapsed" id="grp-sda">
+      <div class="s-sub-item" id="site-SDA_HCI" onclick="setSite('SDA_HCI')"><span class="s-sub-dot"></span>HCI</div>
+      <div class="s-sub-item" id="site-SDA_AHI" onclick="setSite('SDA_AHI')"><span class="s-sub-dot"></span>AHI</div>
+      <div class="s-sub-item" id="site-SDA_FBI" onclick="setSite('SDA_FBI')"><span class="s-sub-dot"></span>FBI</div>
+    </div>
   </div>
+
   <div class="s-sec">
     <div class="s-lbl">RDC</div>
-    <div class="s-item" onclick="setSite('TALLO')"><span class="s-dot rdc"></span>Tallo</div>
-    <div class="s-item" onclick="setSite('TAMORA')"><span class="s-dot rdc"></span>Tamora</div>
+    <div class="s-item" id="site-TALLO" onclick="setSite('TALLO')"><span class="s-dot rdc"></span>Tallo</div>
+    <div class="s-item" id="site-TAMORA" onclick="setSite('TAMORA')"><span class="s-dot rdc"></span>Tamora</div>
   </div>
 </aside>
 
@@ -255,9 +289,16 @@ canvas{display:block;}
       <button class="btn-apply" onclick="applyFilter()">Terapkan</button>
       <select class="s-filter" id="siteSelect" onchange="onSiteChange()">
         <option value="ALL">Semua Site</option>
-        <option value="JABABEKA">Jababeka</option>
+        <option value="JABABEKA">Jababeka (Corporate)</option>
+        <option value="JAB_HCI">Jababeka — HCI</option>
+        <option value="JAB_AHI">Jababeka — AHI</option>
+        <option value="JAB_FBI">Jababeka — FBI</option>
+        <option value="JAB_KLS">Jababeka — KLS</option>
         <option value="CIKUPA">Cikupa</option>
-        <option value="SDA">Sidoarjo</option>
+        <option value="SDA">Sidoarjo (Corporate)</option>
+        <option value="SDA_HCI">Sidoarjo — HCI</option>
+        <option value="SDA_AHI">Sidoarjo — AHI</option>
+        <option value="SDA_FBI">Sidoarjo — FBI</option>
         <option value="TALLO">Tallo</option>
         <option value="TAMORA">Tamora</option>
       </select>
@@ -279,8 +320,26 @@ let ROWS = [];
 let currentNav  = 'overview';
 let currentSite = 'ALL';
 let charts = {};
-const SL = { JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora' };
+const SL = {
+  JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora',
+  JAB_HCI:'JAB - HCI', JAB_AHI:'JAB - AHI', JAB_FBI:'JAB - FBI', JAB_KLS:'JAB - KLS',
+  SDA_HCI:'SDA - HCI', SDA_AHI:'SDA - AHI', SDA_FBI:'SDA - FBI',
+};
 const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
+
+// Sub-site config: base site + owner filter
+// owners: array of owner values to include (case-insensitive match on r.owner)
+// For JAB sub-sites: also filter r.site === 'JABABEKA'
+// For SDA sub-sites: also filter r.site === 'SDA'
+const SUB_SITES = {
+  JAB_HCI: { baseSite:'JABABEKA', owners:['HCI'] },
+  JAB_AHI: { baseSite:'JABABEKA', owners:['AHI','NKA','TGI'] },
+  JAB_FBI: { baseSite:'JABABEKA', owners:['FBI'] },
+  JAB_KLS: { baseSite:'JABABEKA', owners:['KLS'] },
+  SDA_HCI: { baseSite:'SDA',      owners:['HCI'] },
+  SDA_AHI: { baseSite:'SDA',      owners:['AHI','TGI'] },
+  SDA_FBI: { baseSite:'SDA',      owners:['FBI'] },
+};
 
 // ── TARGETS ────────────────────────────────────────────────────
 const TARGETS = {
@@ -372,9 +431,15 @@ function getRange() {
 }
 
 function filterRows(rows, start, end, site) {
+  const sub = SUB_SITES[site];
   return rows.filter(r => {
     if (!r.date) return false;
     if (r.date < start || r.date > end) return false;
+    if (sub) {
+      // Sub-site: filter by base site + owner
+      if (r.site !== sub.baseSite) return false;
+      return sub.owners.some(o => (r.owner||'').toUpperCase() === o.toUpperCase());
+    }
     if (site !== 'ALL') {
       if (site === 'JABABEKA') return r.site === 'JABABEKA';
       return r.site === site;
@@ -405,12 +470,17 @@ function tatStr(h){
 }
 
 function computeSite(rows, site) {
-  const isJAB = site === 'JABABEKA';
-  const isCIK = site === 'CIKUPA';
-  const isSDA = site === 'SDA';
+  // If sub-site: resolve to base site for formula logic, rows already pre-filtered by owner
+  const sub = SUB_SITES[site];
+  const effectiveSite = sub ? sub.baseSite : site;
 
-  // site rows
-  const sr = rows.filter(r => r.site === site);
+  const isJAB = effectiveSite === 'JABABEKA';
+  const isCIK = effectiveSite === 'CIKUPA';
+  const isSDA = effectiveSite === 'SDA';
+  const isSub = !!sub; // sub-site = owner-specific view, no FBI exclusion
+
+  // site rows (rows already filtered by filterRows, so just use effectiveSite for internal sub-filters)
+  const sr = rows.filter(r => r.site === effectiveSite);
 
   // RITASE
   const ritRows = sr.filter(r =>
@@ -433,10 +503,11 @@ function computeSite(rows, site) {
   // OLF
   const olfR = srMain.filter(r => {
     if(r.td !== 'store') return false;
-    if(isJAB && r.sheet === 'AHI JABABEKA' && r.owner === 'FBI') return false;
+    if(!isSub && isJAB && r.sheet === 'AHI JABABEKA' && r.owner === 'FBI') return false;
     if(isJAB && r.kat !== 'REGULAR') return false;
     if(isCIK && !(r.od||'').includes('non cikande')) return false;
-    if(isSDA && (r.owner === 'FBI' || r.kat !== 'REGULAR')) return false;
+    if(!isSub && isSDA && (r.owner === 'FBI' || r.kat !== 'REGULAR')) return false;
+    if(isSub && isSDA && r.kat !== 'REGULAR') return false;
     // TALLO/TAMORA: no kat filter (per manual formula)
     return true;
   });
@@ -447,18 +518,18 @@ function computeSite(rows, site) {
   const dpSt = olfR.map(r=>parseFloat(r.dp)||0);
 
   // DP Mix
-  const dpMx = srMain.filter(r => r.td==='customer' && !(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')).map(r=>parseFloat(r.dp)||0);
+  const dpMx = srMain.filter(r => r.td==='customer' && (isSub || (!(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')))).map(r=>parseFloat(r.dp)||0);
 
   // DP Non Reg
-  const dpNR = srMain.filter(r => r.td==='customer' && r.kat==='NON REGULAR' && !(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')).map(r=>parseFloat(r.dp)||0);
+  const dpNR = srMain.filter(r => r.td==='customer' && r.kat==='NON REGULAR' && (isSub || (!(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')))).map(r=>parseFloat(r.dp)||0);
 
   // Direct filter
   const drR = srMain.filter(r => {
     if(r.td !== 'customer') return false;
     if(r.ta === 'PICKUP') return false;
     if(r.kat !== 'REGULAR') return false;
-    if(isJAB && r.owner === 'FBI') return false;
-    if(isSDA && r.owner === 'FBI') return false;
+    if(!isSub && isJAB && r.owner === 'FBI') return false;
+    if(!isSub && isSDA && r.owner === 'FBI') return false;
     if(isCIK && !(r.sat||'').includes('NON SATELIT')) return false;
     return true;
   });
@@ -505,8 +576,45 @@ function makeSummary(results) {
 
 // ── RENDER ─────────────────────────────────────────────────────
 function applyFilter() { render(); }
-function onSiteChange() { currentSite = document.getElementById('siteSelect').value; render(); }
-function setSite(s) { currentSite = s; document.getElementById('siteSelect').value = s; render(); }
+function onSiteChange() { currentSite = document.getElementById('siteSelect').value; updateSidebarActive(); render(); }
+
+function handleSiteClick(site, grpId, e) {
+  // Toggle expand/collapse
+  const grp = document.getElementById(grpId);
+  const chv = document.getElementById('chv-'+grpId);
+  if(grp) {
+    const isExpanded = grp.classList.contains('expanded');
+    grp.classList.toggle('expanded', !isExpanded);
+    grp.classList.toggle('collapsed', isExpanded);
+    if(chv) chv.classList.toggle('open', !isExpanded);
+  }
+  // Also set site to corporate
+  setSite(site);
+}
+
+function setSite(s) {
+  currentSite = s;
+  document.getElementById('siteSelect').value = s;
+  // Expand parent group if sub-site selected
+  if(SUB_SITES[s]) {
+    const baseSite = SUB_SITES[s].baseSite;
+    const grpId = baseSite === 'JABABEKA' ? 'grp-jab' : 'grp-sda';
+    const grp = document.getElementById(grpId);
+    const chv = document.getElementById('chv-'+grpId);
+    if(grp) { grp.classList.add('expanded'); grp.classList.remove('collapsed'); }
+    if(chv) chv.classList.add('open');
+  }
+  updateSidebarActive();
+  render();
+}
+
+function updateSidebarActive() {
+  // Clear all active states
+  document.querySelectorAll('.s-item, .s-sub-item').forEach(el => el.classList.remove('active'));
+  // Set active on matching site item
+  const el = document.getElementById('site-'+currentSite);
+  if(el) el.classList.add('active');
+}
 function setNav(n) {
   currentNav = n;
   document.querySelectorAll('.s-item[id^=nav]').forEach(el=>el.classList.remove('active'));
@@ -517,6 +625,7 @@ function setNav(n) {
 function render() {
   const {start,end} = getRange();
   const filtered = filterRows(ROWS, start, end, currentSite);
+  const isSub = !!SUB_SITES[currentSite];
   const results = currentSite === 'ALL' ? computeAll(filtered) : [computeSite(filtered, currentSite)];
   const summary = makeSummary(results);
 
@@ -639,7 +748,9 @@ function renderBars(id, results, getFn, fmtFn, cls) {
 function getTarget(key, site) {
   const t = TARGETS[key];
   if(!t) return null;
-  if(t.targetBySite) return t.targetBySite[site] || t.targetNational;
+  // For sub-sites, use parent site's target
+  const effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
+  if(t.targetBySite) return t.targetBySite[effectiveSite] || t.targetNational;
   return t.target;
 }
 
@@ -903,13 +1014,14 @@ function buildMonthlyTrendTable(container) {
     { key:'tatStore', label:'TAT (Store)', fmt:v=>tatStr(v), tgt:null, hi:false },
   ];
 
-  const SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+  const SITES_LIST = currentSite==='ALL' ? SITES : SUB_SITES[currentSite] ? [currentSite] : [currentSite];
 
   // Color cell based on achievement vs target
   function cellCls(key, val, site) {
     var col = COLS.find(c=>c.key===key);
     if(!col||!col.tgt||val==null) return 'c-def';
-    var t = col.tgt(site);
+    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
+    var t = col.tgt(effectiveSite);
     if(!t) return 'c-def';
     var pct = col.hi ? val/t : t/val;
     if(pct>=1.0) return 'c-grn';
@@ -920,7 +1032,8 @@ function buildMonthlyTrendTable(container) {
   function pctStr(key, val, site) {
     var col = COLS.find(c=>c.key===key);
     if(!col||!col.tgt||val==null) return '';
-    var t = col.tgt(site);
+    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
+    var t = col.tgt(effectiveSite);
     if(!t) return '';
     var pct = col.hi ? val/t*100 : t/val*100;
     return '<br><span class="pct">'+pct.toFixed(0)+'%</span>';
@@ -942,8 +1055,9 @@ function buildMonthlyTrendTable(container) {
       if(!moFiltered.length) return;
       var res = computeSite(moFiltered, site)||{};
       var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+      var siteLbl = SL[site]||site;
       var tr = '<tr>';
-      tr += '<td style="color:var(--t2)">'+mn+'</td><td>'+SL[site]+'</td>';
+      tr += '<td style="color:var(--t2)">'+mn+'</td><td>'+siteLbl+'</td>';
       COLS.forEach(function(c){
         var v = res[c.key];
         var cls = cellCls(c.key, v, site);
@@ -1313,6 +1427,7 @@ function setNav(n) {
 }
 
 // ── INIT ───────────────────────────────────────────────────────
+updateSidebarActive();
 loadData();
 </script>
 </body>
