@@ -1342,6 +1342,8 @@ function renderDetail(results, summary, start, end) {
       trendSeries.forEach(function(s,i) {
         var meta=chart.getDatasetMeta(i);
         if(meta.hidden) return;
+        // Also skip if dataset was marked hidden (no data)
+        if(trendDatasets[i] && trendDatasets[i].hidden) return;
         var last=meta.data[meta.data.length-1];
         if(!last) return;
         ctx.save();
@@ -1356,15 +1358,19 @@ function renderDetail(results, summary, start, end) {
   };
 
   var trendDatasets = trendSeries.map(function(s) {
+    // Check if series has any meaningful data
+    var vals = trendData.map(function(d){ return s.fmt(d[s.key]); });
+    var hasData = vals.some(function(v){ return v != null && v !== 0; });
     return {
       label: s.label,
-      data: trendData.map(function(d){ return s.fmt(d[s.key]); }),
+      data: vals,
       borderColor: s.color, pointBackgroundColor: s.color,
       backgroundColor: 'transparent',
       borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
       tension: 0.3, fill: false, yAxisID: s.axis,
+      hidden: !hasData,
       datalabels: {
-        display: true,
+        display: hasData,
         anchor: s.align==='center'?'center':(s.align==='bottom'?'start':'end'),
         align:  s.align==='center'?'center':(s.align==='bottom'?'bottom':'top'),
         offset: s.align==='center'?0:4,
