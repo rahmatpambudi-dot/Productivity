@@ -1133,21 +1133,54 @@ function buildMonthlyTrendTable(container) {
     return '<br><span class="pct">'+pct.toFixed(0)+'%</span>';
   }
 
-  // Build header
-  var thead = '<tr><th>Bulan</th><th>Site</th>';
-  COLS.forEach(c=>{ thead+='<th>'+c.label+'</th>'; });
-  thead += '</tr>';
+  // Columns that get MoM badge (TAT onwards)
+  const BADGE_KEYS = new Set(['tatDirect','tatStore','totalCbmStore','totalDoCust','totalDpCust']);
 
-  // Build rows — compute from ROWS with exact date range (same as Achievement panel)
-  var tbody = '';
+  // Pre-compute all month+site results for MoM comparison
+  var allResults = {}; // key: mo+'|'+site → res
   allMonths.forEach(function(mo) {
     var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
     var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
     var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
       var moFiltered = filterRows(ROWS, moD1, moD2, site);
-      if(!moFiltered.length) return;
-      var res = computeSite(moFiltered, site)||{};
+      allResults[mo+'|'+site] = moFiltered.length ? (computeSite(moFiltered, site)||{}) : null;
+    });
+  });
+
+  // MoM delta badge helper
+  function momBadge(key, cur, prev, hi) {
+    if(cur==null||prev==null) return '';
+    var d = cur - prev;
+    if(Math.abs(d) < 0.001) return '';
+    var good = hi ? d > 0 : d < 0;
+    var color = good ? '#0f9d58' : '#d93025';
+    var arrow = d > 0 ? '▲' : '▼';
+    var label;
+    if(key==='tatDirect'||key==='tatStore') {
+      var abs = Math.abs(d), h = Math.floor(abs), m = Math.round((abs-h)*60);
+      label = (h>0?h+'j ':'')+m+'m';
+    } else if(key==='totalDoCust'||key==='totalDpCust') {
+      label = Math.round(Math.abs(d)).toLocaleString('id-ID');
+    } else {
+      label = Math.abs(d) < 10 ? Math.abs(d).toFixed(1) : Math.round(Math.abs(d)).toString();
+    }
+    return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+arrow+' '+label+'</span>';
+  }
+
+  // Build header
+  var thead = '<tr><th>Bulan</th><th>Site</th>';
+  COLS.forEach(c=>{ thead+='<th>'+c.label+'</th>'; });
+  thead += '</tr>';
+
+  // Build rows with MoM badges
+  var tbody = '';
+  allMonths.forEach(function(mo, moIdx) {
+    var prevMo = moIdx > 0 ? allMonths[moIdx-1] : null;
+    SITES_LIST.forEach(function(site) {
+      var res = allResults[mo+'|'+site];
+      if(!res) return;
+      var prevRes = prevMo ? (allResults[prevMo+'|'+site]||null) : null;
       var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
       var siteLbl = SL[site]||site;
       var tr = '<tr>';
@@ -1155,7 +1188,8 @@ function buildMonthlyTrendTable(container) {
       COLS.forEach(function(c){
         var v = res[c.key];
         var cls = cellCls(c.key, v, site);
-        tr += '<td class="'+cls+'">'+c.fmt(v)+pctStr(c.key, v, site)+'</td>';
+        var badge = BADGE_KEYS.has(c.key) ? momBadge(c.key, v, prevRes ? prevRes[c.key] : null, c.hi) : '';
+        tr += '<td class="'+cls+'">'+c.fmt(v)+pctStr(c.key, v, site)+badge+'</td>';
       });
       tr += '</tr>';
       tbody += tr;
