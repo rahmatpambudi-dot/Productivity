@@ -965,12 +965,77 @@ function renderComparison() {
   var hdrA = shortDate(labelA);
   var hdrB = shortDate(labelB);
 
-  var summaryTable = '<table class="dt ins-tbl" style="font-size:11px;min-width:0"><thead><tr>'
-    +'<th style="width:130px">Metrik</th>'
-    +'<th class="num col-a" style="width:90px">'+hdrA+'</th>'
-    +'<th class="num col-b" style="width:90px">'+hdrB+'</th>'
-    +'<th class="num" style="width:55px">Δ</th>'
-    +'</tr></thead><tbody>'+tableRows+'</tbody></table>';
+  // ── Transposed summary table (metric = rows, A/B = cols) ──────
+  // Reuse COLS config from monthly trend table
+  const CMP_COLS = [
+    { key:'ritase',   label:'Ritase',       fmt:function(v){return v!=null?v.toFixed(2):'—';},             tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;}, hi:true,  isTAT:false },
+    { key:'olf',      label:'OLF (Store)',  fmt:function(v){return v!=null?(v*100).toFixed(1)+'%':'—';},    tgt:function(){return 0.85;},  hi:true,  isTAT:false },
+    { key:'dpStore',  label:'DP (Store)',   fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:null, hi:true,  isTAT:false },
+    { key:'dpMix',    label:'DP (Mix)',     fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 8.0;},   hi:true,  isTAT:false },
+    { key:'dpNonReg', label:'DP Non Reg',  fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:null, hi:true,  isTAT:false },
+    { key:'dpReg',    label:'DP (Regular)',fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 8.0;},   hi:true,  isTAT:false },
+    { key:'doTrip',   label:'DO/Trip',     fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 11.0;},  hi:true,  isTAT:false },
+    { key:'tatDirect',label:'TAT (Direct)',fmt:function(v){return tatStr(v);},                             tgt:null, hi:false, isTAT:true  },
+    { key:'tatStore', label:'TAT (Store)', fmt:function(v){return tatStr(v);},                             tgt:null, hi:false, isTAT:true  },
+  ];
+
+  function cmpCellCls(key, val, site) {
+    var col = CMP_COLS.find(function(c){return c.key===key;});
+    if(!col||!col.tgt||val==null) return '';
+    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : (site==='ALL'?'JABABEKA':site);
+    var t = col.tgt(effectiveSite);
+    if(!t) return '';
+    var pct = col.hi ? val/t : t/val;
+    if(pct>=1.0) return 'c-grn';
+    if(pct>=0.9) return 'c-yel';
+    return 'c-red';
+  }
+
+  function cmpPctStr(key, val, site) {
+    var col = CMP_COLS.find(function(c){return c.key===key;});
+    if(!col||!col.tgt||val==null) return '';
+    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : (site==='ALL'?'JABABEKA':site);
+    var t = col.tgt(effectiveSite);
+    if(!t) return '';
+    var pct = col.hi ? val/t*100 : t/val*100;
+    return '<br><span class="pct">'+pct.toFixed(0)+'%</span>';
+  }
+
+  function tatBadge(key, a, b) {
+    // TAT: lower is better. Compare A vs B: if A < B → A improved (green ▼), if A > B → A worse (red ▲)
+    if(a==null||b==null) return '';
+    var diff = a - b; // negative = A lower = better
+    if(Math.abs(diff)<0.01) return '';
+    var better = diff < 0; // A is lower than B = good
+    var mins = Math.round(Math.abs(diff));
+    var h = Math.floor(mins/60), m = mins%60;
+    var label = (h>0?h+'j ':'')+m+'m';
+    var arrow = better ? '▼' : '▲';
+    var color = better ? '#0f9d58' : '#d93025';
+    return ' <span style="font-size:10px;font-weight:700;color:'+color+'">'+arrow+' '+label+'</span>';
+  }
+
+  var site4cls = currentSite==='ALL' ? 'JABABEKA' : currentSite;
+  var cmpRows = '';
+  CMP_COLS.forEach(function(col) {
+    var a = vA[col.key], b = vB[col.key];
+    var clsA = cmpCellCls(col.key, a, site4cls);
+    var clsB = cmpCellCls(col.key, b, site4cls);
+    var pA = cmpPctStr(col.key, a, site4cls);
+    var pB = cmpPctStr(col.key, b, site4cls);
+    var badge = col.isTAT ? tatBadge(col.key, a, b) : '';
+    cmpRows += '<tr>'
+      +'<td style="font-size:11px;color:var(--t2);font-weight:600;padding:7px 10px;border-bottom:0.5px solid var(--border);white-space:nowrap">'+col.label+'</td>'
+      +'<td class="num '+clsA+'" style="padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">'+col.fmt(a)+pA+'</td>'
+      +'<td class="num '+clsB+'" style="padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">'+col.fmt(b)+pB+badge+'</td>'
+      +'</tr>';
+  });
+
+  var summaryTable = '<table class="dt ins-tbl" style="font-size:11px;min-width:0;width:100%"><thead><tr>'
+    +'<th style="width:130px;text-align:left;padding:7px 10px;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Metrik</th>'
+    +'<th class="num col-a" style="width:110px;padding:7px 10px;font-size:10px;letter-spacing:.3px">'+hdrA+'</th>'
+    +'<th class="num col-b" style="width:110px;padding:7px 10px;font-size:10px;letter-spacing:.3px">'+hdrB+'</th>'
+    +'</tr></thead><tbody>'+cmpRows+'</tbody></table>';
 
   var legendTag = '<span class="tag"><span style="color:#1a73e8">■</span> A &nbsp;<span style="color:#e37400">■</span> B</span>';
 
