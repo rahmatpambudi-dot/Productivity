@@ -553,6 +553,13 @@ function computeSite(rows, site) {
     return r.sa.includes('DALAM KOTA');
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=(isCIK?12:24));
 
+  // Total CBM Store (same filter as OLF)
+  const totalCbmStore = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
+
+  // Total DO Customer & Total DP Customer (same filter as drR)
+  const totalDoCust = ssum(drR.map(r=>parseFloat(r.do)||0));
+  const totalDpCust = ssum(drR.map(r=>parseFloat(r.dp)||0));
+
   return {
     site, label: SL[site]||site,
     ritase: avg(ritVals), olf: oM>0?oL/oM:null,
@@ -561,6 +568,7 @@ function computeSite(rows, site) {
     cbmDo: doDpK>0?cbmTotal/doDpK:null,
     cbmDp: doDpN>0?cbmTotal/doDpN:null,
     tatDirect: avg(tatD), tatStore: avg(tatS),
+    totalCbmStore, totalDoCust, totalDpCust,
     rowCount: sr.length,
   };
 }
@@ -571,7 +579,12 @@ function computeAll(rows) {
 
 function makeSummary(results) {
   const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore'];
-  return { site:'NDC & RDC', label:'NDC & RDC', ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])) };
+  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust'];
+  return {
+    site:'NDC & RDC', label:'NDC & RDC',
+    ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])),
+    ...Object.fromEntries(sumKeys.map(k=>[k,ssum(results.map(r=>r[k]||0))])),
+  };
 }
 
 // ── RENDER ─────────────────────────────────────────────────────
@@ -877,12 +890,15 @@ function renderComparison() {
     { key:'dpMix',    label:'DP Mix' },
     { key:'dpNonReg', label:'DP Non Reg' },
     { key:'dpReg',    label:'DP Reg' },
-    { key:'doTrip',   label:'DO/Trip' },
-    { key:'doDp',     label:'DO/DP Direct' },
-    { key:'cbmDo',    label:'CBM/DO' },
-    { key:'cbmDp',    label:'CBM/DP' },
-    { key:'tatDirect',label:'TAT Direct', isTAT:true },
-    { key:'tatStore', label:'TAT Store',  isTAT:true },
+    { key:'doTrip',        label:'DO/Trip' },
+    { key:'doDp',          label:'DO/DP Direct' },
+    { key:'cbmDo',         label:'CBM/DO' },
+    { key:'cbmDp',         label:'CBM/DP' },
+    { key:'tatDirect',     label:'TAT Direct',   isTAT:true },
+    { key:'tatStore',      label:'TAT Store',    isTAT:true },
+    { key:'totalCbmStore', label:'CBM Store' },
+    { key:'totalDoCust',   label:'DO Customer' },
+    { key:'totalDpCust',   label:'DP Customer' },
   ];
 
   const fmt = (key, v) => {
@@ -890,6 +906,8 @@ function renderComparison() {
     if(key==='olf') return (v*100).toFixed(1)+'%';
     if(key==='tatDirect'||key==='tatStore') return tatStr(v);
     if(key==='doDp'||key==='cbmDo'||key==='cbmDp') return v.toFixed(2);
+    if(key==='totalDoCust'||key==='totalDpCust') return Math.round(v).toLocaleString('id-ID');
+    if(key==='totalCbmStore') return v.toFixed(1);
     return v.toFixed(1);
   };
 
@@ -974,9 +992,12 @@ function renderComparison() {
     { key:'dpMix',    label:'DP (Mix)',     fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 8.0;},   hi:true,  isTAT:false },
     { key:'dpNonReg', label:'DP Non Reg',  fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:null, hi:true,  isTAT:false },
     { key:'dpReg',    label:'DP (Regular)',fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 8.0;},   hi:true,  isTAT:false },
-    { key:'doTrip',   label:'DO/Trip',     fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 11.0;},  hi:true,  isTAT:false },
-    { key:'tatDirect',label:'TAT (Direct)',fmt:function(v){return tatStr(v);},                             tgt:null, hi:false, isTAT:true  },
-    { key:'tatStore', label:'TAT (Store)', fmt:function(v){return tatStr(v);},                             tgt:null, hi:false, isTAT:true  },
+    { key:'doTrip',        label:'DO/Trip',      fmt:function(v){return v!=null?v.toFixed(1):'—';},                              tgt:function(){return 11.0;},  hi:true,  isTAT:false },
+    { key:'tatDirect',     label:'TAT (Direct)', fmt:function(v){return tatStr(v);},                                             tgt:null, hi:false, isTAT:true  },
+    { key:'tatStore',      label:'TAT (Store)',  fmt:function(v){return tatStr(v);},                                             tgt:null, hi:false, isTAT:true  },
+    { key:'totalCbmStore', label:'CBM Store',    fmt:function(v){return v!=null?v.toFixed(1):'—';},                              tgt:null, hi:true,  isTAT:false },
+    { key:'totalDoCust',   label:'DO Customer',  fmt:function(v){return v!=null?Math.round(v).toLocaleString('id-ID'):'—';},    tgt:null, hi:true,  isTAT:false },
+    { key:'totalDpCust',   label:'DP Customer',  fmt:function(v){return v!=null?Math.round(v).toLocaleString('id-ID'):'—';},    tgt:null, hi:true,  isTAT:false },
   ];
 
   function cmpCellCls(key, val, site) {
@@ -1062,9 +1083,9 @@ function buildMonthlyTrendTable(container) {
   if(!container) return;
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
-  // Use pre-aggregated MONTHLY data (fast, no need to scan ROWS)
+  // allMonths: semua bulan dari ROWS (Jan → latest), apple-to-apple day range
   const {start:fs, end:fe} = getRange();
-  const allMonths = [...new Set(MONTHLY.map(r=>r.month))].filter(mo=>mo>=fs.slice(0,7)&&mo<=fe.slice(0,7)).sort();
+  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
 
   // Columns config: key, label, fmt, target(site), higherBetter, showPct
   const COLS = [
@@ -1074,9 +1095,12 @@ function buildMonthlyTrendTable(container) {
     { key:'dpMix',   label:'DP (Mix)',      fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
     { key:'dpNonReg',label:'DP Non Reg',   fmt:v=>v!=null?v.toFixed(1):'—', tgt:null, hi:true  },
     { key:'dpReg',   label:'DP (Regular)', fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
-    { key:'doTrip',  label:'DO/Trip',fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 11.0;}, hi:true  },
-    { key:'tatDirect',label:'TAT (Direct)',fmt:v=>tatStr(v), tgt:null, hi:false },
-    { key:'tatStore', label:'TAT (Store)', fmt:v=>tatStr(v), tgt:null, hi:false },
+    { key:'doTrip',        label:'DO/Trip',      fmt:v=>v!=null?v.toFixed(1):'—',           tgt:function(){return 11.0;}, hi:true  },
+    { key:'tatDirect',     label:'TAT (Direct)', fmt:v=>tatStr(v),                          tgt:null, hi:false },
+    { key:'tatStore',      label:'TAT (Store)',  fmt:v=>tatStr(v),                          tgt:null, hi:false },
+    { key:'totalCbmStore', label:'CBM Store',    fmt:v=>v!=null?v.toFixed(1):'—',           tgt:null, hi:true  },
+    { key:'totalDoCust',   label:'DO Customer',  fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—', tgt:null, hi:true  },
+    { key:'totalDpCust',   label:'DP Customer',  fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—', tgt:null, hi:true  },
   ];
 
   const SITES_LIST = currentSite==='ALL' ? SITES : SUB_SITES[currentSite] ? [currentSite] : [currentSite];
