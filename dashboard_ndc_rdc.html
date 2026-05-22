@@ -20,8 +20,6 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:13px;}
-
-/* SIDEBAR */
 .sidebar{width:var(--sw);background:#1e2a3a;border-right:none;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:10;overflow-y:auto;}
 .s-logo{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px;}
 .s-icon{width:32px;height:32px;background:var(--green);border-radius:6px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0;}
@@ -45,11 +43,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .s-sub-item:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);}
 .s-sub-item.active{background:rgba(255,255,255,.1);color:#fff;font-weight:600;}
 .s-sub-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.3);flex-shrink:0;margin-right:7px;}
-
-/* MAIN */
 .main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;}
-
-/* TOPBAR */
 .topbar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5;gap:10px;flex-wrap:wrap;}
 .topbar h2{font-size:15px;font-weight:600;}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -67,14 +61,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .btn-ref{display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--white);font-size:12px;color:var(--t2);cursor:pointer;font-family:'Inter',sans-serif;}
 .btn-ref:hover{background:var(--bg);}
 .btn-ref svg{width:13px;height:13px;}
-
-/* CONTENT */
 .content{padding:20px 24px;flex:1;}
 .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px;gap:12px;color:var(--t3);}
 .spinner{width:28px;height:28px;border:2.5px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
-
-/* KPI */
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;}
 .kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:var(--shadow);transition:box-shadow .2s;}
 .kpi:hover{box-shadow:var(--shadow-md);}
@@ -82,22 +72,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .kpi .val{font-size:21px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace;line-height:1;}
 .kpi .val.green{color:var(--green);}.kpi .val.red{color:var(--red);}.kpi .val.blue{color:var(--blue);}
 .kpi .sub{font-size:10px;color:var(--t3);margin-top:4px;}
-
-/* GRID */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;}
 .g4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:14px;}
 @media(max-width:1200px){.g3{grid-template-columns:1fr 1fr;}.g4{grid-template-columns:1fr 1fr;}}
 @media(max-width:800px){.g2,.g3,.g4{grid-template-columns:1fr;}}
-
-/* PANEL */
 .panel{background:var(--white);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;}
 .ph{padding:13px 16px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
 .ph h3{font-size:13px;font-weight:600;}
 .ph .tag{font-size:10px;color:var(--t3);background:var(--bg);border:1px solid var(--border);padding:2px 7px;border-radius:10px;}
 .pb{padding:14px 16px;}
-
-/* TABLE */
 .tw{overflow-x:auto;}
 .dt{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
 .dt thead th{padding:8px 11px;text-align:left;font-weight:600;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);white-space:nowrap;background:var(--bg);}
@@ -110,8 +94,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .bg{background:var(--gbg);color:var(--green);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
 .bm{background:var(--obg);color:var(--orange);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
 .br{background:var(--rbg);color:var(--red);padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;}
-
-/* BARS */
 .bars{display:flex;flex-direction:column;gap:9px;}
 .bi .bh{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;}
 .bi .bs{font-weight:500;}.bi .bv{font-weight:600;font-family:'JetBrains Mono',monospace;font-size:11px;}
@@ -120,18 +102,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .bf.g{background:linear-gradient(90deg,var(--gl),var(--green));}
 .bf.b{background:linear-gradient(90deg,#93c4fd,var(--blue));}
 .bf.o{background:linear-gradient(90deg,#fcd980,var(--orange));}
-
-/* DETAIL METRIK */
 .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
 @media(max-width:900px){.metric-grid{grid-template-columns:1fr;}}
 .trend-table .dt thead th{background:var(--white);}
 .delta-up{color:var(--gm);font-weight:600;font-size:11px;}
 .delta-dn{color:var(--red);font-weight:600;font-size:11px;}
 .delta-nt{color:var(--t3);font-size:11px;}
-
 canvas{display:block;}
-
-/* MONTHLY TREND TABLE */
 .mtt{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums;}
 .mtt th{background:var(--bg);color:var(--t3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:7px 10px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1;}
 .mtt th:first-child,.mtt th:nth-child(2){text-align:left;}
@@ -154,8 +131,6 @@ canvas{display:block;}
 .cmp-sep{color:var(--t3);font-size:11px;}
 .btn-cmp{background:var(--green);color:#fff;border:none;padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;}
 .btn-cmp:hover{background:var(--gm);}
-
-/* ACHIEVEMENT */
 .ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:14px;}
 .ach-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;box-shadow:var(--shadow);}
 .ach-card .ac-lbl{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;}
@@ -165,23 +140,17 @@ canvas{display:block;}
 .ac-badge.hit{background:var(--gbg);color:var(--green);}
 .ac-badge.warn{background:#fff8e6;color:#b06000;}
 .ac-badge.miss{background:var(--rbg);color:var(--red);}
-
-/* DELTA */
 .d-up{color:var(--gm);font-weight:600;font-size:11px;}
 .d-dn{color:var(--red);font-weight:600;font-size:11px;}
 .d-nt{color:var(--t3);font-size:11px;}
 .arrow-up::before{content:'▲ ';}
 .arrow-dn::before{content:'▼ ';}
-
-/* INSIGHT TABLE */
 .ins-tbl{table-layout:fixed;}
 .ins-tbl thead th{background:var(--bg);}
 .ins-tbl .col-a{color:#1a73e8;font-weight:600;}
 .ins-tbl .col-b{color:#e37400;font-weight:600;}
 .ins-tbl .gap-pos{color:var(--gm);font-weight:600;}
 .ins-tbl .gap-neg{color:var(--red);font-weight:600;}
-
-/* KESIMPULAN */
 .kesimpulan{border-radius:var(--r);padding:14px 16px;margin-top:14px;}
 .kesimpulan.baik{background:var(--gbg);border:1px solid var(--gl);}
 .kesimpulan.evaluasi{background:#fff8e6;border:1px solid #f9c825;}
@@ -191,8 +160,6 @@ canvas{display:block;}
 .kesimpulan ul li::before{margin-right:6px;}
 .kesimpulan.baik h4{color:var(--green);}
 .kesimpulan.evaluasi h4{color:#b06000;}
-
-/* TABS */
 .tabs{display:flex;gap:2px;background:var(--bg);border-radius:7px;padding:3px;margin-bottom:16px;width:fit-content;}
 .tab{padding:6px 16px;border-radius:5px;font-size:12px;font-weight:500;cursor:pointer;color:var(--t2);transition:all .15s;}
 .tab.active{background:var(--white);color:var(--green);font-weight:600;box-shadow:var(--shadow);}
@@ -201,30 +168,16 @@ canvas{display:block;}
 <body>
 <style>
   #connectone-back {
-    position: fixed;
-    bottom: 16px;
-    left: 16px;
-    z-index: 99999;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: #1e2d4a;
-    color: #fff;
-    text-decoration: none;
-    font-family: Inter, sans-serif;
-    font-size: 12px;
-    font-weight: 500;
-    padding: 8px 14px;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: background 0.2s, transform 0.2s;
+    position: fixed; bottom: 16px; left: 16px; z-index: 99999;
+    display: flex; align-items: center; gap: 8px; background: #1e2d4a; color: #fff;
+    text-decoration: none; font-family: Inter, sans-serif; font-size: 12px; font-weight: 500;
+    padding: 8px 14px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.1); transition: background 0.2s, transform 0.2s;
   }
   #connectone-back:hover { background: #2a3f6a; transform: translateX(-2px); }
   #connectone-back svg { width: 14px; height: 14px; flex-shrink: 0; }
 </style>
 <a id="connectone-back" href="https://rahmatpambudi-dot.github.io/connectone/" title="Kembali ke ConnectOne Hub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> ConnectOne</a>
-
 
 <aside class="sidebar">
   <div class="s-logo">
@@ -243,8 +196,6 @@ canvas{display:block;}
   </div>
   <div class="s-sec">
     <div class="s-lbl">NDC</div>
-
-    <!-- Jababeka -->
     <div class="s-item parent" id="site-JABABEKA" onclick="handleSiteClick('JABABEKA','grp-jab',event)">
       <span style="display:flex;align-items:center;gap:0"><span class="s-dot ndc"></span>Jababeka</span>
       <span class="s-chevron" id="chv-grp-jab">▼</span>
@@ -255,11 +206,7 @@ canvas{display:block;}
       <div class="s-sub-item" id="site-JAB_FBI" onclick="setSite('JAB_FBI')"><span class="s-sub-dot"></span>FBI</div>
       <div class="s-sub-item" id="site-JAB_KLS" onclick="setSite('JAB_KLS')"><span class="s-sub-dot"></span>KLS</div>
     </div>
-
-    <!-- Cikupa -->
     <div class="s-item" id="site-CIKUPA" onclick="setSite('CIKUPA')"><span class="s-dot ndc"></span>Cikupa</div>
-
-    <!-- Sidoarjo -->
     <div class="s-item parent" id="site-SDA" onclick="handleSiteClick('SDA','grp-sda',event)">
       <span style="display:flex;align-items:center;gap:0"><span class="s-dot ndc"></span>Sidoarjo</span>
       <span class="s-chevron" id="chv-grp-sda">▼</span>
@@ -270,7 +217,6 @@ canvas{display:block;}
       <div class="s-sub-item" id="site-SDA_FBI" onclick="setSite('SDA_FBI')"><span class="s-sub-dot"></span>FBI</div>
     </div>
   </div>
-
   <div class="s-sec">
     <div class="s-lbl">RDC</div>
     <div class="s-item" id="site-TALLO" onclick="setSite('TALLO')"><span class="s-dot rdc"></span>Tallo</div>
@@ -326,11 +272,6 @@ const SL = {
   SDA_HCI:'SDA - HCI', SDA_AHI:'SDA - AHI', SDA_FBI:'SDA - FBI',
 };
 const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
-
-// Sub-site config: base site + owner filter
-// owners: array of owner values to include (case-insensitive match on r.owner)
-// For JAB sub-sites: also filter r.site === 'JABABEKA'
-// For SDA sub-sites: also filter r.site === 'SDA'
 const SUB_SITES = {
   JAB_HCI: { baseSite:'JABABEKA', owners:['HCI'] },
   JAB_AHI: { baseSite:'JABABEKA', owners:['AHI','NKA','TGI'] },
@@ -340,35 +281,18 @@ const SUB_SITES = {
   SDA_AHI: { baseSite:'SDA',      owners:['AHI','TGI'] },
   SDA_FBI: { baseSite:'SDA',      owners:['FBI'] },
 };
-
-// ── TARGETS ────────────────────────────────────────────────────
 const TARGETS = {
   olf:      { label:'OLF', target: 0.85,  dir:'up',   fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'85%' },
-  ritase:   { label:'Ritase',        targetBySite:{ JABABEKA:1.15, CIKUPA:1.05, SDA:1.07, TALLO:1.25, TAMORA:1.25, NATIONAL:1.15 }, targetNational:1.15, dir:'up', fmt: v=>v!=null?v.toFixed(2):'—', tgtFmt:'site-specific' },
-  dpMix:    { label:'DP Mix',        target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
-  dpReg:    { label:'DP Reg',    target: 8.0,   dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
-  doTrip:   { label:'DO/Trip',       target: 11.0,  dir:'up',   fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
+  ritase:   { label:'Ritase', targetBySite:{ JABABEKA:1.15, CIKUPA:1.05, SDA:1.07, TALLO:1.25, TAMORA:1.25, NATIONAL:1.15 }, targetNational:1.15, dir:'up', fmt: v=>v!=null?v.toFixed(2):'—', tgtFmt:'site-specific' },
+  dpMix:    { label:'DP Mix', target: 8.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
+  dpReg:    { label:'DP Reg', target: 8.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
+  doTrip:   { label:'DO/Trip', target: 11.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
 };
-// Undefined targets - show in table, no badge
-const TARGETS_UNDEF = {
-  dpStore:  { label:'DP Store',       fmt: v=>v!=null?v.toFixed(1):'—' },
-  dpNonReg: { label:'DP Non Reg', fmt: v=>v!=null?v.toFixed(1):'—' },
-  doDp:     { label:'DO/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
-  cbmDo:    { label:'CBM/DO',          fmt: v=>v!=null?v.toFixed(2):'—' },
-  cbmDp:    { label:'CBM/DP',          fmt: v=>v!=null?v.toFixed(2):'—' },
-  tatDirect:{ label:'TAT Direct',     fmt: v=>tatStr(v) },
-  tatStore: { label:'TAT Store',      fmt: v=>tatStr(v) },
-};
-
-// ── COMPARISON STATE ───────────────────────────────────────────
 let cmpA = { start:'', end:'' };
 let cmpB = { start:'', end:'' };
 
-// ── LOAD ───────────────────────────────────────────────────────
-// Register datalabels plugin
 if(typeof ChartDataLabels !== 'undefined') Chart.register(ChartDataLabels);
 
-// ── BUILD MONTHLY FROM ROWS (fallback if data_monthly.json not available) ──
 function buildMonthlyFromRows(rows) {
   var result = [];
   var months = [...new Set(rows.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
@@ -392,7 +316,6 @@ let RAW_LOADED = false;
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>';
   try {
-    // Try data_monthly.json first (fast), fallback to data.json
     let usedMonthly = false;
     try {
       const mRes = await fetch('data_monthly.json?t=' + Date.now());
@@ -403,8 +326,6 @@ async function loadData() {
         usedMonthly = true;
       }
     } catch(e2) {}
-
-    // Always load data.json for full filter support
     const res = await fetch('data.json?t=' + Date.now());
     if (!res.ok) throw new Error('data.json not found. Pastikan GitHub Actions sudah dijalankan.');
     const json = await res.json();
@@ -412,7 +333,6 @@ async function loadData() {
     RAW_LOADED = true;
     if(!usedMonthly) {
       document.getElementById('updTime').textContent = json.timestamp || '14 May 2026 18:30 WIB';
-      // Build MONTHLY from ROWS on the fly
       MONTHLY = buildMonthlyFromRows(ROWS);
     } else {
       document.getElementById('updTime').textContent = json.timestamp || document.getElementById('updTime').textContent;
@@ -423,7 +343,6 @@ async function loadData() {
   }
 }
 
-// ── DATE HELPERS ───────────────────────────────────────────────
 function getRange() {
   const s = document.getElementById('startDate').value;
   const e = document.getElementById('endDate').value;
@@ -436,7 +355,6 @@ function filterRows(rows, start, end, site) {
     if (!r.date) return false;
     if (r.date < start || r.date > end) return false;
     if (sub) {
-      // Sub-site: filter by base site + owner
       if (r.site !== sub.baseSite) return false;
       return sub.owners.some(o => (r.owner||'').toUpperCase() === o.toUpperCase());
     }
@@ -448,7 +366,6 @@ function filterRows(rows, start, end, site) {
   });
 }
 
-// ── COMPUTE ────────────────────────────────────────────────────
 function avg(a) { a=a.filter(x=>x!=null&&!isNaN(x)); return a.length?a.reduce((s,x)=>s+x,0)/a.length:null; }
 function ssum(a){ return a.filter(x=>x!=null&&!isNaN(x)).reduce((s,x)=>s+x,0); }
 function pf(v,d=2){ return v==null?'—':v.toFixed(d); }
@@ -456,10 +373,8 @@ function pp(v){ return v==null?'—':(v*100).toFixed(1)+'%'; }
 function parseTAT(s){
   if(!s||s==='—')return null;
   s=s.toString().trim();
-  // H:MM:SS or H:MM
   const m=s.match(/^(-?\d+):(\d{2})(?::(\d{2}))?$/);
   if(m) return +m[1]+parseInt(m[2])/60+(m[3]?parseInt(m[3]):0)/3600;
-  // Excel fraction (0-2 = 0-48 hours)
   const n=parseFloat(s); if(!isNaN(n)&&n>0&&n<2)return n*24;
   return null;
 }
@@ -470,37 +385,22 @@ function tatStr(h){
 }
 
 function computeSite(rows, site) {
-  // If sub-site: resolve to base site for formula logic, rows already pre-filtered by owner
   const sub = SUB_SITES[site];
   const effectiveSite = sub ? sub.baseSite : site;
-
   const isJAB = effectiveSite === 'JABABEKA';
   const isCIK = effectiveSite === 'CIKUPA';
   const isSDA = effectiveSite === 'SDA';
-  const isSub = !!sub; // sub-site = owner-specific view, no FBI exclusion
-
-  // site rows (rows already filtered by filterRows, so just use effectiveSite for internal sub-filters)
+  const isSub = !!sub;
   const sr = rows.filter(r => r.site === effectiveSite);
-
-  // RITASE
-  const ritRows = sr.filter(r =>
-    r.td !== 'satelite' &&
-    !(isCIK && (r.ja || '').toUpperCase() === 'MIN VAN OPS')
-  );
+  const ritRows = sr.filter(r => r.td !== 'satelite' && !(isCIK && (r.ja || '').toUpperCase() === 'MIN VAN OPS'));
   const byDate = {};
   ritRows.forEach(r => {
     if(!byDate[r.date]) byDate[r.date]={trips:new Set(),nopols:new Set()};
     byDate[r.date].trips.add(r.lc);
     if(r.nopol) byDate[r.date].nopols.add(r.nopol);
   });
-  const ritVals = Object.values(byDate).map(v=>{
-    return v.nopols.size>0 ? v.trips.size/v.nopols.size : null;
-  }).filter(x=>x!=null);
-
-  // For JABABEKA: exclude KLS sheet for all metrics except RITASE
+  const ritVals = Object.values(byDate).map(v=>{ return v.nopols.size>0 ? v.trips.size/v.nopols.size : null; }).filter(x=>x!=null);
   const srMain = isJAB ? sr.filter(r => r.sheet !== 'KLS JABABEKA') : sr;
-
-  // OLF
   const olfR = srMain.filter(r => {
     if(r.td !== 'store') return false;
     if(!isSub && isJAB && r.sheet === 'AHI JABABEKA' && r.owner === 'FBI') return false;
@@ -508,22 +408,13 @@ function computeSite(rows, site) {
     if(isCIK && !(r.od||'').includes('non cikande')) return false;
     if(!isSub && isSDA && (r.owner === 'FBI' || r.kat !== 'REGULAR')) return false;
     if(isSub && isSDA && r.kat !== 'REGULAR') return false;
-    // TALLO/TAMORA: no kat filter (per manual formula)
     return true;
   });
   const oL = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
   const oM = ssum(olfR.map(r=>parseFloat(r.cap)||0));
-
-  // DP Store
   const dpSt = olfR.map(r=>parseFloat(r.dp)||0);
-
-  // DP Mix
   const dpMx = srMain.filter(r => r.td==='customer' && (isSub || (!(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')))).map(r=>parseFloat(r.dp)||0);
-
-  // DP Non Reg
   const dpNR = srMain.filter(r => r.td==='customer' && r.kat==='NON REGULAR' && (isSub || (!(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')))).map(r=>parseFloat(r.dp)||0);
-
-  // Direct filter
   const drR = srMain.filter(r => {
     if(r.td !== 'customer') return false;
     if(r.ta === 'PICKUP') return false;
@@ -538,28 +429,19 @@ function computeSite(rows, site) {
   const doDpK = ssum(drR.map(r=>parseFloat(r.do)||0));
   const doDpN = ssum(drR.map(r=>parseFloat(r.dp)||0));
   const cbmTotal = ssum(drR.map(r=>parseFloat(r.cbm)||0));
-
-  // TAT Direct
   const tatD = srMain.filter(r => {
     if(r.td !== 'customer' || r.kat !== 'REGULAR') return false;
     if(isCIK) return (r.sat||'').includes('NON SATELIT');
     return r.sa.includes('DALAM KOTA');
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=24);
-
-  // TAT Store
   const tatS = srMain.filter(r => {
     if(r.td !== 'store' || r.kat !== 'REGULAR') return false;
     if(isCIK) return (r.sat||'').includes('NON SATELIT');
     return r.sa.includes('DALAM KOTA');
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=(isCIK?12:24));
-
-  // Total CBM Store (same filter as OLF)
   const totalCbmStore = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
-
-  // Total DO Customer & Total DP Customer (same filter as drR)
   const totalDoCust = ssum(drR.map(r=>parseFloat(r.do)||0));
   const totalDpCust = ssum(drR.map(r=>parseFloat(r.dp)||0));
-
   return {
     site, label: SL[site]||site,
     ritase: avg(ritVals), olf: oM>0?oL/oM:null,
@@ -573,10 +455,7 @@ function computeSite(rows, site) {
   };
 }
 
-function computeAll(rows) {
-  return SITES.map(s => computeSite(rows, s)).filter(Boolean);
-}
-
+function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(Boolean); }
 function makeSummary(results) {
   const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore'];
   const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust'];
@@ -587,12 +466,10 @@ function makeSummary(results) {
   };
 }
 
-// ── RENDER ─────────────────────────────────────────────────────
 function applyFilter() { render(); }
 function onSiteChange() { currentSite = document.getElementById('siteSelect').value; updateSidebarActive(); render(); }
 
 function handleSiteClick(site, grpId, e) {
-  // Toggle expand/collapse
   const grp = document.getElementById(grpId);
   const chv = document.getElementById('chv-'+grpId);
   if(grp) {
@@ -601,14 +478,12 @@ function handleSiteClick(site, grpId, e) {
     grp.classList.toggle('collapsed', isExpanded);
     if(chv) chv.classList.toggle('open', !isExpanded);
   }
-  // Also set site to corporate
   setSite(site);
 }
 
 function setSite(s) {
   currentSite = s;
   document.getElementById('siteSelect').value = s;
-  // Expand parent group if sub-site selected
   if(SUB_SITES[s]) {
     const baseSite = SUB_SITES[s].baseSite;
     const grpId = baseSite === 'JABABEKA' ? 'grp-jab' : 'grp-sda';
@@ -622,12 +497,11 @@ function setSite(s) {
 }
 
 function updateSidebarActive() {
-  // Clear all active states
   document.querySelectorAll('.s-item, .s-sub-item').forEach(el => el.classList.remove('active'));
-  // Set active on matching site item
   const el = document.getElementById('site-'+currentSite);
   if(el) el.classList.add('active');
 }
+
 function setNav(n) {
   currentNav = n;
   document.querySelectorAll('.s-item[id^=nav]').forEach(el=>el.classList.remove('active'));
@@ -638,39 +512,34 @@ function setNav(n) {
 function render() {
   const {start,end} = getRange();
   const filtered = filterRows(ROWS, start, end, currentSite);
-  const isSub = !!SUB_SITES[currentSite];
   const results = currentSite === 'ALL' ? computeAll(filtered) : [computeSite(filtered, currentSite)];
   const summary = makeSummary(results);
-
   const d1 = new Date(start).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   const d2 = new Date(end).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   document.getElementById('topTitle').textContent = `${currentNav==='overview'?'Overview':'Detail Metrik'} — ${d1} s/d ${d2}`;
-
   Object.values(charts).forEach(c=>{ try{c.destroy()}catch(e){} });
   charts = {};
-
   if(currentNav === 'overview') renderOverview(results, summary, start, end);
   else renderDetail(results, summary, start, end);
 }
+</script>
 
+<script>
 // ── OVERVIEW ───────────────────────────────────────────────────
 function renderOverview(results, summary, start, end) {
   const best  = results.reduce((a,b)=>(b.olf||0)>(a.olf||0)?b:a, results[0]||{});
   const worst = results.reduce((a,b)=>(b.olf??Infinity)<(a.olf??Infinity)?b:a, results[0]||{});
   const kpis = [
-    {l:'RITASE',      v:pf(summary.ritase),        s:'Avg NDC & RDC', c:''},
-    {l:'OLF STORE',   v:pp(summary.olf),            s:'Avg NDC & RDC', c:'green'},
-    {l:'OLF TERBAIK', v:pp(best.olf),               s:best.label||'—', c:'green'},
-    {l:'OLF RENDAH',  v:pp(worst.olf),              s:worst.label||'—',c:'red'},
-    {l:'DP STORE',    v:pf(summary.dpStore,1),       s:'Avg',           c:'blue'},
-    {l:'DO/TRIP',     v:pf(summary.doTrip,1),        s:'Avg Direct',    c:''},
-    {l:'DO/DP',       v:pf(summary.doDp,2),          s:'Avg Direct',    c:''},
-    {l:'TAT DIRECT',  v:tatStr(summary.tatDirect),   s:'Avg',           c:''},
-    {l:'TAT STORE',   v:tatStr(summary.tatStore),    s:'Avg',           c:'blue'},
+    {l:'RITASE',v:pf(summary.ritase),s:'Avg NDC & RDC',c:''},
+    {l:'OLF STORE',v:pp(summary.olf),s:'Avg NDC & RDC',c:'green'},
+    {l:'OLF TERBAIK',v:pp(best.olf),s:best.label||'—',c:'green'},
+    {l:'OLF RENDAH',v:pp(worst.olf),s:worst.label||'—',c:'red'},
+    {l:'DP STORE',v:pf(summary.dpStore,1),s:'Avg',c:'blue'},
+    {l:'DO/TRIP',v:pf(summary.doTrip,1),s:'Avg Direct',c:''},
+    {l:'DO/DP',v:pf(summary.doDp,2),s:'Avg Direct',c:''},
+    {l:'TAT DIRECT',v:tatStr(summary.tatDirect),s:'Avg',c:''},
+    {l:'TAT STORE',v:tatStr(summary.tatStore),s:'Avg',c:'blue'},
   ];
-
-  const showRes = currentSite === 'ALL' ? results : results;
-
   document.getElementById('content').innerHTML = `
     <div class="kpi-row">${kpis.map(k=>`<div class="kpi"><div class="lbl">${k.l}</div><div class="val ${k.c}">${k.v}</div><div class="sub">${k.s}</div></div>`).join('')}</div>
     <div class="g3">
@@ -690,41 +559,31 @@ function renderOverview(results, summary, start, end) {
       </tr></thead><tbody id="tBody"></tbody></table></div>
     </div>
   `;
-
   renderBars('bOLF', results, r=>r.olf!=null?r.olf*100:null, v=>v!=null?v.toFixed(1)+'%':'—', 'g');
   renderBars('bDOT', results, r=>r.doTrip, v=>pf(v,1), 'b');
   renderBars('bRIT', results, r=>r.ritase, v=>pf(v,2), 'o');
-
   const labs = results.map(r=>r.label);
   const co = {
     responsive:true,
     plugins:{
       legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},
       tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368'},
-      datalabels:{
-        anchor:'end', align:'top', color:'#1a1d23',
-        font:{family:'Inter',size:9,weight:'600'},
-        formatter:(v)=>v!=null?v.toFixed(1):'',
-        padding:2
-      }
+      datalabels:{anchor:'end',align:'top',color:'#1a1d23',font:{family:'Inter',size:9,weight:'600'},formatter:(v)=>v!=null?v.toFixed(1):'',padding:2}
     },
     scales:{
       x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}},
       y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}}
     }
   };
-
   charts.dp = new Chart(document.getElementById('cDP').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'DP Store',data:results.map(r=>r.dpStore),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
     {label:'DP Mix',data:results.map(r=>r.dpMix),backgroundColor:'rgba(26,115,232,.6)',borderColor:'#1a73e8',borderWidth:1,borderRadius:4},
     {label:'DP Reg',data:results.map(r=>r.dpReg),backgroundColor:'rgba(227,116,0,.5)',borderColor:'#e37400',borderWidth:1,borderRadius:4},
   ]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0}}}});
-
   charts.tat = new Chart(document.getElementById('cTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'TAT Direct (jam)',data:results.map(r=>r.tatDirect!=null?+r.tatDirect.toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
     {label:'TAT Store (jam)',data:results.map(r=>r.tatStore!=null?+r.tatStore.toFixed(2):null),backgroundColor:'rgba(26,115,232,.6)',borderColor:'#1a73e8',borderWidth:1,borderRadius:4},
   ]},options:co});
-
   const allRows = [...results, {...summary, isSummary:true}];
   document.getElementById('tBody').innerHTML = allRows.map(r=>`
     <tr class="${r.isSummary?'sum':''}">
@@ -756,12 +615,9 @@ function renderBars(id, results, getFn, fmtFn, cls) {
     </div>`).join('');
 }
 
-// ── DETAIL METRIK ──────────────────────────────────────────────
-// ── ACHIEVEMENT HELPERS ────────────────────────────────────────
 function getTarget(key, site) {
   const t = TARGETS[key];
   if(!t) return null;
-  // For sub-sites, use parent site's target
   const effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
   if(t.targetBySite) return t.targetBySite[effectiveSite] || t.targetNational;
   return t.target;
@@ -772,8 +628,6 @@ function achPct(key, val, site) {
   if(!t || val==null) return null;
   const tgt = getTarget(key, site);
   if(!tgt) return null;
-  // For TAT (lower is better): achievement = target/actual * 100
-  // For others (higher is better): achievement = actual/target * 100
   return t.dir==='up' ? (val/tgt*100) : (tgt/val*100);
 }
 
@@ -804,20 +658,19 @@ function fmtDelta(vA, vB, key, higherIsBetter) {
   return `<span class="${cls}">${d>=0?'+':''}${Math.abs(d)<10?d.toFixed(2):d.toFixed(1)}</span>`;
 }
 
-// Higher is better for all except TAT
 const HIGHER_BETTER = { olf:true, ritase:true, dpStore:true, dpMix:true, dpNonReg:false, dpReg:true, doTrip:true, doDp:true, cbmDo:true, cbmDp:true, tatDirect:false, tatStore:false };
+</script>
 
+<script>
 function buildKesimpulan(resA, resB, sumA, sumB) {
   const lines = { baik:[], perhatian:[] };
   const checks = [
-    { key:'olf',   label:'OLF Store',    tgt:0.85, dir:'up',   fmtV: v=>(v*100).toFixed(1)+'%', fmtT:'85%' },
-    { key:'ritase',label:'Ritase',       tgtFn:(site)=>getTarget('ritase',site), dir:'up', fmtV:v=>v.toFixed(2) },
-    { key:'dpMix', label:'DP Mix',       tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
-    { key:'dpReg', label:'DP Reg',   tgt:8.0,  dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'8.0' },
-    { key:'doTrip',label:'DO/Trip',      tgt:11.0, dir:'up',   fmtV:v=>v.toFixed(1), fmtT:'11.0' },
+    { key:'olf',label:'OLF Store',tgt:0.85,dir:'up',fmtV:v=>(v*100).toFixed(1)+'%',fmtT:'85%' },
+    { key:'ritase',label:'Ritase',tgtFn:(site)=>getTarget('ritase',site),dir:'up',fmtV:v=>v.toFixed(2) },
+    { key:'dpMix',label:'DP Mix',tgt:8.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'8.0' },
+    { key:'dpReg',label:'DP Reg',tgt:8.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'8.0' },
+    { key:'doTrip',label:'DO/Trip',tgt:11.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'11.0' },
   ];
-
-  // Achievement vs target (period B)
   const site = currentSite==='ALL' ? null : currentSite;
   checks.forEach(c => {
     const val = site ? (resB.find(r=>r.site===site)||{})[c.key] : sumB[c.key];
@@ -827,15 +680,12 @@ function buildKesimpulan(resA, resB, sumA, sumB) {
     if(hit) lines.baik.push(`${c.label} ${c.fmtV(val)} mencapai target ${c.fmtT||tgt}`);
     else lines.perhatian.push(`${c.label} ${c.fmtV(val)} belum mencapai target ${c.fmtT||tgt}`);
   });
-
-  // MoM trend (if comparison data available)
   if(sumA && sumB) {
     const olfDelta = sumB.olf!=null&&sumA.olf!=null ? sumB.olf-sumA.olf : null;
     const tatDDelta = sumB.tatDirect!=null&&sumA.tatDirect!=null ? sumB.tatDirect-sumA.tatDirect : null;
     const tatSDelta = sumB.tatStore!=null&&sumA.tatStore!=null ? sumB.tatStore-sumA.tatStore : null;
     const doTDelta = sumB.doTrip!=null&&sumA.doTrip!=null ? sumB.doTrip-sumA.doTrip : null;
     const ritDelta = sumB.ritase!=null&&sumA.ritase!=null ? sumB.ritase-sumA.ritase : null;
-
     if(olfDelta!=null) {
       if(olfDelta>0) lines.baik.push(`OLF naik +${(olfDelta*100).toFixed(1)}% dibanding periode sebelumnya`);
       else if(olfDelta<-0.01) lines.perhatian.push(`OLF turun ${(olfDelta*100).toFixed(1)}% dibanding periode sebelumnya`);
@@ -859,11 +709,8 @@ function buildKesimpulan(resA, resB, sumA, sumB) {
       else if(ritDelta<-0.02) lines.perhatian.push(`Ritase turun ${ritDelta.toFixed(2)}`);
     }
   }
-
-  const isGood = lines.perhatian.length === 0 || lines.baik.length > lines.perhatian.length;
   const cls = lines.perhatian.length > lines.baik.length ? 'evaluasi' : 'baik';
   const title = lines.perhatian.length === 0 ? '✅ Operasional Efisien' : (lines.baik.length >= lines.perhatian.length ? '⚠️ Cukup Baik, Ada yang Perlu Diperhatikan' : '⚠️ Perlu Evaluasi');
-
   let html = `<div class="kesimpulan ${cls}"><h4>${title}</h4><ul>`;
   lines.baik.forEach(l => html += `<li>✓ ${l}</li>`);
   lines.perhatian.forEach(l => html += `<li>⚠ ${l}</li>`);
@@ -877,129 +724,25 @@ function renderComparison() {
     document.getElementById('cmpResult').innerHTML = '<p style="color:var(--t3);font-size:12px;padding:12px">Pilih kedua periode lalu klik Bandingkan.</p>';
     return;
   }
-
   const rowsA = filterRows(ROWS, s1, e1, currentSite);
   const rowsB = filterRows(ROWS, s2, e2, currentSite);
   const resA = currentSite==='ALL' ? computeAll(rowsA) : [computeSite(rowsA, currentSite)];
   const resB = currentSite==='ALL' ? computeAll(rowsB) : [computeSite(rowsB, currentSite)];
   const sumA = makeSummary(resA);
   const sumB = makeSummary(resB);
-
-  const allMetrics = [
-    { key:'olf',      label:'OLF', fmtA:v=>v!=null?(v*100).toFixed(1)+'%':'—', fmtB:v=>v!=null?(v*100).toFixed(1)+'%':'—' },
-    { key:'ritase',   label:'Ritase' },
-    { key:'dpStore',  label:'DP Store' },
-    { key:'dpMix',    label:'DP Mix' },
-    { key:'dpNonReg', label:'DP Non Reg' },
-    { key:'dpReg',    label:'DP Reg' },
-    { key:'doTrip',        label:'DO/Trip' },
-    { key:'doDp',          label:'DO/DP Direct' },
-    { key:'cbmDo',         label:'CBM/DO' },
-    { key:'cbmDp',         label:'CBM/DP' },
-    { key:'tatDirect',     label:'TAT Direct',   isTAT:true },
-    { key:'tatStore',      label:'TAT Store',    isTAT:true },
-    { key:'totalCbmStore', label:'CBM Store' },
-    { key:'totalDoCust',   label:'DO Customer' },
-    { key:'totalDpCust',   label:'DP Customer' },
-  ];
-
-  const fmt = (key, v) => {
-    if(v==null) return '—';
-    if(key==='olf') return (v*100).toFixed(1)+'%';
-    if(key==='tatDirect'||key==='tatStore') return tatStr(v);
-    if(key==='doDp'||key==='cbmDo'||key==='cbmDp') return v.toFixed(2);
-    if(key==='totalDoCust'||key==='totalDpCust') return Math.round(v).toLocaleString('id-ID');
-    if(key==='totalCbmStore') return v.toFixed(1);
-    return v.toFixed(1);
-  };
-
-  // Build table rows using summary (ALL) or single site
-  const vA = currentSite==='ALL' ? sumA : (resA[0]||{});
-  const vB = currentSite==='ALL' ? sumB : (resB[0]||{});
-
-  let tableRows = '';
-  allMetrics.forEach(m => {
-    const a=vA[m.key], b=vB[m.key];
-    const delta = fmtDelta(a, b, m.key, HIGHER_BETTER[m.key]);
-    tableRows += '<tr>'
-      +'<td><strong>'+m.label+'</strong></td>'
-      +'<td class="num col-a">'+fmt(m.key,a)+'</td>'
-      +'<td class="num col-b">'+fmt(m.key,b)+'</td>'
-      +'<td class="num">'+delta+'</td>'
-      +'</tr>';
-  });
-
-  // Per-site rows if ALL — layout: rows=metrik, cols=site with A→B delta
-  let siteSection = '';
-  if(currentSite==='ALL') {
-    // Build per-site grid: 5 site cards, each showing metrik rows
-    let cards = '';
-    SITES.forEach(site => {
-      const a = resA.find(r=>r.site===site)||{};
-      const b = resB.find(r=>r.site===site)||{};
-      let rows = '';
-      allMetrics.forEach(m => {
-        const va = fmt(m.key,a[m.key]), vb = fmt(m.key,b[m.key]);
-        const d = fmtDelta(a[m.key], b[m.key], m.key, HIGHER_BETTER[m.key]);
-        rows += '<tr>'
-          +'<td style="font-size:11px;color:var(--t2);padding:5px 8px;border-bottom:0.5px solid var(--border)">'+m.label+'</td>'
-          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border);color:#1a73e8">'+va+'</td>'
-          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border);color:#e37400">'+vb+'</td>'
-          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border)">'+d+'</td>'
-          +'</tr>';
-      });
-      cards += '<div style="background:var(--white);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden;min-width:0">'
-        +'<div style="background:var(--bg);padding:7px 10px;font-size:11px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border)">'+SL[site]+'</div>'
-        +'<table style="width:100%;border-collapse:collapse"><thead>'
-        +'<tr><th style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:left;font-weight:600">Metrik</th>'
-        +'<th style="font-size:9px;color:#1a73e8;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">A</th>'
-        +'<th style="font-size:9px;color:#e37400;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">B</th>'
-        +'<th style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">Δ</th>'
-        +'</tr></thead><tbody>'+rows+'</tbody></table>'
-        +'</div>';
-    });
-    siteSection = '<div class="panel" style="margin-top:14px"><div class="ph"><h3>Perbandingan per Site</h3><span class="tag">Periode A vs B</span></div>'
-      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;padding:2px 0">'+cards+'</div></div>';
-  }
-
-  const labelA = s1+' — '+e1;
-  const labelB = s2+' — '+e2;
-
-  // Site cards html (strip outer panel wrapper from siteSection)
-  var siteCardsHtml = '';
-  if(siteSection) {
-    var tmp = document.createElement('div');
-    tmp.innerHTML = siteSection;
-    var grid = tmp.querySelector('[style*="auto-fill"]');
-    if(grid) siteCardsHtml = grid.innerHTML;
-  }
-
-  // Shorten date labels: "2026-03-31 — 2026-04-29" → "31 Mar — 29 Apr 26"
-  function shortDate(s) {
-    var mn=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-    return s.replace(/(\d{4})-(\d{2})-(\d{2})\s*—\s*(\d{4})-(\d{2})-(\d{2})/,
-      function(_,y1,m1,d1,y2,m2,d2){
-        return d1+' '+mn[+m1-1]+' '+y1.slice(2)+'<br>— '+d2+' '+mn[+m2-1]+' '+y2.slice(2);
-      });
-  }
-  var hdrA = shortDate(labelA);
-  var hdrB = shortDate(labelB);
-
-  // ── Transposed summary table (metric = rows, A/B = cols) ──────
-  // Reuse COLS config from monthly trend table
   const CMP_COLS = [
-    { key:'ritase',   label:'Ritase',       fmt:function(v){return v!=null?v.toFixed(2):'—';},             tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;}, hi:true,  isTAT:false },
-    { key:'olf',      label:'OLF (Store)',  fmt:function(v){return v!=null?(v*100).toFixed(1)+'%':'—';},    tgt:function(){return 0.85;},  hi:true,  isTAT:false },
-    { key:'dpStore',  label:'DP (Store)',   fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:null, hi:true,  isTAT:false },
-    { key:'dpMix',    label:'DP (Mix)',     fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 8.0;},   hi:true,  isTAT:false },
-    { key:'dpNonReg', label:'DP Non Reg',  fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:null, hi:true,  isTAT:false },
-    { key:'dpReg',    label:'DP (Regular)',fmt:function(v){return v!=null?v.toFixed(1):'—';},              tgt:function(){return 8.0;},   hi:true,  isTAT:false },
-    { key:'doTrip',        label:'DO/Trip',      fmt:function(v){return v!=null?v.toFixed(1):'—';},                              tgt:function(){return 11.0;},  hi:true,  isTAT:false },
-    { key:'tatDirect',     label:'TAT (Direct)', fmt:function(v){return tatStr(v);},                                             tgt:null, hi:false, isTAT:true  },
-    { key:'tatStore',      label:'TAT (Store)',  fmt:function(v){return tatStr(v);},                                             tgt:null, hi:false, isTAT:true  },
-    { key:'totalCbmStore', label:'CBM Store',    fmt:function(v){return v!=null?v.toFixed(1):'—';},                              tgt:null, hi:true,  isTAT:false },
-    { key:'totalDoCust',   label:'DO Customer',  fmt:function(v){return v!=null?Math.round(v).toLocaleString('id-ID'):'—';},    tgt:null, hi:true,  isTAT:false },
-    { key:'totalDpCust',   label:'DP Customer',  fmt:function(v){return v!=null?Math.round(v).toLocaleString('id-ID'):'—';},    tgt:null, hi:true,  isTAT:false },
+    { key:'ritase',label:'Ritase',fmt:function(v){return v!=null?v.toFixed(2):'—';},tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;},hi:true },
+    { key:'olf',label:'OLF (Store)',fmt:function(v){return v!=null?(v*100).toFixed(1)+'%':'—';},tgt:function(){return 0.85;},hi:true },
+    { key:'dpStore',label:'DP (Store)',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
+    { key:'dpMix',label:'DP (Mix)',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 8.0;},hi:true },
+    { key:'dpNonReg',label:'DP Non Reg',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
+    { key:'dpReg',label:'DP (Regular)',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 8.0;},hi:true },
+    { key:'doTrip',label:'DO/Trip',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 11.0;},hi:true },
+    { key:'tatDirect',label:'TAT (Direct)',fmt:function(v){return tatStr(v);},tgt:null,hi:false },
+    { key:'tatStore',label:'TAT (Store)',fmt:function(v){return tatStr(v);},tgt:null,hi:false },
+    { key:'totalCbmStore',label:'CBM Store',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
+    { key:'totalDoCust',label:'DO Customer',fmt:function(v){return v!=null?Math.round(v).toLocaleString('id-ID'):'—';},tgt:null,hi:true },
+    { key:'totalDpCust',label:'DP Customer',fmt:function(v){return v!=null?Math.round(v).toLocaleString('id-ID'):'—';},tgt:null,hi:true },
   ];
 
   function cmpCellCls(key, val, site) {
@@ -1009,11 +752,8 @@ function renderComparison() {
     var t = col.tgt(effectiveSite);
     if(!t) return '';
     var pct = col.hi ? val/t : t/val;
-    if(pct>=1.0) return 'c-grn';
-    if(pct>=0.9) return 'c-yel';
-    return 'c-red';
+    if(pct>=1.0) return 'c-grn'; if(pct>=0.9) return 'c-yel'; return 'c-red';
   }
-
   function cmpPctStr(key, val, site) {
     var col = CMP_COLS.find(function(c){return c.key===key;});
     if(!col||!col.tgt||val==null) return '';
@@ -1024,31 +764,23 @@ function renderComparison() {
     return '<br><span class="pct">'+pct.toFixed(0)+'%</span>';
   }
 
-  function tatBadge(key, a, b) {
-    // TAT: lower is better. Compare A vs B: if A < B → A improved (green ▼), if A > B → A worse (red ▲)
-    if(a==null||b==null) return '';
-    var diff = a - b; // negative = A lower = better
-    if(Math.abs(diff)<0.01) return '';
-    var better = diff < 0; // A is lower than B = good
-    var mins = Math.round(Math.abs(diff));
-    var h = Math.floor(mins/60), m = mins%60;
-    var label = (h>0?h+'j ':'')+m+'m';
-    var arrow = better ? '▼' : '▲';
-    var color = better ? '#0f9d58' : '#d93025';
-    return ' <span style="font-size:10px;font-weight:700;color:'+color+'">'+arrow+' '+label+'</span>';
+  const vA = currentSite==='ALL' ? sumA : (resA[0]||{});
+  const vB = currentSite==='ALL' ? sumB : (resB[0]||{});
+  function shortDate(s) {
+    var mn=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    return s.replace(/(\d{4})-(\d{2})-(\d{2})\s*—\s*(\d{4})-(\d{2})-(\d{2})/,
+      function(_,y1,m1,d1,y2,m2,d2){return d1+' '+mn[+m1-1]+' '+y1.slice(2)+'<br>— '+d2+' '+mn[+m2-1]+' '+y2.slice(2);});
   }
-
+  var hdrA = shortDate(s1+' — '+e1);
+  var hdrB = shortDate(s2+' — '+e2);
   var site4cls = currentSite==='ALL' ? 'JABABEKA' : currentSite;
   var cmpRows = '';
   CMP_COLS.forEach(function(col) {
-    var a = vA[col.key], b = vB[col.key];
-    var clsA = cmpCellCls(col.key, a, site4cls);
-    var clsB = cmpCellCls(col.key, b, site4cls);
-    var pA = cmpPctStr(col.key, a, site4cls);
-    var pB = cmpPctStr(col.key, b, site4cls);
-    // Universal delta badge on col B — B vs A (how B changed from A)
-    var delta = fmtDelta(a, b, col.key, col.hi);
-    cmpRows += '<tr>'
+    var a=vA[col.key], b=vB[col.key];
+    var clsA=cmpCellCls(col.key,a,site4cls), clsB=cmpCellCls(col.key,b,site4cls);
+    var pA=cmpPctStr(col.key,a,site4cls), pB=cmpPctStr(col.key,b,site4cls);
+    var delta=fmtDelta(a,b,col.key,col.hi);
+    cmpRows+='<tr>'
       +'<td style="font-size:11px;color:var(--t2);font-weight:600;padding:7px 10px;border-bottom:0.5px solid var(--border);white-space:nowrap">'+col.label+'</td>'
       +'<td class="num '+clsA+'" style="padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">'+col.fmt(a)+pA+'</td>'
       +'<td class="num '+clsB+'" style="padding:7px 10px;border-bottom:0.5px solid var(--border);font-size:12px">'+col.fmt(b)+pB+'</td>'
@@ -1056,258 +788,213 @@ function renderComparison() {
       +'</tr>';
   });
 
-  var summaryTable = '<table class="dt ins-tbl" style="font-size:11px;min-width:0;width:100%"><thead><tr>'
+  var summaryTable='<table class="dt ins-tbl" style="font-size:11px;min-width:0;width:100%"><thead><tr>'
     +'<th style="width:130px;text-align:left;padding:7px 10px;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Metrik</th>'
     +'<th class="num col-a" style="width:110px;padding:7px 10px;font-size:10px;letter-spacing:.3px">'+hdrA+'</th>'
     +'<th class="num col-b" style="width:110px;padding:7px 10px;font-size:10px;letter-spacing:.3px">'+hdrB+'</th>'
     +'<th class="num" style="width:60px;padding:7px 10px;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px">Δ</th>'
     +'</tr></thead><tbody>'+cmpRows+'</tbody></table>';
 
-  var legendTag = '<span class="tag"><span style="color:#1a73e8">■</span> A &nbsp;<span style="color:#e37400">■</span> B</span>';
+  var siteCardsHtml = '';
+  if(currentSite==='ALL') {
+    var cards='';
+    SITES.forEach(function(site){
+      var a=resA.find(r=>r.site===site)||{}, b=resB.find(r=>r.site===site)||{};
+      var rows='';
+      CMP_COLS.forEach(function(m){
+        var va=m.fmt(a[m.key]), vb=m.fmt(b[m.key]);
+        var d=fmtDelta(a[m.key],b[m.key],m.key,m.hi);
+        rows+='<tr>'
+          +'<td style="font-size:11px;color:var(--t2);padding:5px 8px;border-bottom:0.5px solid var(--border)">'+m.label+'</td>'
+          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border);color:#1a73e8">'+va+'</td>'
+          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border);color:#e37400">'+vb+'</td>'
+          +'<td class="num" style="font-size:11px;padding:5px 8px;border-bottom:0.5px solid var(--border)">'+d+'</td>'
+          +'</tr>';
+      });
+      cards+='<div style="background:var(--white);border:0.5px solid var(--border);border-radius:var(--r);overflow:hidden;min-width:0">'
+        +'<div style="background:var(--bg);padding:7px 10px;font-size:11px;font-weight:600;color:var(--text);border-bottom:1px solid var(--border)">'+SL[site]+'</div>'
+        +'<table style="width:100%;border-collapse:collapse"><thead>'
+        +'<tr><th style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:left;font-weight:600">Metrik</th>'
+        +'<th style="font-size:9px;color:#1a73e8;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">A</th>'
+        +'<th style="font-size:9px;color:#e37400;text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">B</th>'
+        +'<th style="font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:5px 8px;text-align:right;font-weight:600">Δ</th>'
+        +'</tr></thead><tbody>'+rows+'</tbody></table>'
+        +'</div>';
+    });
+    siteCardsHtml=cards;
+  }
 
-  var innerHtml = '';
-  if(currentSite==='ALL' && siteCardsHtml) {
-    innerHtml = '<div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start">'
+  var legendTag='<span class="tag"><span style="color:#1a73e8">■</span> A &nbsp;<span style="color:#e37400">■</span> B</span>';
+  var innerHtml='';
+  if(currentSite==='ALL'&&siteCardsHtml){
+    innerHtml='<div style="display:grid;grid-template-columns:400px 1fr;gap:16px;align-items:start">'
       +'<div><div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Ringkasan</div>'+summaryTable+'</div>'
       +'<div><div style="font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">Per Site</div>'
       +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:8px">'+siteCardsHtml+'</div></div>'
       +'</div>';
-  } else {
-    innerHtml = summaryTable;
-  }
+  } else { innerHtml=summaryTable; }
 
-  document.getElementById('cmpResult').innerHTML =
+  document.getElementById('cmpResult').innerHTML=
     '<div class="panel"><div class="ph"><h3>Perbandingan Periode</h3>'+legendTag+'</div>'
     +'<div style="padding:0 2px 4px">'+innerHtml+'</div>'
     +'</div>'
-    +buildKesimpulan(resB, resB, sumA, sumB);
+    +buildKesimpulan(resB,resB,sumA,sumB);
 }
+</script>
 
-// ── MONTHLY TREND TABLE ────────────────────────────────────────
+<script>
 function buildMonthlyTrendTable(container) {
   if(!container) return;
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-
-  // allMonths: semua bulan dari ROWS (Jan → latest), apple-to-apple day range
   const {start:fs, end:fe} = getRange();
   const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
-
-  // Columns config: key, label, fmt, target(site), higherBetter, showPct
   const COLS = [
-    { key:'ritase',  label:'Ritase',        fmt:v=>v!=null?v.toFixed(2):'—', tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;}, hi:true  },
-    { key:'olf',     label:'OLF (Store)',   fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—', tgt:function(){return 0.85;}, hi:true  },
-    { key:'dpStore', label:'DP (Store)',    fmt:v=>v!=null?v.toFixed(1):'—', tgt:null, hi:true  },
-    { key:'dpMix',   label:'DP (Mix)',      fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
-    { key:'dpNonReg',label:'DP Non Reg',   fmt:v=>v!=null?v.toFixed(1):'—', tgt:null, hi:true  },
-    { key:'dpReg',   label:'DP (Regular)', fmt:v=>v!=null?v.toFixed(1):'—', tgt:function(){return 8.0;}, hi:true  },
-    { key:'doTrip',        label:'DO/Trip',      fmt:v=>v!=null?v.toFixed(1):'—',           tgt:function(){return 11.0;}, hi:true  },
-    { key:'tatDirect',     label:'TAT (Direct)', fmt:v=>tatStr(v),                          tgt:null, hi:false },
-    { key:'tatStore',      label:'TAT (Store)',  fmt:v=>tatStr(v),                          tgt:null, hi:false },
-    { key:'totalCbmStore', label:'CBM Store',    fmt:v=>v!=null?v.toFixed(1):'—',           tgt:null, hi:true  },
-    { key:'totalDoCust',   label:'DO Customer',  fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—', tgt:null, hi:true  },
-    { key:'totalDpCust',   label:'DP Customer',  fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—', tgt:null, hi:true  },
+    { key:'ritase',label:'Ritase',fmt:v=>v!=null?v.toFixed(2):'—',tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;},hi:true },
+    { key:'olf',label:'OLF (Store)',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—',tgt:function(){return 0.85;},hi:true },
+    { key:'dpStore',label:'DP (Store)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
+    { key:'dpMix',label:'DP (Mix)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 8.0;},hi:true },
+    { key:'dpNonReg',label:'DP Non Reg',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
+    { key:'dpReg',label:'DP (Regular)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 8.0;},hi:true },
+    { key:'doTrip',label:'DO/Trip',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 11.0;},hi:true },
+    { key:'tatDirect',label:'TAT (Direct)',fmt:v=>tatStr(v),tgt:null,hi:false },
+    { key:'tatStore',label:'TAT (Store)',fmt:v=>tatStr(v),tgt:null,hi:false },
+    { key:'totalCbmStore',label:'CBM Store',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
+    { key:'totalDoCust',label:'DO Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—',tgt:null,hi:true },
+    { key:'totalDpCust',label:'DP Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—',tgt:null,hi:true },
   ];
-
-  const SITES_LIST = currentSite==='ALL' ? SITES : SUB_SITES[currentSite] ? [currentSite] : [currentSite];
-
-  // Color cell based on achievement vs target
-  function cellCls(key, val, site) {
-    var col = COLS.find(c=>c.key===key);
+  const SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+  function cellCls(key,val,site) {
+    var col=COLS.find(c=>c.key===key);
     if(!col||!col.tgt||val==null) return 'c-def';
-    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
-    var t = col.tgt(effectiveSite);
-    if(!t) return 'c-def';
-    var pct = col.hi ? val/t : t/val;
-    if(pct>=1.0) return 'c-grn';
-    if(pct>=0.9) return 'c-yel';
-    return 'c-red';
+    var effectiveSite=SUB_SITES[site]?SUB_SITES[site].baseSite:site;
+    var t=col.tgt(effectiveSite); if(!t) return 'c-def';
+    var pct=col.hi?val/t:t/val;
+    if(pct>=1.0) return 'c-grn'; if(pct>=0.9) return 'c-yel'; return 'c-red';
   }
-
-  function pctStr(key, val, site) {
-    var col = COLS.find(c=>c.key===key);
+  function pctStr(key,val,site) {
+    var col=COLS.find(c=>c.key===key);
     if(!col||!col.tgt||val==null) return '';
-    var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
-    var t = col.tgt(effectiveSite);
-    if(!t) return '';
-    var pct = col.hi ? val/t*100 : t/val*100;
+    var effectiveSite=SUB_SITES[site]?SUB_SITES[site].baseSite:site;
+    var t=col.tgt(effectiveSite); if(!t) return '';
+    var pct=col.hi?val/t*100:t/val*100;
     return '<br><span class="pct">'+pct.toFixed(0)+'%</span>';
   }
-
-  // Columns that get MoM badge (TAT onwards)
   const BADGE_KEYS = new Set(['tatDirect','tatStore','totalCbmStore','totalDoCust','totalDpCust']);
-
-  // Pre-compute all month+site results for MoM comparison
-  var allResults = {}; // key: mo+'|'+site → res
+  var allResults={};
   allMonths.forEach(function(mo) {
-    var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-    var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
-    SITES_LIST.forEach(function(site) {
-      var moFiltered = filterRows(ROWS, moD1, moD2, site);
-      allResults[mo+'|'+site] = moFiltered.length ? (computeSite(moFiltered, site)||{}) : null;
+    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
+    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
+    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    SITES_LIST.forEach(function(site){
+      var moFiltered=filterRows(ROWS,moD1,moD2,site);
+      allResults[mo+'|'+site]=moFiltered.length?(computeSite(moFiltered,site)||{}):null;
     });
   });
-
-  // MoM delta badge helper
-  function momBadge(key, cur, prev, hi) {
+  function momBadge(key,cur,prev,hi) {
     if(cur==null||prev==null) return '';
-    var d = cur - prev;
-    if(Math.abs(d) < 0.001) return '';
-    var good = hi ? d > 0 : d < 0;
-    var color = good ? '#0f9d58' : '#d93025';
-    var arrow = d > 0 ? '▲' : '▼';
+    var d=cur-prev; if(Math.abs(d)<0.001) return '';
+    var good=hi?d>0:d<0;
+    var color=good?'#0f9d58':'#d93025'; var arrow=d>0?'▲':'▼';
     var label;
-    if(key==='tatDirect'||key==='tatStore') {
-      var abs = Math.abs(d), h = Math.floor(abs), m = Math.round((abs-h)*60);
-      label = (h>0?h+'j ':'')+m+'m';
-    } else if(key==='totalDoCust'||key==='totalDpCust') {
-      label = Math.round(Math.abs(d)).toLocaleString('id-ID');
-    } else {
-      label = Math.abs(d) < 10 ? Math.abs(d).toFixed(1) : Math.round(Math.abs(d)).toString();
-    }
+    if(key==='tatDirect'||key==='tatStore'){var abs=Math.abs(d),h=Math.floor(abs),m=Math.round((abs-h)*60);label=(h>0?h+'j ':'')+m+'m';}
+    else if(key==='totalDoCust'||key==='totalDpCust'){label=Math.round(Math.abs(d)).toLocaleString('id-ID');}
+    else{label=Math.abs(d)<10?Math.abs(d).toFixed(1):Math.round(Math.abs(d)).toString();}
     return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+arrow+' '+label+'</span>';
   }
-
-  // Build header
-  var thead = '<tr><th>Bulan</th><th>Site</th>';
-  COLS.forEach(c=>{ thead+='<th>'+c.label+'</th>'; });
-  thead += '</tr>';
-
-  // Build rows with MoM badges
-  var tbody = '';
-  allMonths.forEach(function(mo, moIdx) {
-    var prevMo = moIdx > 0 ? allMonths[moIdx-1] : null;
-    SITES_LIST.forEach(function(site) {
-      var res = allResults[mo+'|'+site];
-      if(!res) return;
-      var prevRes = prevMo ? (allResults[prevMo+'|'+site]||null) : null;
-      var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
-      var siteLbl = SL[site]||site;
-      var tr = '<tr>';
-      tr += '<td style="color:var(--t2)">'+mn+'</td><td>'+siteLbl+'</td>';
+  var thead='<tr><th>Bulan</th><th>Site</th>';
+  COLS.forEach(c=>{thead+='<th>'+c.label+'</th>';});
+  thead+='</tr>';
+  var tbody='';
+  allMonths.forEach(function(mo,moIdx){
+    var prevMo=moIdx>0?allMonths[moIdx-1]:null;
+    SITES_LIST.forEach(function(site){
+      var res=allResults[mo+'|'+site]; if(!res) return;
+      var prevRes=prevMo?(allResults[prevMo+'|'+site]||null):null;
+      var mn=moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+      var siteLbl=SL[site]||site;
+      var tr='<tr>';
+      tr+='<td style="color:var(--t2)">'+mn+'</td><td>'+siteLbl+'</td>';
       COLS.forEach(function(c){
-        var v = res[c.key];
-        var cls = cellCls(c.key, v, site);
-        var badge = BADGE_KEYS.has(c.key) ? momBadge(c.key, v, prevRes ? prevRes[c.key] : null, c.hi) : '';
-        tr += '<td class="'+cls+'">'+c.fmt(v)+pctStr(c.key, v, site)+badge+'</td>';
+        var v=res[c.key]; var cls=cellCls(c.key,v,site);
+        var badge=BADGE_KEYS.has(c.key)?momBadge(c.key,v,prevRes?prevRes[c.key]:null,c.hi):'';
+        tr+='<td class="'+cls+'">'+c.fmt(v)+pctStr(c.key,v,site)+badge+'</td>';
       });
-      tr += '</tr>';
-      tbody += tr;
+      tr+='</tr>'; tbody+=tr;
     });
   });
-
-  container.innerHTML = '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
+  container.innerHTML='<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>';
 }
+</script>
 
+<script>
 function renderDetail(results, summary, start, end) {
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  // Compute daily trend data for charts
   const {start:s, end:e} = getRange();
   const filtered = filterRows(ROWS, s, e, currentSite);
-
-  // Build daily aggregates per metric for trend
-  const dailyMap = {};
-  filtered.forEach(r => {
-    if(!dailyMap[r.date]) dailyMap[r.date] = [];
-    dailyMap[r.date].push(r);
-  });
-  const dates = Object.keys(dailyMap).sort();
-
   const metrics = [
-    { key:'olf',      label:'OLF',       fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—' },
-    { key:'ritase',   label:'Ritase',               fmt: v=>pf(v,2) },
-    { key:'dpStore',  label:'DP Store',             fmt: v=>pf(v,1) },
-    { key:'dpMix',    label:'DP Mix',               fmt: v=>pf(v,1) },
-    { key:'dpNonReg', label:'DP Non Reg',       fmt: v=>pf(v,1) },
-    { key:'dpReg',    label:'DP Reg',           fmt: v=>pf(v,1) },
-    { key:'doTrip',   label:'DO/Trip',       fmt: v=>pf(v,1) },
-    { key:'doDp',     label:'DO/DP Direct',         fmt: v=>pf(v,2) },
-    { key:'cbmDo',    label:'CBM/DO',               fmt: v=>pf(v,2) },
-    { key:'cbmDp',    label:'CBM/DP',               fmt: v=>pf(v,2) },
-    { key:'tatDirect',label:'TAT Direct',           fmt: v=>tatStr(v) },
-    { key:'tatStore', label:'TAT Store',            fmt: v=>tatStr(v) },
+    { key:'olf',label:'OLF',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—'},
+    { key:'ritase',label:'Ritase',fmt:v=>pf(v,2)},
+    { key:'dpStore',label:'DP Store',fmt:v=>pf(v,1)},
+    { key:'dpMix',label:'DP Mix',fmt:v=>pf(v,1)},
+    { key:'dpNonReg',label:'DP Non Reg',fmt:v=>pf(v,1)},
+    { key:'dpReg',label:'DP Reg',fmt:v=>pf(v,1)},
+    { key:'doTrip',label:'DO/Trip',fmt:v=>pf(v,1)},
+    { key:'doDp',label:'DO/DP Direct',fmt:v=>pf(v,2)},
+    { key:'cbmDo',label:'CBM/DO',fmt:v=>pf(v,2)},
+    { key:'cbmDp',label:'CBM/DP',fmt:v=>pf(v,2)},
+    { key:'tatDirect',label:'TAT Direct',fmt:v=>tatStr(v)},
+    { key:'tatStore',label:'TAT Store',fmt:v=>tatStr(v)},
   ];
-
-  // ── ACHIEVEMENT CARDS ─────────────────────────────────────────
   const achMetrics = [
-    { key:'olf',    label:'OLF Store',   fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'Target ≥85%' },
-    { key:'ritase', label:'Ritase',      fmt:v=>v!=null?v.toFixed(2):'—',           tgtFmt:(site)=>`Target ≥${getTarget('ritase',site)||1.15}` },
-    { key:'dpMix',  label:'DP Mix',      fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
-    { key:'dpReg',  label:'DP Reg',  fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥8.0' },
-    { key:'doTrip', label:'DO/Trip',     fmt:v=>v!=null?v.toFixed(1):'—',           tgtFmt:'Target ≥11.0' },
+    { key:'olf',label:'OLF Store',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—',tgtFmt:'Target ≥85%'},
+    { key:'ritase',label:'Ritase',fmt:v=>v!=null?v.toFixed(2):'—',tgtFmt:(site)=>`Target ≥${getTarget('ritase',site)||1.15}`},
+    { key:'dpMix',label:'DP Mix',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥8.0'},
+    { key:'dpReg',label:'DP Reg',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥8.0'},
+    { key:'doTrip',label:'DO/Trip',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥11.0'},
   ];
-
-  // For single site use that site result, for ALL use summary
-  const achResults = currentSite==='ALL'
-    ? results.map(r=>({...r, _isSite:true}))
-    : results;
-
-  // Build achievement cards per site or summary
   const achDisplay = currentSite==='ALL' ? [...results, {...summary, site:'NDC_RDC_AVG', label:'AVG'}] : results;
-
-  let achCards = '';
+  let achCards='';
   achDisplay.forEach(r => {
-    const site = r.site;
+    const site=r.site;
     achMetrics.forEach(m => {
-      const val = r[m.key];
-      const tgt = typeof m.tgtFmt==='function' ? m.tgtFmt(site) : m.tgtFmt;
-      const badge = achBadge(m.key, val, site);
-      if(currentSite==='ALL' && r.site!=='NDC_RDC_AVG') return; // only show AVG cards when ALL
-      achCards += `<div class="ach-card">
-        <div class="ac-lbl">${m.label}${currentSite!=='ALL'?'':''}</div>
-        <div class="ac-val">${m.fmt(val)}</div>
-        <div class="ac-tgt">${tgt}</div>
-        ${badge}
-      </div>`;
+      const val=r[m.key]; const tgt=typeof m.tgtFmt==='function'?m.tgtFmt(site):m.tgtFmt;
+      const badge=achBadge(m.key,val,site);
+      if(currentSite==='ALL'&&r.site!=='NDC_RDC_AVG') return;
+      achCards+=`<div class="ach-card"><div class="ac-lbl">${m.label}</div><div class="ac-val">${m.fmt(val)}</div><div class="ac-tgt">${tgt}</div>${badge}</div>`;
     });
   });
-
-  // Per-site achievement if single site
-  let siteAchTable = '';
-  function mkBadge(pct) {
-    if(pct==null) return '';
-    const cls = pct>=100?'hit':pct>=90?'warn':'miss';
-    return '<span class="ac-badge '+cls+'">'+pct.toFixed(1)+'%</span>';
-  }
-  if(currentSite==='ALL') {
-    let thead = '<tr><th>METRIK</th>';
-    results.forEach(r=>{ thead += '<th class="num">'+r.label+'</th>'; });
-    thead += '<th class="num">AVG</th></tr>';
-    let tbody = '';
-    achMetrics.forEach(m => {
-      let tr = '<tr><td><strong>'+m.label+'</strong></td>';
-      results.forEach(r => {
-        const pct = achPct(m.key, r[m.key], r.site);
-        tr += '<td class="num">'+m.fmt(r[m.key])+' '+mkBadge(pct)+'</td>';
-      });
-      const avgPct = achPct(m.key, summary[m.key], 'NATIONAL');
-      tr += '<td class="num"><strong>'+m.fmt(summary[m.key])+'</strong> '+mkBadge(avgPct)+'</td></tr>';
-      tbody += tr;
+  let siteAchTable='';
+  function mkBadge(pct){if(pct==null)return'';const cls=pct>=100?'hit':pct>=90?'warn':'miss';return'<span class="ac-badge '+cls+'">'+pct.toFixed(1)+'%</span>';}
+  if(currentSite==='ALL'){
+    let thead='<tr><th>METRIK</th>';
+    results.forEach(r=>{thead+='<th class="num">'+r.label+'</th>';});
+    thead+='<th class="num">AVG</th></tr>';
+    let tbody='';
+    achMetrics.forEach(m=>{
+      let tr='<tr><td><strong>'+m.label+'</strong></td>';
+      results.forEach(r=>{const pct=achPct(m.key,r[m.key],r.site);tr+='<td class="num">'+m.fmt(r[m.key])+' '+mkBadge(pct)+'</td>';});
+      const avgPct=achPct(m.key,summary[m.key],'NATIONAL');
+      tr+='<td class="num"><strong>'+m.fmt(summary[m.key])+'</strong> '+mkBadge(avgPct)+'</td></tr>';
+      tbody+=tr;
     });
-    siteAchTable = '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement per Site</h3><span class="tag">vs target</span></div>'
+    siteAchTable='<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement per Site</h3><span class="tag">vs target</span></div>'
       +'<div class="tw"><table class="dt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div></div>';
   } else {
-    siteAchTable = '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement — '+(results[0]?.label||currentSite)+'</h3><span class="tag">vs target</span></div>'
+    siteAchTable='<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement — '+(results[0]?.label||currentSite)+'</h3><span class="tag">vs target</span></div>'
       +'<div class="ach-grid" style="padding:14px 16px">'+achCards+'</div></div>';
   }
+  const today=new Date().toISOString().slice(0,10);
+  const prevMonthStart=new Date(new Date().getFullYear(),new Date().getMonth()-1,1).toISOString().slice(0,10);
+  const prevMonthEnd=new Date(new Date().getFullYear(),new Date().getMonth(),0).toISOString().slice(0,10);
+  if(!cmpA.start){cmpA.start=prevMonthStart;cmpA.end=prevMonthEnd;}
+  if(!cmpB.start){const{start:cs,end:ce}=getRange();cmpB.start=cs;cmpB.end=ce;}
 
-  // ── COMPARISON CONTROLS ────────────────────────────────────────
-  const today = new Date().toISOString().slice(0,10);
-  const prevMonthStart = new Date(new Date().getFullYear(), new Date().getMonth()-1, 1).toISOString().slice(0,10);
-  const prevMonthEnd   = new Date(new Date().getFullYear(), new Date().getMonth(), 0).toISOString().slice(0,10);
-  if(!cmpA.start) { cmpA.start=prevMonthStart; cmpA.end=prevMonthEnd; }
-  if(!cmpB.start) { const {start:cs,end:ce}=getRange(); cmpB.start=cs; cmpB.end=ce; }
-
-  document.getElementById('content').innerHTML = `
-    ${currentSite==='ALL' ? siteAchTable : siteAchTable}
+  document.getElementById('content').innerHTML=`
+    ${siteAchTable}
     <div class="g2" style="margin-bottom:14px">
       <div class="panel"><div class="ph"><h3>Ringkasan Metrik</h3><span class="tag">range terpilih</span></div>
         <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
-        <tbody>${metrics.map(m=>`
-          <tr><td><strong>${m.label}</strong></td>
-          ${results.map(r=>`<td class="num">${m.fmt(r[m.key])}</td>`).join('')}
-          <td class="num"><strong>${m.fmt(summary[m.key])}</strong></td>
-          </tr>`).join('')}
+        <tbody>${metrics.map(m=>`<tr><td><strong>${m.label}</strong></td>${results.map(r=>`<td class="num">${m.fmt(r[m.key])}</td>`).join('')}<td class="num"><strong>${m.fmt(summary[m.key])}</strong></td></tr>`).join('')}
         </tbody></table></div>
       </div>
       <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
@@ -1323,29 +1010,23 @@ function renderDetail(results, summary, start, end) {
       <div class="ph"><h3>Trendline Bulanan</h3><span class="tag">berdasarkan filter periode & site</span></div>
       <div style="padding:4px 16px 8px;height:340px;position:relative;max-width:700px"><canvas id="dTREND"></canvas></div>
     </div>
-
-    <!-- MONTHLY TREND TABLE -->
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Trend Bulanan per Site</h3><span class="tag">color = vs target</span></div>
       <div class="tw" id="monthlyTrendTable" style="padding:0 2px 4px"></div>
     </div>
-
-    <!-- COMPARISON SECTION -->
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Perbandingan Periode</h3><span class="tag">MoM / custom</span></div>
       <div style="padding:12px 16px">
         <div class="cmp-ctrl" style="border:none;padding:0;margin-bottom:12px;background:none">
           <div class="cmp-period">
-            <span class="cmp-dot-a"></span>
-            <label>Periode A:</label>
+            <span class="cmp-dot-a"></span><label>Periode A:</label>
             <input type="date" class="date-in" id="cmpAStart" value="${cmpA.start}">
             <span class="cmp-sep">—</span>
             <input type="date" class="date-in" id="cmpAEnd" value="${cmpA.end}">
           </div>
           <span style="color:var(--t3);font-size:13px;margin:0 8px">vs</span>
           <div class="cmp-period">
-            <span class="cmp-dot-b"></span>
-            <label>Periode B:</label>
+            <span class="cmp-dot-b"></span><label>Periode B:</label>
             <input type="date" class="date-in" id="cmpBStart" value="${cmpB.start}">
             <span class="cmp-sep">—</span>
             <input type="date" class="date-in" id="cmpBEnd" value="${cmpB.end}">
@@ -1357,209 +1038,212 @@ function renderDetail(results, summary, start, end) {
     </div>
   `;
 
-  const labs = results.map(r=>r.label);
-  const co = {
+  const labs=results.map(r=>r.label);
+  const co={
     responsive:true,
     plugins:{
       legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},
       tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368'},
-      datalabels:{
-        anchor:'end', align:'top', color:'#1a1d23',
-        font:{family:'Inter',size:9,weight:'600'},
-        formatter:(v)=>v!=null?v.toFixed(1):'',
-        padding:2
-      }
+      datalabels:{anchor:'end',align:'top',color:'#1a1d23',font:{family:'Inter',size:9,weight:'600'},formatter:(v)=>v!=null?v.toFixed(1):'',padding:2}
     },
     scales:{
       x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}},
       y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'}}
     }
   };
-
-  charts.dOLF = new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
-
-  // Build monthly trend table — deferred to not block main render
-  setTimeout(function(){ buildMonthlyTrendTable(document.getElementById('monthlyTrendTable')); }, 50);
-
-  charts.dTAT = new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
+  charts.dOLF=new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
+  setTimeout(function(){buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));},50);
+  charts.dTAT=new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'TAT Direct',data:results.map(r=>r.tatDirect!=null?+r.tatDirect.toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
     {label:'TAT Store',data:results.map(r=>r.tatStore!=null?+r.tatStore.toFixed(2):null),backgroundColor:'rgba(26,115,232,.6)',borderColor:'#1a73e8',borderWidth:1,borderRadius:4},
   ]},options:co});
-
-  charts.dDP = new Chart(document.getElementById('dDP').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
+  charts.dDP=new Chart(document.getElementById('dDP').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'DP Store',data:results.map(r=>r.dpStore),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
     {label:'DP Mix',data:results.map(r=>r.dpMix),backgroundColor:'rgba(26,115,232,.6)',borderColor:'#1a73e8',borderWidth:1,borderRadius:4},
     {label:'DP Reg',data:results.map(r=>r.dpReg),backgroundColor:'rgba(227,116,0,.5)',borderColor:'#e37400',borderWidth:1,borderRadius:4},
     {label:'DP Non Reg',data:results.map(r=>r.dpNonReg),backgroundColor:'rgba(217,48,37,.4)',borderColor:'#d93025',borderWidth:1,borderRadius:4},
   ]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0}}}});
-
-  charts.dDO = new Chart(document.getElementById('dDO').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
+  charts.dDO=new Chart(document.getElementById('dDO').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'DO/Trip',data:results.map(r=>r.doTrip),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
     {label:'DO/DP',data:results.map(r=>r.doDp),backgroundColor:'rgba(227,116,0,.5)',borderColor:'#e37400',borderWidth:1,borderRadius:4},
   ]},options:co});
+}
+</script>
 
-  // ── MONTHLY TRENDLINE ──────────────────────────────────────────
-  const monthMap = {};
-  filtered.forEach(r => {
-    if(!r.date) return;
-    const mo = r.date.slice(0,7);
-    if(!monthMap[mo]) monthMap[mo] = [];
-    monthMap[mo].push(r);
-  });
-  const months = Object.keys(monthMap).sort();
-  const moLabels = months.map(m => {
-    const [y,mn] = m.split('-');
-    return moNames[parseInt(mn)-1] + ' ' + y;
-  });
-  const moData = months.map(mo => {
-    const moRows = monthMap[mo] || [];
-    return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
-  });
+<script>
+// ── TRENDLINE WITH SMART LABEL OFFSET (PATCHED) ────────────────
+(function() {
+  // This IIFE runs after renderDetail sets up the canvas.
+  // We hook into the existing render flow by extending it.
+  var _origRenderDetail = window._origRenderDetail; // placeholder
+})();
 
-  function mkTrend(label, color, data, yAxis, fmtFn, valign) {
-    const al = valign||'top';
-    return {
-      label, yAxisID: yAxis,
-      data,
-      borderColor: color, backgroundColor: 'transparent',
-      borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: color,
-      pointHoverRadius: 6, tension: 0.3, fill: false,
-      datalabels: {
-        display: function(ctx2){ return ctx2.dataIndex===0||ctx2.dataIndex===trendData.length-1; },
-        anchor: al==='bottom'?'start':'end',
-        align:  al,
-        offset: al==='bottom'?-14:4,
-        color, font:{family:'Inter', size:9, weight:'700'},
-        formatter: v => v!=null ? fmtFn(v) : ''
-      }
-    };
-  }
-
-  // ── TRENDLINE: all months in data, values computed using filter day-range ──
-  const filterD1 = parseInt(s.slice(8,10));
-  const filterD2 = parseInt(e.slice(8,10));
-  const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
-  const moNames2 = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  const trendLabels = allMonths.map(mo => {
-    const [y,mn] = mo.split('-');
-    return moNames2[parseInt(mn)-1] + ' ' + y;
+// Extend renderDetail to build trendline after its body runs
+// The trendline code runs at the end of renderDetail — we override buildTrendline separately
+function buildTrendline(results, summary, s, e) {
+  var moNames2=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
+  var filterD1=parseInt(s.slice(8,10)), filterD2=parseInt(e.slice(8,10));
+  var trendLabels=allMonths.map(function(mo){var arr=mo.split('-');return moNames2[parseInt(arr[1])-1]+' '+arr[0];});
+  var trendData=allMonths.map(function(mo){
+    var daysInMonth=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
+    var d1=mo+'-'+String(filterD1).padStart(2,'0');
+    var d2=mo+'-'+String(Math.min(filterD2,daysInMonth)).padStart(2,'0');
+    var moRows=filterRows(ROWS,d1,d2,currentSite);
+    return currentSite==='ALL'?makeSummary(computeAll(moRows)):(computeSite(moRows,currentSite)||{});
   });
 
-  // Each month uses same day-range as active filter (apple-to-apple)
-  const trendData = allMonths.map(mo => {
-    const daysInMonth = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-    const d1 = mo+'-'+String(filterD1).padStart(2,'0');
-    const d2 = mo+'-'+String(Math.min(filterD2, daysInMonth)).padStart(2,'0');
-    const moRows = filterRows(ROWS, d1, d2, currentSite);
-    return currentSite==='ALL' ? makeSummary(computeAll(moRows)) : (computeSite(moRows, currentSite) || {});
-  });
-
-  const trendSeries = [
-    { key:'olf',    label:'OLF',     color:'#e37400', axis:'yR', align:'top',    offset:6,  fmt:function(v){return v!=null?+(v*100).toFixed(1):null;}, disp:function(v){return v.toFixed(1)+'%';} },
-    { key:'doTrip', label:'DO/Trip', color:'#1a73e8', axis:'yL', align:'top',    offset:10, fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}     },
-    { key:'dpReg',  label:'DP Reg',  color:'#d93025', axis:'yL', align:'top',    offset:6,  fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}     },
-    { key:'dpMix',  label:'DP Mix',  color:'#a142f4', axis:'yL', align:'bottom', offset:10, fmt:function(v){return v!=null?+v.toFixed(1):null;},        disp:function(v){return v.toFixed(1);}     },
-    { key:'ritase', label:'Ritase',  color:'#555',    axis:'yL', align:'center', offset:0,  fmt:function(v){return v!=null?+v.toFixed(2):null;},        disp:function(v){return v.toFixed(2);}     },
+  var trendSeries=[
+    {key:'olf',    label:'OLF',    color:'#e37400', axis:'yR', fmt:function(v){return v!=null?+(v*100).toFixed(1):null;}, disp:function(v){return v.toFixed(1)+'%';}},
+    {key:'doTrip', label:'DO/Trip',color:'#1a73e8', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
+    {key:'dpReg',  label:'DP Reg', color:'#d93025', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
+    {key:'dpMix',  label:'DP Mix', color:'#a142f4', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
+    {key:'ritase', label:'Ritase', color:'#555',    axis:'yL', fmt:function(v){return v!=null?+v.toFixed(2):null;},       disp:function(v){return v.toFixed(2);}},
   ];
 
-  var endLabelPlugin = {
-    id: 'endLabel',
-    afterDatasetsDraw: function(chart) {
+  var n=trendData.length;
+
+  // ── Smart label: compute vertical offset per series at a given month index ──
+  // Groups by yAxis to avoid mixing OLF (0-100%) with others (0-40)
+  function getRankOffsets(moIdx) {
+    var groupL=[], groupR=[];
+    trendSeries.forEach(function(s,i){
+      var v=s.fmt(trendData[moIdx][s.key]);
+      if(v==null) return;
+      (s.axis==='yR'?groupR:groupL).push({i:i,v:v});
+    });
+    [groupL,groupR].forEach(function(grp){grp.sort(function(a,b){return b.v-a.v;});});
+    var offsets={};
+    var step=15;
+    function assign(grp){
+      var mid=(grp.length-1)/2;
+      grp.forEach(function(item,rank){
+        var relPos=rank-mid;
+        var px=Math.round(relPos*step);
+        var align,anchor;
+        if(px<-4){align='top';anchor='end';}
+        else if(px>4){align='bottom';anchor='start';}
+        else{align='center';anchor='center';}
+        offsets[item.i]={align:align,anchor:anchor,offset:Math.abs(px)+3};
+      });
+    }
+    assign(groupL); assign(groupR);
+    return offsets;
+  }
+
+  var offsetFirst=n>0?getRankOffsets(0):{};
+  var offsetLast=n>0?getRankOffsets(n-1):{};
+
+  var trendDatasets=trendSeries.map(function(s,i){
+    var vals=trendData.map(function(d){return s.fmt(d[s.key]);});
+    var hasData=vals.some(function(v){return v!=null&&v!==0;});
+    return {
+      label:s.label, data:vals,
+      borderColor:s.color, pointBackgroundColor:s.color,
+      backgroundColor:'transparent',
+      borderWidth:2.5, pointRadius:5, pointHoverRadius:7,
+      tension:0.3, fill:false, yAxisID:s.axis,
+      hidden:!hasData,
+      datalabels:{
+        display:function(ctx2){
+          if(!hasData) return false;
+          return ctx2.dataIndex===0||ctx2.dataIndex===n-1;
+        },
+        anchor:function(ctx2){
+          var off=ctx2.dataIndex===0?offsetFirst[i]:offsetLast[i];
+          return off?off.anchor:'end';
+        },
+        align:function(ctx2){
+          var off=ctx2.dataIndex===0?offsetFirst[i]:offsetLast[i];
+          return off?off.align:'top';
+        },
+        offset:function(ctx2){
+          var off=ctx2.dataIndex===0?offsetFirst[i]:offsetLast[i];
+          return off?off.offset:4;
+        },
+        color:s.key==='ritase'?'#fff':s.color,
+        font:{family:'Inter',size:9,weight:'700'},
+        formatter:function(v){return v!=null?String(v)+(s.key==='olf'?'%':''):'';},
+        backgroundColor:s.key==='ritase'?'rgba(40,40,40,0.85)':'rgba(255,255,255,0.92)',
+        borderColor:function(){return s.color+'55';},
+        borderWidth:1, borderRadius:3,
+        padding:{top:2,bottom:2,left:3,right:3}
+      }
+    };
+  });
+
+  var endLabelPlugin={
+    id:'endLabel',
+    afterDatasetsDraw:function(chart){
       var ctx=chart.ctx, right=chart.chartArea.right;
-      trendSeries.forEach(function(s,i) {
+      trendSeries.forEach(function(s,i){
         var meta=chart.getDatasetMeta(i);
         if(meta.hidden) return;
-        // Also skip if dataset was marked hidden (no data)
-        if(trendDatasets[i] && trendDatasets[i].hidden) return;
+        if(trendDatasets[i]&&trendDatasets[i].hidden) return;
         var last=meta.data[meta.data.length-1];
         if(!last) return;
         ctx.save();
         ctx.font='bold 10px Inter,sans-serif';
-        ctx.fillStyle=s.color;
-        ctx.textAlign='left';
-        ctx.textBaseline='middle';
-        ctx.fillText(s.label, right+8, last.y);
+        ctx.fillStyle=s.color; ctx.textAlign='left'; ctx.textBaseline='middle';
+        ctx.fillText(s.label,right+8,last.y);
         ctx.restore();
       });
     }
   };
 
-  var trendDatasets = trendSeries.map(function(s) {
-    // Check if series has any meaningful data
-    var vals = trendData.map(function(d){ return s.fmt(d[s.key]); });
-    var hasData = vals.some(function(v){ return v != null && v !== 0; });
-    return {
-      label: s.label,
-      data: vals,
-      borderColor: s.color, pointBackgroundColor: s.color,
-      backgroundColor: 'transparent',
-      borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 7,
-      tension: 0.3, fill: false, yAxisID: s.axis,
-      hidden: !hasData,
-      datalabels: {
-        display: hasData,
-        anchor: s.align==='center'?'center':(s.align==='bottom'?'start':'end'),
-        align:  s.align==='center'?'center':(s.align==='bottom'?'bottom':'top'),
-        offset: s.align==='center'?0:s.offset,
-        color: s.key==='ritase'?'#fff':s.color,
-        font: {family:'Inter', size:9, weight:'700'},
-        formatter: function(v,ctx2){
-          return v!=null ? String(v)+(s.key==='olf'?'%':'') : '';
-        },
-        backgroundColor: s.key==='ritase'?'rgba(40,40,40,0.85)':'rgba(255,255,255,0.9)',
-        borderRadius: 3, padding:{top:1,bottom:1,left:2,right:2}
-      }
-    };
-  });
-
-  charts.dTREND = new Chart(document.getElementById('dTREND').getContext('2d'), {
-    type: 'line',
-    data: { labels: trendLabels, datasets: trendDatasets },
-    plugins: [endLabelPlugin],
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor:'#fff', borderColor:'#e8eaed', borderWidth:1,
-          titleColor:'#1a1d23', bodyColor:'#5f6368',
-          callbacks: { label: function(ctx) {
-            var s=trendSeries[ctx.datasetIndex];
-            var raw=trendData[ctx.dataIndex][s.key];
-            return s.label+': '+(raw!=null?s.disp(raw):'—');
+  var canvas=document.getElementById('dTREND');
+  if(!canvas) return;
+  charts.dTREND=new Chart(canvas.getContext('2d'),{
+    type:'line',
+    data:{labels:trendLabels,datasets:trendDatasets},
+    plugins:[endLabelPlugin],
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,
+          titleColor:'#1a1d23',bodyColor:'#5f6368',
+          callbacks:{label:function(ctx){
+            var ts=trendSeries[ctx.datasetIndex];
+            var raw=trendData[ctx.dataIndex][ts.key];
+            return ts.label+': '+(raw!=null?ts.disp(raw):'—');
           }}
         },
-        datalabels: { clip: false }
+        datalabels:{clip:false}
       },
-      scales: {
-        x: { ticks:{color:'#9aa0a6',font:{family:'Inter',size:11}}, grid:{color:'#f0f0f0'} },
-        yL: { display:false, min:0, max:40 },
-        yR: { display:false, min:0, max:100 }
+      scales:{
+        x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:11}},grid:{color:'#f0f0f0'}},
+        yL:{display:false,min:0,max:40},
+        yR:{display:false,min:0,max:100}
       },
-      layout: { padding:{ top:22, right:80, bottom:8, left:4 } }
+      layout:{padding:{top:26,right:80,bottom:12,left:4}}
     }
   });
 }
 
-// ── COMPARISON APPLY ───────────────────────────────────────────
+// Patch: call buildTrendline after renderDetail finishes setting up DOM
+var _origRD=window.renderDetail;
+window.renderDetail=function(results,summary,start,end){
+  _origRD(results,summary,start,end);
+  // Defer trendline build so DOM canvas is ready
+  setTimeout(function(){ buildTrendline(results,summary,start,end); },10);
+};
+
 function applyCmp() {
-  cmpA.start = document.getElementById('cmpAStart')?.value || '';
-  cmpA.end   = document.getElementById('cmpAEnd')?.value   || '';
-  cmpB.start = document.getElementById('cmpBStart')?.value || '';
-  cmpB.end   = document.getElementById('cmpBEnd')?.value   || '';
+  cmpA.start=document.getElementById('cmpAStart')?.value||'';
+  cmpA.end=document.getElementById('cmpAEnd')?.value||'';
+  cmpB.start=document.getElementById('cmpBStart')?.value||'';
+  cmpB.end=document.getElementById('cmpBEnd')?.value||'';
   renderComparison();
 }
 
-// ── CONTROLS ───────────────────────────────────────────────────
 function setNav(n) {
-  currentNav = n;
-  ['overview','detail'].forEach(x=>{
-    document.getElementById('nav-'+x)?.classList.toggle('active', x===n);
-  });
+  currentNav=n;
+  ['overview','detail'].forEach(x=>{document.getElementById('nav-'+x)?.classList.toggle('active',x===n);});
   render();
 }
 
-// ── INIT ───────────────────────────────────────────────────────
 updateSidebarActive();
 loadData();
 </script>
