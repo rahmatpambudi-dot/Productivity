@@ -263,6 +263,7 @@ canvas{display:block;}
 <script>
 // ── STATE ──────────────────────────────────────────────────────
 let ROWS = [];
+let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
 let currentNav  = 'overview';
 let currentSite = 'ALL';
 let charts = {};
@@ -331,6 +332,11 @@ async function loadData() {
     const json = await res.json();
     ROWS = json.rows || [];
     RAW_LOADED = true;
+    // Also try to load utilisasi data
+    try {
+      const uRes = await fetch('data_utilisasi.json?t=' + Date.now());
+      if(uRes.ok) { const uJson = await uRes.json(); UTIL_ROWS = uJson.rows || []; }
+    } catch(e3) { UTIL_ROWS = []; }
     if(!usedMonthly) {
       document.getElementById('updTime').textContent = json.timestamp || '14 May 2026 18:30 WIB';
       MONTHLY = buildMonthlyFromRows(ROWS);
@@ -1258,6 +1264,154 @@ function buildTrendline(results, summary, s, e) {
   });
 }
 
+// ── UTILISASI TABLE (MPP Driver, Ast. Driver, Armada) ───────────
+// Source: UTIL_ROWS from data_utilisasi.json
+// Site mapping:
+//   HCI JABABEKA + AHI JABABEKA → JABABEKA (corporate)
+//   JAB_HCI → HCI JABABEKA only
+//   JAB_AHI → AHI JABABEKA only
+//   HCI CIKUPA → CIKUPA
+//   CORP SIDOARJO → SDA
+//   CORP TALLO → TALLO
+//   CORP TAMORA → TAMORA
+// Formulae:
+//   Utilisasi MPP Driver    = sum(drv_aktual) / sum(drv_plan) * 100
+//   Utilisasi MPP Ast.Driver= sum(ast_aktual) / sum(ast_plan) * 100
+//   Utilisasi Armada        = sum(arm_util)   / sum(arm_avail) * 100
+//   Availability Armada     = sum(arm_avail)  / sum(arm_assets) * 100
+
+const UTIL_SITE_MAP = {
+  'HCI JABABEKA': 'JABABEKA',
+  'AHI JABABEKA': 'JABABEKA',
+  'HCI CIKUPA':   'CIKUPA',
+  'CORP SIDOARJO':'SDA',
+  'CORP TALLO':   'TALLO',
+  'CORP TAMORA':  'TAMORA',
+};
+const UTIL_SUBSITE_MAP = {
+  'JAB_HCI': ['HCI JABABEKA'],
+  'JAB_AHI': ['AHI JABABEKA'],
+  'CIKUPA':  ['HCI CIKUPA'],
+  'SDA':     ['CORP SIDOARJO'],
+  'TALLO':   ['CORP TALLO'],
+  'TAMORA':  ['CORP TAMORA'],
+  'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
+};
+
+function filterUtilRows(start, end, site) {
+  var srcSites = UTIL_SUBSITE_MAP[site] || Object.keys(UTIL_SITE_MAP);
+  return UTIL_ROWS.filter(function(r) {
+    if(!r.date) return false;
+    if(r.date < start || r.date > end) return false;
+    return srcSites.includes(r.site);
+  });
+}
+
+function computeUtil(rows) {
+  if(!rows.length) return null;
+  var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
+  var armAssets=0, armAvail=0, armUtil=0;
+  rows.forEach(function(r) {
+    drvPlan  += r.drv_plan  || 0;
+    drvAkt   += r.drv_aktual|| 0;
+    astPlan  += r.ast_plan  || 0;
+    astAkt   += r.ast_aktual|| 0;
+    armAssets+= r.arm_assets|| 0;
+    armAvail += r.arm_avail || 0;
+    armUtil  += r.arm_util  || 0;
+  });
+  return {
+    drvUtil:  drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
+    astUtil:  astPlan  > 0 ? astAkt  / astPlan  * 100 : null,
+    armAvailPct: armAssets > 0 ? armAvail / armAssets * 100 : null,
+    armUtilPct:  armAvail  > 0 ? armUtil  / armAvail  * 100 : null,
+    armAssets: armAssets / rows.length, // avg assets
+    armAvailAbs: armAvail / rows.length, // avg avail
+  };
+}
+
+function buildMonthlyUtilTable(container) {
+  if(!container) return;
+  if(!UTIL_ROWS.length) {
+    container.innerHTML = '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Data utilisasi belum tersedia (data_utilisasi.json tidak ditemukan).</p>';
+    return;
+  }
+  var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var {start:fs, end:fe} = getRange();
+  var allMonths = [...new Set(UTIL_ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
+  var SITES_LIST = currentSite === 'ALL' ? SITES : [currentSite];
+
+  // Compute per month per site
+  var allData = {};
+  allMonths.forEach(function(mo) {
+    var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+    var moD1 = mo + '-' + String(parseInt(fs.slice(8,10))).padStart(2,'0');
+    var moD2 = mo + '-' + String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
+    SITES_LIST.forEach(function(site) {
+      var moRows = filterUtilRows(moD1, moD2, site);
+      allData[mo+'|'+site] = moRows.length ? computeUtil(moRows) : null;
+    });
+  });
+
+  // Color helper: green ≥95%, yellow ≥85%, red <85%
+  function utilCls(pct) {
+    if(pct==null) return '';
+    if(pct>=95) return 'c-grn'; if(pct>=85) return 'c-yel'; return 'c-red';
+  }
+  function pf(v, d) { return v!=null ? v.toFixed(d||1)+'%' : '—'; }
+  function pfN(v) { return v!=null ? Math.round(v).toLocaleString('id-ID') : '—'; }
+  function momBadge(cur, prev) {
+    if(cur==null||prev==null) return '';
+    var d=cur-prev; if(Math.abs(d)<0.1) return '';
+    var color=d>0?'#0f9d58':'#d93025';
+    return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(1)+'%</span>';
+  }
+
+  var thead = '<tr>'
+    +'<th style="text-align:left">Bulan</th>'
+    +'<th style="text-align:left">Site</th>'
+    +'<th style="text-align:center;color:#1a73e8">UTL Driver</th>'
+    +'<th style="text-align:center;color:#34a85a">UTL Ast. Driver</th>'
+    +'<th style="text-align:center;color:#a142f4">Armada Assets</th>'
+    +'<th style="text-align:center;color:#a142f4">Availability</th>'
+    +'<th style="text-align:center;color:#e37400">UTL Armada</th>'
+    +'</tr>';
+
+  var tbody = '';
+  allMonths.forEach(function(mo, moIdx) {
+    var prevMo = moIdx > 0 ? allMonths[moIdx-1] : null;
+    SITES_LIST.forEach(function(site) {
+      var key = mo+'|'+site;
+      var d = allData[key]; if(!d) return;
+      var prev = prevMo ? allData[prevMo+'|'+site] : null;
+      var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+      var tr = '<tr>'
+        +'<td style="color:var(--t2);font-size:11px;white-space:nowrap">'+mn+'</td>'
+        +'<td style="font-weight:600;font-size:11px">'+(SL[site]||site)+'</td>'
+        +'<td class="'+utilCls(d.drvUtil)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+pf(d.drvUtil)+momBadge(d.drvUtil, prev?prev.drvUtil:null)+'</td>'
+        +'<td class="'+utilCls(d.astUtil)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+pf(d.astUtil)+momBadge(d.astUtil, prev?prev.astUtil:null)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:var(--t2)">'+pfN(d.armAssets)+'</td>'
+        +'<td class="'+utilCls(d.armAvailPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+pf(d.armAvailPct)+momBadge(d.armAvailPct, prev?prev.armAvailPct:null)+'</td>'
+        +'<td class="'+utilCls(d.armUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+pf(d.armUtilPct)+momBadge(d.armUtilPct, prev?prev.armUtilPct:null)+'</td>'
+        +'</tr>';
+      tbody += tr;
+    });
+  });
+
+  // Legend
+  var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
+    +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#e8f5e9;border:1px solid #81c995;margin-right:4px"></span>≥ 95%</span>'
+    +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#fff8e1;border:1px solid #f9c825;margin-right:4px"></span>85–94%</span>'
+    +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#fce8e6;border:1px solid #e57373;margin-right:4px"></span>< 85%</span>'
+    +'<span style="margin-left:8px;color:var(--t2)">UTL Armada = Utilisasi / Availability · Availability = Avail / Assets</span>'
+    +'</div>';
+
+  container.innerHTML =
+    '<div style="overflow-x:auto">'
+    +'<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
+    +'</div>'+legendHtml;
+}
+
 // ── TRIP COUNT BY TYPE DELIVERY (r.td) ─────────────────────────
 // COUNTUNIQUE r.lc (kolom A) grouped by r.td (kolom J / Type Delivery)
 // Types auto-discovered from data. Fixed color per type for consistency.
@@ -1432,14 +1586,26 @@ window.renderDetail=function(results,summary,start,end){
   _origRD(results,summary,start,end);
   // Defer trendline build so DOM canvas is ready
   setTimeout(function(){ buildTrendline(results,summary,start,end); },10);
-  // Inject Trip Type table panel after monthlyTrendTable
+  // Inject Trip Type & Utilisasi table panels before last panel
   setTimeout(function(){
-    var anchor = document.querySelector('.panel[data-triptype-anchor]') || null;
-    // Find the perbandingan periode panel and insert before it
     var allPanels = document.querySelectorAll('#content .panel');
     var lastPanel = allPanels[allPanels.length - 1];
     if (!lastPanel) return;
-    // Create new panel
+
+    // ── Utilisasi panel ──
+    var utilPanel = document.createElement('div');
+    utilPanel.className = 'panel';
+    utilPanel.style.marginTop = '14px';
+    utilPanel.innerHTML =
+      '<div class="ph">'
+      + '<h3>Utilisasi MPP & Armada</h3>'
+      + '<span class="tag">Driver · Ast. Driver · Armada · % Aktual vs Plan</span>'
+      + '</div>'
+      + '<div id="utilTableContainer"></div>';
+    lastPanel.parentNode.insertBefore(utilPanel, lastPanel);
+    buildMonthlyUtilTable(document.getElementById('utilTableContainer'));
+
+    // ── Trip Type panel ──
     var newPanel = document.createElement('div');
     newPanel.className = 'panel';
     newPanel.style.marginTop = '14px';
