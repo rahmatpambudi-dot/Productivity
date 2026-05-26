@@ -1163,12 +1163,66 @@ function buildTrendline(results, summary, s, e) {
     };
   });
 
+  // ── End-label plugin: draws series name + last value at right edge ──
+  // Collision avoidance: sort by y position, push overlapping labels apart
+  var endLabelPlugin={
+    id:'endLabel',
+    afterDatasetsDraw:function(chart){
+      var ctx=chart.ctx;
+      var right=chart.chartArea.right;
+      var MIN_GAP=14; // min px between label centers
+
+      // Collect last-point y positions for visible series
+      var items=[];
+      trendSeries.forEach(function(s,i){
+        var ds=trendDatasets[i];
+        if(!ds||ds.hidden) return;
+        var meta=chart.getDatasetMeta(i);
+        if(meta.hidden) return;
+        var last=meta.data[meta.data.length-1];
+        if(!last) return;
+        var raw=trendData[trendData.length-1][s.key];
+        var valStr=raw!=null?s.disp(raw):'';
+        items.push({y:last.y, color:s.color, label:s.label, valStr:valStr});
+      });
+
+      if(!items.length) return;
+
+      // Sort by y ascending (top to bottom)
+      items.sort(function(a,b){return a.y-b.y;});
+
+      // Push apart: iterative relaxation
+      for(var iter=0;iter<20;iter++){
+        for(var j=0;j<items.length-1;j++){
+          var gap=items[j+1].y-items[j].y;
+          if(gap<MIN_GAP){
+            var push=(MIN_GAP-gap)/2;
+            items[j].y-=push;
+            items[j+1].y+=push;
+          }
+        }
+      }
+
+      // Draw
+      ctx.save();
+      ctx.font='bold 10px Inter,sans-serif';
+      ctx.textAlign='left';
+      ctx.textBaseline='middle';
+      items.forEach(function(item){
+        var text=item.label+(item.valStr?' '+item.valStr:'');
+        ctx.fillStyle=item.color;
+        ctx.fillText(text, right+8, item.y);
+      });
+      ctx.restore();
+    }
+  };
+
   var canvas=document.getElementById('dTREND');
   if(!canvas) return;
   charts.dTREND=new Chart(canvas.getContext('2d'),{
     type:'line',
     data:{labels:trendLabels,datasets:trendDatasets},
-    plugins:[],
+    plugins:[endLabelPlugin],
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{
@@ -1190,20 +1244,10 @@ function buildTrendline(results, summary, s, e) {
       },
       scales:{
         x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:11}},grid:{color:'#f0f0f0'}},
-        yL:{
-          display:true, position:'left',
-          min:0, max:25,
-          ticks:{color:'#9aa0a6',font:{family:'Inter',size:10},stepSize:5},
-          grid:{color:'#f0f0f0'}
-        },
-        yR:{
-          display:true, position:'right',
-          min:0, max:100,
-          ticks:{color:'#e37400',font:{family:'Inter',size:10},callback:function(v){return v+'%';}},
-          grid:{drawOnChartArea:false}
-        }
+        yL:{display:false,min:0,max:25},
+        yR:{display:false,min:0,max:100}
       },
-      layout:{padding:{top:8,right:16,bottom:8,left:8}}
+      layout:{padding:{top:8,right:80,bottom:8,left:8}}
     }
   });
 }
