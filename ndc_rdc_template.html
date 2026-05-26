@@ -1310,23 +1310,27 @@ function filterUtilRows(start, end, site) {
 function computeUtil(rows) {
   if(!rows.length) return null;
   var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
-  var armAssets=0, armAvail=0, armUtil=0;
+  var armAssetsList=[], armAvailList=[], armUtilList=[];
   rows.forEach(function(r) {
-    drvPlan  += r.drv_plan  || 0;
-    drvAkt   += r.drv_aktual|| 0;
-    astPlan  += r.ast_plan  || 0;
-    astAkt   += r.ast_aktual|| 0;
-    armAssets+= r.arm_assets|| 0;
-    armAvail += r.arm_avail || 0;
-    armUtil  += r.arm_util  || 0;
+    drvPlan  += r.drv_plan   || 0;
+    drvAkt   += r.drv_aktual || 0;
+    astPlan  += r.ast_plan   || 0;
+    astAkt   += r.ast_aktual || 0;
+    if(r.arm_assets != null) armAssetsList.push(r.arm_assets);
+    if(r.arm_avail  != null) armAvailList.push(r.arm_avail);
+    if(r.arm_util   != null) armUtilList.push(r.arm_util);
   });
+  var avg = function(arr) { return arr.length ? arr.reduce(function(s,v){return s+v;},0)/arr.length : null; };
+  var avgAssets = avg(armAssetsList);
+  var avgAvail  = avg(armAvailList);
+  var avgUtil   = avg(armUtilList);
   return {
-    drvUtil:  drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
-    astUtil:  astPlan  > 0 ? astAkt  / astPlan  * 100 : null,
-    armAvailPct: armAssets > 0 ? armAvail / armAssets * 100 : null,
-    armUtilPct:  armAvail  > 0 ? armUtil  / armAvail  * 100 : null,
-    armAssets: armAssets / rows.length, // avg assets
-    armAvailAbs: armAvail / rows.length, // avg avail
+    drvUtil:     drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
+    astUtil:     astPlan  > 0 ? astAkt  / astPlan  * 100 : null,
+    armAssets:   avgAssets,
+    armAvailAbs: avgAvail,
+    armAvailPct: (avgAssets && avgAvail) ? avgAvail / avgAssets * 100 : null,
+    armUtilPct:  (avgAvail  && avgUtil)  ? avgUtil  / avgAvail  * 100 : null,
   };
 }
 
