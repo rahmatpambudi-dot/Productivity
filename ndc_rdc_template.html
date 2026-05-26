@@ -1298,13 +1298,56 @@ const UTIL_SUBSITE_MAP = {
   'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
 };
 
+// Days to exclude per site based on significant drop analysis (>5% vs weekday avg)
+// HCI JABABEKA: no exclusion, AHI JABABEKA: no exclusion, TALLO: no exclusion
+// HCI CIKUPA: exclude Sunday, CORP SIDOARJO: exclude Sat+Sun, CORP TAMORA: exclude Sunday
+const UTIL_EXCLUDE_DOW = {
+  'HCI CIKUPA':    [0],       // 0=Sunday
+  'CORP SIDOARJO': [0, 6],    // 0=Sunday, 6=Saturday
+  'CORP TAMORA':   [0],       // 0=Sunday
+};
+
 function filterUtilRows(start, end, site) {
   var srcSites = UTIL_SUBSITE_MAP[site] || Object.keys(UTIL_SITE_MAP);
-  return UTIL_ROWS.filter(function(r) {
+  var rows = UTIL_ROWS.filter(function(r) {
     if(!r.date) return false;
     if(r.date < start || r.date > end) return false;
-    return srcSites.includes(r.site);
+    if(!srcSites.includes(r.site)) return false;
+    // Per-site day exclusion
+    var excl = UTIL_EXCLUDE_DOW[r.site];
+    if(excl && excl.length) {
+      var d = new Date(r.date);
+      var dow = d.getDay(); // 0=Sun, 6=Sat
+      if(excl.includes(dow)) return false;
+    }
+    return true;
   });
+
+  // For JABABEKA (HCI+AHI combined): sum per day (capacity is additive)
+  if(site === 'JABABEKA' && srcSites.length > 1) {
+    var byDate = {};
+    rows.forEach(function(r) {
+      if(!byDate[r.date]) byDate[r.date] = [];
+      byDate[r.date].push(r);
+    });
+    var merged = [];
+    Object.keys(byDate).sort().forEach(function(date) {
+      var dayRows = byDate[date];
+      function sumF(key) { return dayRows.reduce(function(s,r){ return s+(r[key]||0); },0); }
+      merged.push({
+        site: 'JABABEKA', date: date,
+        drv_plan:   sumF('drv_plan'),
+        drv_aktual: sumF('drv_aktual'),
+        ast_plan:   sumF('ast_plan'),
+        ast_aktual: sumF('ast_aktual'),
+        arm_assets: sumF('arm_assets'),
+        arm_avail:  sumF('arm_avail'),
+        arm_util:   sumF('arm_util'),
+      });
+    });
+    return merged;
+  }
+  return rows;
 }
 
 function computeUtil(rows) {
