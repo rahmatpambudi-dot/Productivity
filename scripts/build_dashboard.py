@@ -3,6 +3,7 @@
 Build NDC & RDC Dashboard
 - Fetches all raw rows from Google Sheets API
 - Saves slim data.json (only needed columns)
+- Saves data_utilisasi.json (utilisasi MPP & Armada)
 - Injects timestamp into HTML template
 """
 
@@ -12,6 +13,9 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build as gapi_build
 
 SPREADSHEET_ID = "1wumoDA8SrXmaEXRkI_2lNlvof9JVtsXceeE2qhLtb7A"
+
+# Utilisasi sheet — same spreadsheet, different sheet name
+UTIL_SHEET_NAME = "Utilisasi"  # adjust if sheet name is different
 
 SHEETS = [
     { "name": "AHI JABABEKA",  "site": "JABABEKA" },
@@ -33,10 +37,10 @@ def get_service():
     )
     return gapi_build("sheets", "v4", credentials=creds, cache_discovery=False)
 
-def fetch_sheet(service, sheet_name):
+def fetch_sheet(service, sheet_name, range_str="A:AE"):
     result = service.spreadsheets().values().get(
         spreadsheetId=SPREADSHEET_ID,
-        range=f"'{sheet_name}'!A:AE",
+        range=f"'{sheet_name}'!{range_str}",
         valueRenderOption="FORMATTED_VALUE",
         dateTimeRenderOption="FORMATTED_STRING"
     ).execute()
@@ -77,12 +81,10 @@ def parse_date_str(s):
     """Normalize date to YYYY-MM-DD string"""
     if not s: return None
     s = str(s).strip()
-    # Standard formats
     for fmt in ("%m/%d/%Y","%d/%m/%Y","%Y-%m-%d","%d-%b-%Y","%d %b %Y","%m/%d/%y","%d/%m/%y"):
         try:
             return datetime.datetime.strptime(s, fmt).strftime("%Y-%m-%d")
         except: pass
-    # Handle M/D/YYYY or D/M/YYYY without leading zeros (e.g. 1/1/2026)
     m = re.match(r"^(\d{1,2})[/\-](\d{1,2})[/\-](\d{2,4})$", s)
     if m:
         p1, p2, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
@@ -93,7 +95,6 @@ def parse_date_str(s):
         if 1 <= p2 <= 12 and 1 <= p1 <= 31:
             try: return datetime.date(year, p2, p1).strftime("%Y-%m-%d")
             except: pass
-    # Excel serial number
     try:
         n = int(s)
         if 40000 < n < 60000:
@@ -107,9 +108,6 @@ def cell(r, idx):
     return str(r[idx]).strip()
 
 def slim_row(r, cols, sheet_name, site):
-    """Extract only needed columns into slim dict"""
-    # For CIKUPA: TAT is last TAT col, SATELITE col
-    h = []  # not needed here, handled by caller
     return {
         "sheet": sheet_name,
         "site":  site,
@@ -131,7 +129,6 @@ def slim_row(r, cols, sheet_name, site):
         "ja":    cell(r, cols["jenisArmada"]).upper() if cols.get("jenisArmada", -1) >= 0 else "",
     }
 
-
 def parse_tat_py(s):
     if not s: return None
     import re as _re
@@ -142,6 +139,117 @@ def parse_tat_py(s):
         if 0 < n < 2: return n * 24
     except: pass
     return None
+
+def to_num(s):
+    """Parse number from cell, strip % sign if present"""
+    if not s: return None
+    s = str(s).strip().replace('%','').replace(',','.')
+    try: return float(s)
+    except: return None
+
+# ── UTILISASI ──────────────────────────────────────────────────
+def fetch_utilisasi(service, timestamp):
+    """
+    Fetch sheet Utilisasi (multi-header: row1=group, row2=sub-col).
+    Expected structure (same as CSV):
+      Col A  : Site Origin
+      Col B  : TANGGAL
+      Col C  : CAPACITY MPP (DRIVER) > Assets
+      Col D  : Plan
+      Col E  : Aktual
+      Col F  : GAP
+      Col G  : Kehadiran
+      Col H  : Utilize
+      Col I  : CAPACITY MPP (AST. DRIVER) > Assets
+      Col J  : Plan
+      Col K  : Aktual
+      Col L  : GAP
+      Col M  : Kehadiran
+      Col N  : Utilize
+      Col O  : CAPACITY MPP (STAFF UP) > Assets  (skipped — not needed)
+      Col P  : Plan
+      Col Q  : Aktual
+      Col R  : GAP
+      Col S  : Utilize
+      Col T  : CAPACITY ARMADA > Assets
+      Col U  : Availibility
+      Col V  : Utilisasi
+      Col W  : Ritase  (skipped)
+      Col X  : Service (skipped)
+      Col Y  : Idle    (skipped)
+      Col Z  : Other Delivery (skipped)
+    """
+    print(f"  Fetching {UTIL_SHEET_NAME}...")
+    try:
+        raw = fetch_sheet(service, UTIL_SHEET_NAME, range_str="A:Z")
+    except Exception as e:
+        print(f"  ✗ {UTIL_SHEET_NAME}: {e}")
+        return []
+
+    rows = raw["data"]
+    if len(rows) < 2:
+        print(f"  ✗ {UTIL_SHEET_NAME}: not enough rows")
+        return []
+
+    # Row 0 = group headers, Row 1 = sub-col headers, data starts row 2
+    # But fetch_sheet already consumed row[0] as headers and rows[1:] as data
+    # So raw["data"][0] is actually the sub-header row, data starts raw["data"][1]
+    sub_headers = [str(x).strip().upper() for x in rows[0]]
+    data_rows   = rows[1:]
+
+    # Fixed column indices based on known structure
+    # (robust: find by sub-header name)
+    def fi(name, start=0):
+        for i in range(start, len(sub_headers)):
+            if name.upper() in sub_headers[i]:
+                return i
+        return -1
+
+    IDX = {
+        'site':       0,
+        'date':       1,
+        'drv_assets': fi('ASSETS'),
+        'drv_plan':   fi('PLAN'),
+        'drv_aktual': fi('AKTUAL'),
+        'ast_assets': fi('ASSETS',  fi('ASSETS')+1),   # second ASSETS col
+        'ast_plan':   fi('PLAN',    fi('PLAN')+1),      # second PLAN
+        'ast_aktual': fi('AKTUAL',  fi('AKTUAL')+1),    # second AKTUAL
+        'arm_assets': fi('ASSETS',  fi('ASSETS', fi('ASSETS')+1)+1),  # third ASSETS
+        'arm_avail':  fi('AVAILIB'),
+        'arm_util':   fi('UTILISASI'),
+    }
+    print(f"  Utilisasi col indices: {IDX}")
+
+    util_rows = []
+    for r in data_rows:
+        site = cell(r, IDX['site'])
+        date = parse_date_str(cell(r, IDX['date']))
+        if not site or not date:
+            continue
+
+        drv_plan   = to_num(cell(r, IDX['drv_plan']))
+        drv_aktual = to_num(cell(r, IDX['drv_aktual']))
+        ast_plan   = to_num(cell(r, IDX['ast_plan']))
+        ast_aktual = to_num(cell(r, IDX['ast_aktual']))
+        arm_assets = to_num(cell(r, IDX['arm_assets']))
+        arm_avail  = to_num(cell(r, IDX['arm_avail']))
+        arm_util   = to_num(cell(r, IDX['arm_util']))
+
+        util_rows.append({
+            'site':       site,
+            'date':       date,
+            'drv_plan':   drv_plan,
+            'drv_aktual': drv_aktual,
+            'ast_plan':   ast_plan,
+            'ast_aktual': ast_aktual,
+            'arm_assets': arm_assets,
+            'arm_avail':  arm_avail,
+            'arm_util':   arm_util,
+        })
+
+    print(f"  ✓ {UTIL_SHEET_NAME}: {len(util_rows)} rows")
+    return util_rows
+
 
 def aggregate_monthly(all_rows, timestamp):
     """Pre-compute all metrics per site per month for data_monthly.json"""
@@ -242,47 +350,24 @@ def build():
             cols = map_cols(raw["headers"])
             h_up = [x.upper() for x in raw["headers"]]
 
-            # For CIKUPA: override TAT col to last TAT col
             if s["name"] == "HCI CIKUPA":
                 tat_cols = [i for i, h in enumerate(h_up) if h == "TAT"]
                 if tat_cols: cols["tat"] = tat_cols[-1]
                 sat_i = next((i for i, h in enumerate(h_up) if "SATELIT" in h), -1)
                 cols["satelite"] = sat_i
-                # OLF DETERMINE col - try exact then partial
                 olf_i = next((i for i, h in enumerate(h_up) if "OLF DETERMINE" in h), -1)
-                if olf_i < 0:
-                    olf_i = next((i for i, h in enumerate(h_up) if "OLF" in h), -1)
-                if olf_i < 0:
-                    olf_i = next((i for i, h in enumerate(h_up) if "DETERMINE" in h), -1)
+                if olf_i < 0: olf_i = next((i for i, h in enumerate(h_up) if "OLF" in h), -1)
+                if olf_i < 0: olf_i = next((i for i, h in enumerate(h_up) if "DETERMINE" in h), -1)
                 cols["olfDet"] = olf_i
                 print(f"  CIKUPA cols: tat={cols['tat']}, sat={cols['satelite']}, olfDet={cols['olfDet']}")
-                if cols["olfDet"] >= 0:
-                    print(f"  CIKUPA olfDet header: {raw['headers'][cols['olfDet']]}")
-                    # Sample values
-                    samples = [r[cols["olfDet"]] if cols["olfDet"] < len(r) else "" for r in raw["data"][:5]]
-                    print(f"  CIKUPA olfDet samples: {samples}")
 
-            # Debug: print col indices for all sheets
             print(f"  {s['name']} col indices: do={cols['do_']} cbm={cols['cbm']} cap={cols['capArmada']} dp={cols['dp']} kat={cols['kategori']}")
-            if cols['capArmada'] >= 0 and cols['capArmada'] < len(raw['headers']):
-                print(f"  {s['name']} cap header='{raw['headers'][cols['capArmada']]}'")
-            if len(raw["data"]) > 0:
-                r0 = raw["data"][0]
-                cap_val = r0[cols['capArmada']] if cols['capArmada']>=0 and cols['capArmada']<len(r0) else 'OUT OF RANGE'
-                print(f"  {s['name']} row0 cap='{cap_val}' len={len(r0)}")
-                # Count non-empty cap values
-                cap_idx = cols['capArmada']
-                non_empty = sum(1 for r in raw["data"] if cap_idx>=0 and cap_idx<len(r) and r[cap_idx].strip()!='')
-                print(f"  {s['name']} cap non-empty: {non_empty}/{len(raw['data'])}")
-                # Sample a few rows with empty cap
-                empty_samples = [r[cap_idx] if cap_idx<len(r) else 'SHORT' for r in raw["data"][1:6]]
-                print(f"  {s['name']} cap samples[1:6]: {empty_samples}")
 
             for r in raw["data"]:
                 row = slim_row(r, cols, s["name"], s["site"])
-                if row["date"]:  # skip rows without date
+                if row["date"]:
                     all_rows.append(row)
-            
+
             cnt = len([r for r in raw["data"] if parse_date_str(cell(r, cols["date"]))])
             total += cnt
             print(f"  ✓ {s['name']}: {cnt} rows")
@@ -292,36 +377,41 @@ def build():
 
     print(f"\nTotal rows: {total}")
 
-    # Save data.json
     base = os.path.dirname(os.path.abspath(__file__))
-    data_path = os.path.join(base, '..', 'data.json')
-    tpl_path  = os.path.join(base, '..', 'ndc_rdc_template.html')
-    out_path  = os.path.join(base, '..', 'dashboard_ndc_rdc.html')
+    data_path     = os.path.join(base, '..', 'data.json')
+    monthly_path  = os.path.join(base, '..', 'data_monthly.json')
+    util_path     = os.path.join(base, '..', 'data_utilisasi.json')
+    tpl_path      = os.path.join(base, '..', 'ndc_rdc_template.html')
+    out_path      = os.path.join(base, '..', 'dashboard_ndc_rdc.html')
 
+    # data.json
     with open(data_path, 'w', encoding='utf-8') as f:
         json.dump({"timestamp": timestamp, "rows": all_rows}, f, ensure_ascii=False, separators=(',',':'))
-    
     print(f"data.json: {os.path.getsize(data_path)/1024:.1f} KB")
 
-    # Build data_monthly.json
-    monthly_path = os.path.join(base, '..', 'data_monthly.json')
+    # data_monthly.json
     monthly = aggregate_monthly(all_rows, timestamp)
     with open(monthly_path, 'w', encoding='utf-8') as f:
         json.dump(monthly, f, ensure_ascii=False, separators=(',',':'))
     print(f"data_monthly.json: {os.path.getsize(monthly_path)/1024:.1f} KB")
+
+    # data_utilisasi.json
+    util_rows = fetch_utilisasi(service, timestamp)
+    with open(util_path, 'w', encoding='utf-8') as f:
+        json.dump({"timestamp": timestamp, "rows": util_rows}, f, ensure_ascii=False, separators=(',',':'))
+    print(f"data_utilisasi.json: {os.path.getsize(util_path)/1024:.1f} KB, {len(util_rows)} rows")
 
     # Build HTML
     with open(tpl_path, 'r', encoding='utf-8') as f:
         html = f.read()
     html = html.replace('{{BUILD_TIMESTAMP}}', timestamp)
     html = html.replace('{{BUILD_DATE}}', now_wib.strftime('%Y-%m-%d'))
-    # Remove embedded data placeholder if still present
     html = html.replace('// {{EMBEDDED_DATA}}', '')
 
     with open(out_path, 'w', encoding='utf-8') as f:
         f.write(html)
-
     print(f"Dashboard built: {out_path}")
+
 
 if __name__ == '__main__':
     build()
