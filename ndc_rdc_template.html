@@ -1163,56 +1163,70 @@ function buildTrendline(results, summary, s, e) {
     };
   });
 
-  // ── End-label plugin: draws series name + last value at right edge ──
-  // Collision avoidance: sort by y position, push overlapping labels apart
+  // ── End-label plugin: draws series name + value at first & last point ──
+  // Collision avoidance: iterative relaxation per side
   var endLabelPlugin={
     id:'endLabel',
     afterDatasetsDraw:function(chart){
       var ctx=chart.ctx;
+      var left=chart.chartArea.left;
       var right=chart.chartArea.right;
-      var MIN_GAP=14; // min px between label centers
+      var MIN_GAP=14;
 
-      // Collect last-point y positions for visible series
-      var items=[];
-      trendSeries.forEach(function(s,i){
-        var ds=trendDatasets[i];
-        if(!ds||ds.hidden) return;
-        var meta=chart.getDatasetMeta(i);
-        if(meta.hidden) return;
-        var last=meta.data[meta.data.length-1];
-        if(!last) return;
-        var raw=trendData[trendData.length-1][s.key];
-        var valStr=raw!=null?s.disp(raw):'';
-        items.push({y:last.y, color:s.color, label:s.label, valStr:valStr});
-      });
-
-      if(!items.length) return;
-
-      // Sort by y ascending (top to bottom)
-      items.sort(function(a,b){return a.y-b.y;});
-
-      // Push apart: iterative relaxation
-      for(var iter=0;iter<20;iter++){
-        for(var j=0;j<items.length-1;j++){
-          var gap=items[j+1].y-items[j].y;
-          if(gap<MIN_GAP){
-            var push=(MIN_GAP-gap)/2;
-            items[j].y-=push;
-            items[j+1].y+=push;
-          }
-        }
+      function collectItems(isFirst){
+        var items=[];
+        trendSeries.forEach(function(s,i){
+          var ds=trendDatasets[i];
+          if(!ds||ds.hidden) return;
+          var meta=chart.getDatasetMeta(i);
+          if(meta.hidden) return;
+          var ptIdx=isFirst?0:meta.data.length-1;
+          var pt=meta.data[ptIdx];
+          if(!pt) return;
+          // Use raw value from trendData then disp for correct formatting
+          var raw=trendData[isFirst?0:trendData.length-1][s.key];
+          var valStr=raw!=null?s.disp(raw):'';
+          items.push({y:pt.y, color:s.color, label:s.label, valStr:valStr});
+        });
+        return items;
       }
 
-      // Draw
+      function relaxY(items){
+        items.sort(function(a,b){return a.y-b.y;});
+        for(var iter=0;iter<30;iter++){
+          for(var j=0;j<items.length-1;j++){
+            var gap=items[j+1].y-items[j].y;
+            if(gap<MIN_GAP){
+              var push=(MIN_GAP-gap)/2;
+              items[j].y-=push;
+              items[j+1].y+=push;
+            }
+          }
+        }
+        return items;
+      }
+
       ctx.save();
       ctx.font='bold 10px Inter,sans-serif';
-      ctx.textAlign='left';
       ctx.textBaseline='middle';
-      items.forEach(function(item){
-        var text=item.label+(item.valStr?' '+item.valStr:'');
+
+      // First point labels (left side)
+      var firstItems=relaxY(collectItems(true));
+      ctx.textAlign='right';
+      firstItems.forEach(function(item){
         ctx.fillStyle=item.color;
+        ctx.fillText(item.valStr, left-6, item.y);
+      });
+
+      // Last point labels (right side)
+      var lastItems=relaxY(collectItems(false));
+      ctx.textAlign='left';
+      lastItems.forEach(function(item){
+        ctx.fillStyle=item.color;
+        var text=item.label+(item.valStr?' '+item.valStr:'');
         ctx.fillText(text, right+8, item.y);
       });
+
       ctx.restore();
     }
   };
@@ -1247,7 +1261,7 @@ function buildTrendline(results, summary, s, e) {
         yL:{display:false,min:0,max:25},
         yR:{display:false,min:0,max:100}
       },
-      layout:{padding:{top:8,right:80,bottom:8,left:8}}
+      layout:{padding:{top:8,right:80,bottom:8,left:40}}
     }
   });
 }
