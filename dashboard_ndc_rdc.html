@@ -1163,8 +1163,7 @@ function buildTrendline(results, summary, s, e) {
     };
   });
 
-  // ── End-label plugin: draws series name + value at first & last point ──
-  // Collision avoidance: iterative relaxation per side
+  // ── End-label plugin: value labels on ALL points + series name at end ──
   var endLabelPlugin={
     id:'endLabel',
     afterDatasetsDraw:function(chart){
@@ -1173,22 +1172,10 @@ function buildTrendline(results, summary, s, e) {
       var right=chart.chartArea.right;
       var MIN_GAP=14;
 
-      function collectItems(isFirst){
-        var items=[];
-        trendSeries.forEach(function(s,i){
-          var ds=trendDatasets[i];
-          if(!ds||ds.hidden) return;
-          var meta=chart.getDatasetMeta(i);
-          if(meta.hidden) return;
-          var ptIdx=isFirst?0:meta.data.length-1;
-          var pt=meta.data[ptIdx];
-          if(!pt) return;
-          // Use raw value from trendData then disp for correct formatting
-          var raw=trendData[isFirst?0:trendData.length-1][s.key];
-          var valStr=raw!=null?s.disp(raw):'';
-          items.push({y:pt.y, color:s.color, label:s.label, valStr:valStr});
-        });
-        return items;
+      // Helper: format already-fmt'd value back to display string
+      function fmtDisplay(s, fmtVal){
+        if(fmtVal==null) return '';
+        return s.key==='olf' ? fmtVal.toFixed(1)+'%' : fmtVal.toFixed(s.key==='ritase'?2:1);
       }
 
       function relaxY(items){
@@ -1196,11 +1183,7 @@ function buildTrendline(results, summary, s, e) {
         for(var iter=0;iter<30;iter++){
           for(var j=0;j<items.length-1;j++){
             var gap=items[j+1].y-items[j].y;
-            if(gap<MIN_GAP){
-              var push=(MIN_GAP-gap)/2;
-              items[j].y-=push;
-              items[j+1].y+=push;
-            }
+            if(gap<MIN_GAP){ var push=(MIN_GAP-gap)/2; items[j].y-=push; items[j+1].y+=push; }
           }
         }
         return items;
@@ -1210,21 +1193,50 @@ function buildTrendline(results, summary, s, e) {
       ctx.font='bold 10px Inter,sans-serif';
       ctx.textBaseline='middle';
 
-      // First point labels (left side)
-      var firstItems=relaxY(collectItems(true));
+      // ── All-point value labels (above each dot) ──
+      trendSeries.forEach(function(s,i){
+        var ds=trendDatasets[i]; if(!ds||ds.hidden) return;
+        var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
+        meta.data.forEach(function(pt, ptIdx){
+          var fmtVal=trendDatasets[i].data[ptIdx];
+          if(fmtVal==null) return;
+          var valStr=fmtDisplay(s, fmtVal);
+          ctx.fillStyle=s.color;
+          ctx.textAlign='center';
+          ctx.fillText(valStr, pt.x, pt.y-12);
+        });
+      });
+
+      // ── First point: value labels left side ──
+      var firstItems=[];
+      trendSeries.forEach(function(s,i){
+        var ds=trendDatasets[i]; if(!ds||ds.hidden) return;
+        var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
+        var pt=meta.data[0]; if(!pt) return;
+        var fmtVal=trendDatasets[i].data[0];
+        firstItems.push({y:pt.y, color:s.color, valStr:fmtDisplay(s,fmtVal)});
+      });
+      relaxY(firstItems);
       ctx.textAlign='right';
       firstItems.forEach(function(item){
         ctx.fillStyle=item.color;
         ctx.fillText(item.valStr, left-6, item.y);
       });
 
-      // Last point labels (right side)
-      var lastItems=relaxY(collectItems(false));
+      // ── Last point: series name + value right side ──
+      var lastItems=[];
+      trendSeries.forEach(function(s,i){
+        var ds=trendDatasets[i]; if(!ds||ds.hidden) return;
+        var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
+        var pt=meta.data[meta.data.length-1]; if(!pt) return;
+        var fmtVal=trendDatasets[i].data[trendDatasets[i].data.length-1];
+        lastItems.push({y:pt.y, color:s.color, label:s.label, valStr:fmtDisplay(s,fmtVal)});
+      });
+      relaxY(lastItems);
       ctx.textAlign='left';
       lastItems.forEach(function(item){
         ctx.fillStyle=item.color;
-        var text=item.label+(item.valStr?' '+item.valStr:'');
-        ctx.fillText(text, right+8, item.y);
+        ctx.fillText(item.label+' '+item.valStr, right+8, item.y);
       });
 
       ctx.restore();
@@ -1261,7 +1273,7 @@ function buildTrendline(results, summary, s, e) {
         yL:{display:false,min:0,max:25},
         yR:{display:false,min:0,max:100}
       },
-      layout:{padding:{top:8,right:80,bottom:8,left:40}}
+      layout:{padding:{top:20,right:80,bottom:8,left:40}}
     }
   });
 }
