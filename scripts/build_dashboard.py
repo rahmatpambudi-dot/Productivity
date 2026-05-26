@@ -199,26 +199,24 @@ def fetch_utilisasi(service, timestamp):
 
     # Fixed column indices based on known structure
     # (robust: find by sub-header name)
-    def fi(name, start=0):
-        for i in range(start, len(sub_headers)):
-            if name.upper() in sub_headers[i]:
-                return i
-        return -1
-
+    # Fixed column indices based on actual sheet structure:
+    # A=0 Site, B=1 Tanggal
+    # DRIVER: C=2 Assets, D=3 Plan, E=4 Aktual, F=5 GAP, G=6 Kehadiran, H=7 Utilize
+    # AST.DRV: I=8 Assets, J=9 Plan, K=10 Aktual, L=11 GAP, M=12 Kehadiran, N=13 Utilize
+    # STAFF UP: O=14 Assets, P=15 Plan, Q=16 Aktual, R=17 GAP, S=18 Utilize
+    # ARMADA:  T=19 Assets, U=20 Availibility, V=21 Utilisasi, W=22 Ritase, X=23 Service, Y=24 Idle, Z=25 Other
     IDX = {
         'site':       0,
         'date':       1,
-        'drv_assets': fi('ASSETS'),
-        'drv_plan':   fi('PLAN'),
-        'drv_aktual': fi('AKTUAL'),
-        'ast_assets': fi('ASSETS',  fi('ASSETS')+1),   # second ASSETS col
-        'ast_plan':   fi('PLAN',    fi('PLAN')+1),      # second PLAN
-        'ast_aktual': fi('AKTUAL',  fi('AKTUAL')+1),    # second AKTUAL
-        'arm_assets': fi('ASSETS',  fi('ASSETS', fi('ASSETS')+1)+1),  # third ASSETS
-        'arm_avail':  fi('AVAILIB'),
-        'arm_util':   fi('UTILISASI'),
+        'drv_plan':   3,   # DRIVER Plan
+        'drv_aktual': 4,   # DRIVER Aktual
+        'ast_plan':   9,   # AST.DRIVER Plan
+        'ast_aktual': 10,  # AST.DRIVER Aktual
+        'arm_assets': 19,  # ARMADA Assets
+        'arm_avail':  20,  # ARMADA Availibility
+        'arm_util':   21,  # ARMADA Utilisasi
     }
-    print(f"  Utilisasi col indices: {IDX}")
+    print(f"  Utilisasi col indices (hardcoded): {IDX}")
 
     util_rows = []
     for r in data_rows:
