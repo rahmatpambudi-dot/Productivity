@@ -1163,20 +1163,13 @@ function buildTrendline(results, summary, s, e) {
     };
   });
 
-  // ── End-label plugin: value labels on ALL points + series name at end ──
+  // ── End-label plugin: value on ALL points, series name at right end only ──
   var endLabelPlugin={
     id:'endLabel',
     afterDatasetsDraw:function(chart){
       var ctx=chart.ctx;
-      var left=chart.chartArea.left;
       var right=chart.chartArea.right;
       var MIN_GAP=14;
-
-      // Helper: format already-fmt'd value back to display string
-      function fmtDisplay(s, fmtVal){
-        if(fmtVal==null) return '';
-        return s.key==='olf' ? fmtVal.toFixed(1)+'%' : fmtVal.toFixed(s.key==='ritase'?2:1);
-      }
 
       function relaxY(items){
         items.sort(function(a,b){return a.y-b.y;});
@@ -1189,54 +1182,41 @@ function buildTrendline(results, summary, s, e) {
         return items;
       }
 
+      function fmtDisplay(s, fmtVal){
+        if(fmtVal==null) return '';
+        return s.key==='olf' ? fmtVal.toFixed(1)+'%' : fmtVal.toFixed(s.key==='ritase'?2:1);
+      }
+
       ctx.save();
       ctx.font='bold 10px Inter,sans-serif';
       ctx.textBaseline='middle';
 
-      // ── All-point value labels (above each dot) ──
+      // ── Value label above every dot ──
       trendSeries.forEach(function(s,i){
         var ds=trendDatasets[i]; if(!ds||ds.hidden) return;
         var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
+        ctx.fillStyle=s.color;
+        ctx.textAlign='center';
         meta.data.forEach(function(pt, ptIdx){
           var fmtVal=trendDatasets[i].data[ptIdx];
           if(fmtVal==null) return;
-          var valStr=fmtDisplay(s, fmtVal);
-          ctx.fillStyle=s.color;
-          ctx.textAlign='center';
-          ctx.fillText(valStr, pt.x, pt.y-12);
+          ctx.fillText(fmtDisplay(s, fmtVal), pt.x, pt.y-12);
         });
       });
 
-      // ── First point: value labels left side ──
-      var firstItems=[];
-      trendSeries.forEach(function(s,i){
-        var ds=trendDatasets[i]; if(!ds||ds.hidden) return;
-        var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
-        var pt=meta.data[0]; if(!pt) return;
-        var fmtVal=trendDatasets[i].data[0];
-        firstItems.push({y:pt.y, color:s.color, valStr:fmtDisplay(s,fmtVal)});
-      });
-      relaxY(firstItems);
-      ctx.textAlign='right';
-      firstItems.forEach(function(item){
-        ctx.fillStyle=item.color;
-        ctx.fillText(item.valStr, left-6, item.y);
-      });
-
-      // ── Last point: series name + value right side ──
+      // ── Series name at right end only (with collision avoidance) ──
       var lastItems=[];
       trendSeries.forEach(function(s,i){
         var ds=trendDatasets[i]; if(!ds||ds.hidden) return;
         var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
         var pt=meta.data[meta.data.length-1]; if(!pt) return;
-        var fmtVal=trendDatasets[i].data[trendDatasets[i].data.length-1];
-        lastItems.push({y:pt.y, color:s.color, label:s.label, valStr:fmtDisplay(s,fmtVal)});
+        lastItems.push({y:pt.y, color:s.color, label:s.label});
       });
       relaxY(lastItems);
       ctx.textAlign='left';
       lastItems.forEach(function(item){
         ctx.fillStyle=item.color;
-        ctx.fillText(item.label+' '+item.valStr, right+8, item.y);
+        ctx.fillText(item.label, right+8, item.y);
       });
 
       ctx.restore();
