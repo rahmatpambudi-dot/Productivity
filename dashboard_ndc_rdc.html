@@ -1222,12 +1222,197 @@ function buildTrendline(results, summary, s, e) {
   });
 }
 
+// ── TRIP COUNT BY TYPE DELIVERY (r.td) ─────────────────────────
+// COUNTUNIQUE r.lc (kolom A) grouped by r.td (kolom J / Type Delivery)
+// Types auto-discovered from data. Fixed color per type for consistency.
+function buildMonthlyTripTypeTable(container) {
+  if (!container) return;
+  const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  const {start: fs, end: fe} = getRange();
+  const allMonths = [...new Set(ROWS.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
+  const SITES_LIST = currentSite === 'ALL' ? SITES : [currentSite];
+
+  // ── Fixed color map per known td value ──
+  const TD_COLOR = {
+    'customer':  '#1a73e8',
+    'store':     '#34a85a',
+    'satelite':  '#e37400',
+    'hub':       '#a142f4',
+    'transfer':  '#d93025',
+  };
+  // Friendly labels
+  const TD_LABEL = {
+    'customer':  'Trip Customer',
+    'store':     'Trip Store',
+    'satelite':  'Trip Satelite',
+    'hub':       'Trip Hub',
+    'transfer':  'Trip Transfer (NDC/RDC/SDC)',
+  };
+  function tdColor(td) { return TD_COLOR[td] || '#9aa0a6'; }
+  function tdLabel(td) { return TD_LABEL[td] || ('Trip ' + td.charAt(0).toUpperCase() + td.slice(1)); }
+
+  // ── 1. Discover all unique r.td values present in data ──
+  const tdSet = new Set();
+  ROWS.forEach(r => { if (r.td) tdSet.add((r.td+'').toLowerCase().trim()); });
+
+  // ── 2. Compute COUNTUNIQUE r.lc per month per site per td ──
+  var allData = {}; // key: mo+'|'+site → { td: Set<lc>, _total: Set<lc> }
+  allMonths.forEach(function(mo) {
+    var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+    var moD1 = mo + '-' + String(parseInt(fs.slice(8,10))).padStart(2,'0');
+    var moD2 = mo + '-' + String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
+    SITES_LIST.forEach(function(site) {
+      var moFiltered = filterRows(ROWS, moD1, moD2, site);
+      var sub = SUB_SITES[site];
+      var effectiveSite = sub ? sub.baseSite : site;
+      var sr = moFiltered.filter(r => r.site === effectiveSite);
+      if (!sr.length) return;
+      var entry = { _total: new Set() };
+      sr.forEach(r => {
+        if (!r.lc) return;
+        var td = (r.td || 'other').toLowerCase().trim();
+        // "customer via hub" & variants → grouped into 'customer'
+        if (td === 'customer via hub' || td === 'hub customer' || td === 'customer hub') td = 'customer';
+        if (!entry[td]) entry[td] = new Set();
+        entry[td].add(r.lc);
+        entry['_total'].add(r.lc);
+      });
+      allData[mo + '|' + site] = entry;
+    });
+  });
+
+  // ── 3. Order td types: customer > store > hub > satelite > transfer > pickup > others ──
+  const TD_ORDER = ['customer','store','hub','satelite','transfer'];
+  var allTdFound = [...new Set(
+    Object.values(allData).flatMap(e => Object.keys(e).filter(k => k !== '_total'))
+  )];
+  var tdTypes = [
+    ...TD_ORDER.filter(t => allTdFound.includes(t)),
+    ...allTdFound.filter(t => !TD_ORDER.includes(t)).sort()
+  ];
+
+  // ── 4. MoM badge for total ──
+  function momBadge(cur, prev) {
+    if (cur == null || prev == null) return '';
+    var d = cur - prev;
+    if (d === 0) return '';
+    var color = d > 0 ? '#0f9d58' : '#d93025';
+    return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+' '+Math.abs(d).toLocaleString('id-ID')+'</span>';
+  }
+
+  // ── 5. Build thead ──
+  var thead = '<tr>'
+    + '<th style="text-align:left;min-width:80px">Bulan</th>'
+    + '<th style="text-align:left;min-width:90px">Site</th>';
+  tdTypes.forEach(function(td) {
+    thead += '<th style="text-align:center;color:'+tdColor(td)+'">'+tdLabel(td)+'</th>';
+  });
+  thead += '<th style="text-align:center;background:#f0f4f9">TOTAL TRIP</th></tr>';
+
+  // ── 6. Build tbody ──
+  var tbody = '';
+  allMonths.forEach(function(mo, moIdx) {
+    var prevMo = moIdx > 0 ? allMonths[moIdx - 1] : null;
+    SITES_LIST.forEach(function(site) {
+      var key = mo + '|' + site;
+      var entry = allData[key];
+      if (!entry) return;
+      var total = entry['_total'].size;
+      if (!total) return;
+      var prevEntry = prevMo ? allData[prevMo + '|' + site] : null;
+      var prevTotal = prevEntry ? prevEntry['_total'].size : null;
+      var mn = moNames[parseInt(mo.slice(5,7)) - 1] + ' ' + mo.slice(0,4);
+      var siteLbl = SL[site] || site;
+      var tr = '<tr>';
+      tr += '<td style="color:var(--t2);font-size:11px;white-space:nowrap">'+mn+'</td>';
+      tr += '<td style="font-weight:600;font-size:11px">'+siteLbl+'</td>';
+      tdTypes.forEach(function(td) {
+        var cnt = entry[td] ? entry[td].size : 0;
+        var pct = total > 0 ? (cnt / total * 100).toFixed(1) : '0.0';
+        if (cnt === 0) {
+          tr += '<td style="text-align:center;color:var(--t3);font-size:11px">—</td>';
+        } else {
+          tr += '<td style="text-align:center;font-size:11px;font-weight:600;font-family:\'JetBrains Mono\',monospace">'
+            + '<span style="color:'+tdColor(td)+'">'+cnt.toLocaleString('id-ID')+'</span>'
+            + '<br><span style="font-size:9px;color:var(--t3);font-weight:400">'+pct+'%</span>'
+            + '</td>';
+        }
+      });
+      tr += '<td style="text-align:center;font-size:12px;font-weight:700;font-family:\'JetBrains Mono\',monospace;background:#f0f4f9">'
+        + total.toLocaleString('id-ID')
+        + momBadge(total, prevTotal)
+        + '</td>';
+      tr += '</tr>';
+      tbody += tr;
+    });
+  });
+
+  // ── 7. Grand total row ──
+  var grandTotals = {};
+  tdTypes.forEach(function(td) {
+    grandTotals[td] = Object.values(allData).reduce(function(s, e) { return s + (e[td] ? e[td].size : 0); }, 0);
+  });
+  var grandTotal = Object.values(allData).reduce(function(s, e) { return s + e['_total'].size; }, 0);
+  var sumRow = '<tr style="background:var(--gbg);border-top:2px solid var(--gl)">';
+  sumRow += '<td colspan="2" style="font-size:11px;color:var(--green);font-weight:700;padding:7px 10px">GRAND TOTAL</td>';
+  tdTypes.forEach(function(td) {
+    var cnt = grandTotals[td];
+    var pct = grandTotal > 0 ? (cnt / grandTotal * 100).toFixed(1) : '0.0';
+    sumRow += '<td style="text-align:center;font-size:11px;font-weight:700;color:var(--green);font-family:\'JetBrains Mono\',monospace">'
+      + cnt.toLocaleString('id-ID')
+      + '<br><span style="font-size:9px;color:var(--gm);font-weight:600">'+pct+'%</span>'
+      + '</td>';
+  });
+  sumRow += '<td style="text-align:center;font-size:13px;font-weight:700;color:var(--green);background:var(--gbg);font-family:\'JetBrains Mono\',monospace">'
+    + grandTotal.toLocaleString('id-ID') + '</td>';
+  sumRow += '</tr>';
+
+  // ── 8. Legend strip ──
+  var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg)">';
+  tdTypes.forEach(function(td) {
+    var cnt = grandTotals[td];
+    var pct = grandTotal > 0 ? (cnt / grandTotal * 100).toFixed(1) : '0.0';
+    legendHtml += '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--t2)">'
+      + '<span style="width:10px;height:10px;border-radius:50%;background:'+tdColor(td)+';flex-shrink:0;display:inline-block"></span>'
+      + '<strong style="color:'+tdColor(td)+'">'+tdLabel(td)+'</strong>'
+      + '<span style="color:var(--t3)">'+cnt.toLocaleString('id-ID')+' trip · '+pct+'%</span>'
+      + '</span>';
+  });
+  legendHtml += '</div>';
+
+  container.innerHTML =
+    '<div style="overflow-x:auto">'
+    + '<table class="mtt"><thead>' + thead + '</thead><tbody>' + tbody + sumRow + '</tbody></table>'
+    + '</div>'
+    + legendHtml;
+}
+
 // Patch: call buildTrendline after renderDetail finishes setting up DOM
 var _origRD=window.renderDetail;
 window.renderDetail=function(results,summary,start,end){
   _origRD(results,summary,start,end);
   // Defer trendline build so DOM canvas is ready
   setTimeout(function(){ buildTrendline(results,summary,start,end); },10);
+  // Inject Trip Type table panel after monthlyTrendTable
+  setTimeout(function(){
+    var anchor = document.querySelector('.panel[data-triptype-anchor]') || null;
+    // Find the perbandingan periode panel and insert before it
+    var allPanels = document.querySelectorAll('#content .panel');
+    var lastPanel = allPanels[allPanels.length - 1];
+    if (!lastPanel) return;
+    // Create new panel
+    var newPanel = document.createElement('div');
+    newPanel.className = 'panel';
+    newPanel.style.marginTop = '14px';
+    newPanel.innerHTML =
+      '<div class="ph">'
+      + '<h3>Trip per Type Delivery</h3>'
+      + '<span class="tag">COUNTUNIQUE LC · group by r.td · % vs total</span>'
+      + '</div>'
+      + '<div id="tripTypeTableContainer"></div>';
+    lastPanel.parentNode.insertBefore(newPanel, lastPanel);
+    buildMonthlyTripTypeTable(document.getElementById('tripTypeTableContainer'));
+  }, 60);
 };
 
 function applyCmp() {
