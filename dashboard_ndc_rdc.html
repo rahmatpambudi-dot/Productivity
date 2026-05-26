@@ -1103,8 +1103,9 @@ function buildTrendline(results, summary, s, e) {
 
   var n=trendData.length;
 
-  // ── Smart label: compute vertical offset per series at a given month index ──
-  // Groups by yAxis to avoid mixing OLF (0-100%) with others (0-40)
+  // ── Smart label: pixel-aware collision avoidance ──
+  // Strategy: sort by value, then push labels apart with minimum gap
+  // Each group (yL / yR) handled independently to avoid axis mixing
   function getRankOffsets(moIdx) {
     var groupL=[], groupR=[];
     trendSeries.forEach(function(s,i){
@@ -1112,19 +1113,33 @@ function buildTrendline(results, summary, s, e) {
       if(v==null) return;
       (s.axis==='yR'?groupR:groupL).push({i:i,v:v});
     });
-    [groupL,groupR].forEach(function(grp){grp.sort(function(a,b){return b.v-a.v;});});
     var offsets={};
-    var step=15;
-    function assign(grp){
-      var mid=(grp.length-1)/2;
-      grp.forEach(function(item,rank){
-        var relPos=rank-mid;
-        var px=Math.round(relPos*step);
-        var align,anchor;
-        if(px<-4){align='top';anchor='end';}
-        else if(px>4){align='bottom';anchor='start';}
-        else{align='center';anchor='center';}
-        offsets[item.i]={align:align,anchor:anchor,offset:Math.abs(px)+3};
+    var MIN_GAP = 18; // min px between label centers
+    function assign(grp) {
+      if(!grp.length) return;
+      // Sort by value descending (higher value = higher on chart = lower pixel y)
+      grp.sort(function(a,b){return b.v-a.v;});
+      // Assign initial offsets: 0 = center on point
+      var pos = grp.map(function(){return 0;});
+      // Iteratively push apart — run a few passes
+      for(var iter=0; iter<10; iter++){
+        for(var j=0; j<grp.length-1; j++){
+          var gap = pos[j+1] - pos[j];
+          if(gap < MIN_GAP){
+            var push = (MIN_GAP - gap) / 2;
+            pos[j]   -= push;
+            pos[j+1] += push;
+          }
+        }
+      }
+      grp.forEach(function(item, rank){
+        var px = Math.round(pos[rank]);
+        var align, anchor;
+        // px < 0 means label pushed up (above point), px > 0 means below
+        if(px < -4)      { align='top';    anchor='end';    }
+        else if(px > 4)  { align='bottom'; anchor='start';  }
+        else             { align='center'; anchor='center'; }
+        offsets[item.i] = {align:align, anchor:anchor, offset:Math.abs(px)+4};
       });
     }
     assign(groupL); assign(groupR);
@@ -1217,7 +1232,7 @@ function buildTrendline(results, summary, s, e) {
         yL:{display:false,min:0,max:40},
         yR:{display:false,min:0,max:100}
       },
-      layout:{padding:{top:26,right:80,bottom:12,left:4}}
+      layout:{padding:{top:40,right:90,bottom:12,left:50}}
     }
   });
 }
@@ -1270,12 +1285,15 @@ function buildMonthlyTripTypeTable(container) {
       var entry = { _total: new Set() };
       sr.forEach(r => {
         if (!r.lc) return;
-        var td = (r.td || 'other').toLowerCase().trim();
+        var td = (r.td || '').toLowerCase().trim();
+        // null / empty / #n/a → count in total only, no column
+        var isUnknown = !td || td === '#n/a' || td === 'n/a' || td === '-' || td === '#value!';
+        entry['_total'].add(r.lc);
+        if (isUnknown) return;
         // "customer via hub" & variants → grouped into 'customer'
         if (td === 'customer via hub' || td === 'hub customer' || td === 'customer hub') td = 'customer';
         if (!entry[td]) entry[td] = new Set();
         entry[td].add(r.lc);
-        entry['_total'].add(r.lc);
       });
       allData[mo + '|' + site] = entry;
     });
