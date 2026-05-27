@@ -9,14 +9,14 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
 :root {
-  --sw: 220px; --bg: #eef2f7; --white: #fff; --border: #dde3ec;
-  --text: #1a1d23; --t2: #5f6368; --t3: #9aa0a6;
-  --green: #1e7e4e; --gbg: #e8f5ee; --gm: #34a85a; --gl: #81c995;
-  --blue: #1a73e8; --bbg: #e8f0fe;
-  --red: #d93025; --rbg: #fce8e6;
-  --orange: #e37400; --obg: #fef3e2;
-  --shadow: 0 1px 3px rgba(0,0,0,.08); --shadow-md: 0 4px 12px rgba(0,0,0,.08);
-  --r: 10px;
+  --sw: 220px; --bg: #f1f5f9; --white: #fff; --border: #e2e8f0;
+  --text: #0f172a; --t2: #475569; --t3: #94a3b8;
+  --green: #166534; --gbg: #f0fdf4; --gm: #16a34a; --gl: #86efac;
+  --blue: #1d4ed8; --bbg: #eff6ff;
+  --red: #b91c1c; --rbg: #fef2f2;
+  --orange: #c2410c; --obg: #fff7ed;
+  --shadow: 0 1px 3px rgba(0,0,0,.05); --shadow-md: 0 4px 16px rgba(0,0,0,.07);
+  --r: 12px;
 }
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:13px;}
@@ -109,19 +109,56 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .delta-dn{color:var(--red);font-weight:600;font-size:11px;}
 .delta-nt{color:var(--t3);font-size:11px;}
 canvas{display:block;}
-.mtt{width:100%;border-collapse:collapse;font-size:11px;font-variant-numeric:tabular-nums;}
-.mtt th{background:var(--bg);color:var(--t3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.5px;padding:7px 10px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1;}
+/* ── Premium MTT Table ── */
+.mtt{width:100%;border-collapse:collapse;font-size:11.5px;font-variant-numeric:tabular-nums;}
+.mtt thead tr{background:#f8fafb;}
+.mtt th{color:#64748b;font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:1.4px;padding:10px 14px;border-bottom:2px solid #e2e8f0;text-align:center;white-space:nowrap;position:sticky;top:0;z-index:1;}
 .mtt th:first-child,.mtt th:nth-child(2){text-align:left;}
-.mtt td{padding:6px 10px;border-bottom:0.5px solid var(--border);text-align:center;white-space:nowrap;}
-.mtt td:first-child{text-align:left;font-weight:600;color:var(--text);}
-.mtt td:nth-child(2){text-align:left;color:var(--t2);}
+.mtt tbody tr{transition:background .12s;}
+.mtt tbody tr:hover{background:#f8fffe;}
+.mtt tbody tr:nth-child(even){background:#fafcfb;}
+.mtt tbody tr:nth-child(odd){background:#ffffff;}
+.mtt td{padding:9px 14px;border-bottom:1px solid #f1f5f2;text-align:center;white-space:nowrap;}
+.mtt td:first-child{text-align:left;font-weight:700;color:#1e293b;font-size:11px;border-left:3px solid transparent;}
+.mtt td:nth-child(2){text-align:left;color:var(--t2);font-size:11px;}
 .mtt tr:last-child td{border-bottom:none;}
-.mtt tr.sum-row td{background:var(--bg);font-weight:700;border-top:1px solid var(--border);}
-.mtt .c-red{background:#fce8e6;color:#c0392b;font-weight:600;}
-.mtt .c-yel{background:#fff8e1;color:#b06000;font-weight:600;}
-.mtt .c-grn{background:#e8f5e9;color:#1e7e34;font-weight:600;}
+.mtt tr.sum-row td{background:#f0faf5;font-weight:700;border-top:2px solid #86efac;color:#166534;}
+.mtt .c-red{background:#fef2f2;color:#b91c1c;font-weight:700;}
+.mtt .c-yel{background:#fffbeb;color:#92400e;font-weight:700;}
+.mtt .c-grn{background:#f0fdf4;color:#166534;font-weight:700;}
 .mtt .c-def{color:var(--text);}
-.mtt .pct{font-size:9px;opacity:.75;}
+.mtt .pct{font-size:9px;opacity:.60;font-weight:400;display:block;margin-top:1px;}
+/* Row accent by site type */
+.mtt tbody tr[data-site-type="ndc"] td:first-child{border-left-color:#3b82f6;}
+.mtt tbody tr[data-site-type="rdc"] td:first-child{border-left-color:#f97316;}
+
+/* ── Panel premium — screenshot-ready ── */
+.panel{background:#ffffff;border:1px solid #e8eef2;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.05);}
+.ph{padding:16px 20px 13px;border-bottom:1px solid #f1f5f2;display:flex;align-items:center;justify-content:space-between;}
+.ph h3{font-size:14px;font-weight:700;color:#0f172a;letter-spacing:-.3px;}
+.ph .tag{font-size:10px;color:#94a3b8;background:#f8fafc;border:1px solid #e2e8f0;padding:3px 10px;border-radius:20px;font-weight:500;letter-spacing:.2px;}
+
+/* ── Trendline chart panel ── */
+#dTREND{border-radius:0;}
+.trend-chart-wrap{padding:20px 20px 12px;background:#fff;}
+
+/* ── Screenshot helper: clean content area ── */
+.content{padding:20px 24px;flex:1;background:#f1f5f9;}
+
+/* ── Trend table section header ── */
+.mtt-section-header{display:flex;align-items:center;gap:10px;padding:14px 20px 10px;}
+.mtt-section-header h4{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1.5px;}
+.mtt-section-divider{flex:1;height:1px;background:#e2e8f0;}
+
+/* ── Trendline legend dots ── */
+.legend-strip{display:flex;flex-wrap:wrap;gap:14px;padding:10px 20px 14px;border-top:1px solid #f1f5f2;}
+.legend-item{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#64748b;}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+/* ── Utilisasi color cells ── */
+.mtt .c-grn{background:#f0fdf4;color:#166534;font-weight:700;}
+.mtt .c-yel{background:#fffbeb;color:#92400e;font-weight:700;}
+.mtt .c-red{background:#fef2f2;color:#b91c1c;font-weight:700;}
 .cmp-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
 .cmp-ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 16px;background:var(--white);border:1px solid var(--border);border-radius:var(--r);margin-bottom:14px;}
 .cmp-ctrl label{font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.6px;}
@@ -1100,11 +1137,11 @@ function buildTrendline(results, summary, s, e) {
   });
 
   var trendSeries=[
-    {key:'olf',    label:'OLF',    color:'#e37400', axis:'yR', fmt:function(v){return v!=null?+(v*100).toFixed(1):null;}, disp:function(v){return v.toFixed(1)+'%';}},
-    {key:'doTrip', label:'DO/Trip',color:'#1a73e8', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
-    {key:'dpReg',  label:'DP Reg', color:'#d93025', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
-    {key:'dpMix',  label:'DP Mix', color:'#a142f4', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
-    {key:'ritase', label:'Ritase', color:'#555',    axis:'yL', fmt:function(v){return v!=null?+v.toFixed(2):null;},       disp:function(v){return v.toFixed(2);}},
+    {key:'olf',    label:'OLF',    color:'#E67E22', axis:'yR', fmt:function(v){return v!=null?+(v*100).toFixed(1):null;}, disp:function(v){return v.toFixed(1)+'%';}},
+    {key:'doTrip', label:'DO/Trip',color:'#1A73E8', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
+    {key:'dpReg',  label:'DP Reg', color:'#D62B1F', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
+    {key:'dpMix',  label:'DP Mix', color:'#7B2D8B', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
+    {key:'ritase', label:'Ritase', color:'#1E3448', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(2):null;},       disp:function(v){return v.toFixed(2);}},
   ];
 
   var n=trendData.length;
@@ -1160,10 +1197,11 @@ function buildTrendline(results, summary, s, e) {
     var hasData=vals.some(function(v){return v!=null&&v!==0;});
     return {
       label:s.label, data:vals,
-      borderColor:s.color, pointBackgroundColor:s.color,
+      borderColor:s.color, pointBackgroundColor:'#ffffff',
+      pointBorderColor:s.color, pointBorderWidth:2,
       backgroundColor:'transparent',
       borderWidth:2.5, pointRadius:5, pointHoverRadius:7,
-      tension:0.3, fill:false, yAxisID:s.axis,
+      tension:0.35, fill:false, yAxisID:s.axis,
       hidden:!hasData,
       datalabels:{ display:false }
     };
@@ -1241,21 +1279,38 @@ function buildTrendline(results, summary, s, e) {
         legend:{
           display:true,
           position:'top',
-          labels:{color:'#5f6368',font:{family:'Inter',size:11},boxWidth:12,padding:16}
+          labels:{
+            color:'#64748b',
+            font:{family:'Inter',size:11,weight:'500'},
+            boxWidth:10, boxHeight:10,
+            padding:20,
+            usePointStyle:true, pointStyle:'circle'
+          }
         },
         tooltip:{
-          backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,
-          titleColor:'#1a1d23',bodyColor:'#5f6368',
+          backgroundColor:'#ffffff',
+          borderColor:'#e2e8f0',
+          borderWidth:1,
+          titleColor:'#0f172a',
+          bodyColor:'#64748b',
+          titleFont:{family:'Inter',size:12,weight:'600'},
+          bodyFont:{family:'Inter',size:11},
+          padding:10,
+          cornerRadius:8,
           callbacks:{label:function(ctx){
             var ts=trendSeries[ctx.datasetIndex];
             var raw=trendData[ctx.dataIndex][ts.key];
-            return ts.label+': '+(raw!=null?ts.disp(raw):'—');
+            return '  '+ts.label+': '+(raw!=null?ts.disp(raw):'—');
           }}
         },
         datalabels:{display:false}
       },
       scales:{
-        x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:11}},grid:{color:'#f0f0f0'}},
+        x:{
+          ticks:{color:'#94a3b8',font:{family:'Inter',size:11},padding:6},
+          grid:{color:'#f1f5f9'},
+          border:{display:false}
+        },
         yL:{display:false,min:0,max:25},
         yR:{display:false,min:0,max:100}
       },
@@ -1354,15 +1409,31 @@ function computeUtil(rows) {
   if(!rows.length) return null;
   var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
   var armAssetsList=[], armAvailList=[], armUtilList=[];
+
+  // First pass: get median assets to detect outliers
+  var rawAssets = rows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
+  rawAssets.sort(function(a,b){return a-b;});
+  var medAssets = rawAssets.length ? rawAssets[Math.floor(rawAssets.length/2)] : null;
+
   rows.forEach(function(r) {
-    drvPlan  += r.drv_plan   || 0;
-    drvAkt   += r.drv_aktual || 0;
-    astPlan  += r.ast_plan   || 0;
-    astAkt   += r.ast_aktual || 0;
-    if(r.arm_assets != null) armAssetsList.push(r.arm_assets);
-    if(r.arm_avail  != null) armAvailList.push(r.arm_avail);
-    if(r.arm_util   != null) armUtilList.push(r.arm_util);
+    // Skip days with no activity (util=0 or null) for armada calculation
+    var hasActivity = r.arm_util != null && r.arm_util > 0;
+
+    // Skip asset outliers (>50% above median) — likely data entry error
+    var assetOk = !medAssets || !r.arm_assets || (r.arm_assets <= medAssets * 1.5);
+
+    drvPlan   += r.drv_plan   || 0;
+    drvAkt    += r.drv_aktual || 0;
+    astPlan   += r.ast_plan   || 0;
+    astAkt    += r.ast_aktual || 0;
+
+    if(hasActivity && assetOk) {
+      if(r.arm_assets != null) armAssetsList.push(r.arm_assets);
+      if(r.arm_avail  != null) armAvailList.push(r.arm_avail);
+      if(r.arm_util   != null) armUtilList.push(r.arm_util);
+    }
   });
+
   var avg = function(arr) { return arr.length ? arr.reduce(function(s,v){return s+v;},0)/arr.length : null; };
   var avgAssets = avg(armAssetsList);
   var avgAvail  = avg(armAvailList);
