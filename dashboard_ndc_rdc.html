@@ -1051,7 +1051,7 @@ function renderDetail(results, summary, start, end) {
     </div>
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Trendline Bulanan</h3><span class="tag">berdasarkan filter periode & site</span></div>
-      <div style="padding:4px 16px 8px;height:340px;position:relative;max-width:700px"><canvas id="dTREND"></canvas></div>
+      <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Trend Bulanan per Site</h3><span class="tag">color = vs target</span></div>
@@ -1378,7 +1378,9 @@ function filterUtilRows(start, end, site) {
     return true;
   });
 
-  // For JABABEKA (HCI+AHI combined): sum per day (capacity is additive)
+  // For JABABEKA (HCI+AHI combined):
+  // - MPP Driver & Ast. Driver: SUM both (capacity is additive)
+  // - Armada: only HCI JABABEKA (AHI arm_assets is empty/different scale)
   if(site === 'JABABEKA' && srcSites.length > 1) {
     var byDate = {};
     rows.forEach(function(r) {
@@ -1389,15 +1391,17 @@ function filterUtilRows(start, end, site) {
     Object.keys(byDate).sort().forEach(function(date) {
       var dayRows = byDate[date];
       function sumF(key) { return dayRows.reduce(function(s,r){ return s+(r[key]||0); },0); }
+      // For armada: only use HCI (has complete assets data)
+      var hciRow = dayRows.find(function(r){ return r.site === 'HCI JABABEKA'; });
       merged.push({
         site: 'JABABEKA', date: date,
         drv_plan:   sumF('drv_plan'),
         drv_aktual: sumF('drv_aktual'),
         ast_plan:   sumF('ast_plan'),
         ast_aktual: sumF('ast_aktual'),
-        arm_assets: sumF('arm_assets'),
-        arm_avail:  sumF('arm_avail'),
-        arm_util:   sumF('arm_util'),
+        arm_assets: hciRow ? hciRow.arm_assets : null,
+        arm_avail:  hciRow ? hciRow.arm_avail  : null,
+        arm_util:   hciRow ? hciRow.arm_util   : null,
       });
     });
     return merged;
@@ -1410,17 +1414,18 @@ function computeUtil(rows) {
   var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
   var armAssetsList=[], armAvailList=[], armUtilList=[];
 
-  // First pass: get median assets to detect outliers
+  // Get median assets per unique date (after daily aggregation already done)
+  // to detect outliers like Tamora 209 vs normal 29
   var rawAssets = rows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
   rawAssets.sort(function(a,b){return a-b;});
   var medAssets = rawAssets.length ? rawAssets[Math.floor(rawAssets.length/2)] : null;
 
   rows.forEach(function(r) {
-    // Skip days with no activity (util=0 or null) for armada calculation
+    // Skip days with zero or null util (libur, belum diisi)
     var hasActivity = r.arm_util != null && r.arm_util > 0;
 
-    // Skip asset outliers (>50% above median) — likely data entry error
-    var assetOk = !medAssets || !r.arm_assets || (r.arm_assets <= medAssets * 1.5);
+    // Skip asset outliers >2x median — data entry error (e.g. 209 vs median 29)
+    var assetOk = !medAssets || !r.arm_assets || (r.arm_assets <= medAssets * 2.0);
 
     drvPlan   += r.drv_plan   || 0;
     drvAkt    += r.drv_aktual || 0;
