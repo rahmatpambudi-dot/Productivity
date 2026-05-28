@@ -1407,9 +1407,7 @@ function filterUtilRows(start, end, site) {
     return true;
   });
 
-  // For JABABEKA (HCI+AHI combined):
-  // - MPP Driver & Ast. Driver: SUM both (capacity is additive)
-  // - Armada: only HCI JABABEKA (AHI arm_assets is empty/different scale)
+  // For JABABEKA (HCI+AHI combined): sum per day (capacity is additive)
   if(site === 'JABABEKA' && srcSites.length > 1) {
     var byDate = {};
     rows.forEach(function(r) {
@@ -1420,17 +1418,19 @@ function filterUtilRows(start, end, site) {
     Object.keys(byDate).sort().forEach(function(date) {
       var dayRows = byDate[date];
       function sumF(key) { return dayRows.reduce(function(s,r){ return s+(r[key]||0); },0); }
-      // For armada: only use HCI (has complete assets data)
-      var hciRow = dayRows.find(function(r){ return r.site === 'HCI JABABEKA'; });
+      function sumFNullable(key) {
+        var vals = dayRows.map(function(r){ return r[key]; }).filter(function(v){ return v!=null; });
+        return vals.length ? vals.reduce(function(s,v){ return s+v; },0) : null;
+      }
       merged.push({
         site: 'JABABEKA', date: date,
         drv_plan:   sumF('drv_plan'),
         drv_aktual: sumF('drv_aktual'),
         ast_plan:   sumF('ast_plan'),
         ast_aktual: sumF('ast_aktual'),
-        arm_assets: hciRow ? hciRow.arm_assets : null,
-        arm_avail:  hciRow ? hciRow.arm_avail  : null,
-        arm_util:   hciRow ? hciRow.arm_util   : null,
+        arm_assets: sumFNullable('arm_assets'), // null if both NaN
+        arm_avail:  sumFNullable('arm_avail'),
+        arm_util:   sumFNullable('arm_util'),
       });
     });
     return merged;
