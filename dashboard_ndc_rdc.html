@@ -1770,6 +1770,195 @@ function buildCostTable(container) {
     +'<div style="overflow-x:auto"><table class="mtt"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
 }
 
+function buildCostBySegment(container) {
+  if(!container) return;
+  var moNames=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var {start:fs, end:fe} = getRange();
+  var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
+  var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+
+  // TD label & color reuse
+  function tdLabel(td) { return TD_LABEL[td] || ('Trip '+td.charAt(0).toUpperCase()+td.slice(1)); }
+  function tdColor(td) { return TD_COLOR[td] || '#9aa0a6'; }
+  const TD_COLOR = {'customer':'#1a73e8','store':'#34a85a','satelite':'#e37400','hub':'#a142f4','transfer':'#d93025'};
+  const TD_LABEL = {'customer':'Customer','store':'Store','satelite':'Satelite','hub':'Hub','transfer':'Transfer'};
+
+  // Collect all td types
+  var tdSet = new Set();
+  ROWS.forEach(r => { if(r.td) tdSet.add((r.td+'').toLowerCase().trim()); });
+  const TD_ORDER = ['customer','store','hub','satelite','transfer'];
+  var tdTypes = [...TD_ORDER.filter(t=>tdSet.has(t)), ...[...tdSet].filter(t=>!TD_ORDER.includes(t)&&t&&t!=='#n/a'&&t!=='n/a').sort()];
+
+  // ── MONTHLY breakdown per td ──
+  var moData = {}; // mo|site|td → computeCost result
+  allMonths.forEach(function(mo) {
+    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
+    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
+    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    SITES_LIST.forEach(function(site) {
+      var moFiltered=filterRows(ROWS,moD1,moD2,site);
+      var sub=SUB_SITES[site]; var effectiveSite=sub?sub.baseSite:site;
+      var sr=moFiltered.filter(r=>r.site===effectiveSite);
+      if(!sr.length) return;
+      // total
+      moData[mo+'|'+site+'|_total'] = computeCost(sr);
+      // per td
+      tdTypes.forEach(function(td) {
+        var tdRows = sr.filter(r=>{
+          var rtd=(r.td||'').toLowerCase().trim();
+          if(rtd==='customer via hub'||rtd==='hub customer'||rtd==='customer hub') rtd='customer';
+          return rtd===td;
+        });
+        if(tdRows.length) moData[mo+'|'+site+'|'+td] = computeCost(tdRows);
+      });
+    });
+  });
+
+  // Build thead — Bulan | Site | [td cols: Cost + Cost/Trip] | Total Cost
+  var thead='<tr><th style="text-align:left">Bulan</th><th style="text-align:left">Site</th>';
+  tdTypes.forEach(function(td){
+    thead+='<th style="text-align:right;color:'+tdColor(td)+'" colspan="2">'+tdLabel(td)+'</th>';
+  });
+  thead+='<th style="text-align:right;color:#1d4ed8">TOTAL COST</th></tr>';
+
+  // Sub-header
+  thead+='<tr><th></th><th></th>';
+  tdTypes.forEach(function(td){
+    thead+='<th style="text-align:right;font-size:9px;color:#94a3b8;font-weight:500">Cost</th>'
+          +'<th style="text-align:right;font-size:9px;color:#94a3b8;font-weight:500">Cost/Trip</th>';
+  });
+  thead+='<th></th></tr>';
+
+  var tbody='';
+  allMonths.forEach(function(mo,moIdx) {
+    var prevMo=moIdx>0?allMonths[moIdx-1]:null;
+    SITES_LIST.forEach(function(site) {
+      var totKey=mo+'|'+site+'|_total';
+      var tot=moData[totKey]; if(!tot) return;
+      var prevTot=prevMo?moData[prevMo+'|'+site+'|_total']:null;
+      var mn=moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+      var tr='<tr>'
+        +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+mn+'</td>'
+        +'<td style="font-size:11px;font-weight:600">'+(SL[site]||site)+'</td>';
+      tdTypes.forEach(function(td) {
+        var d=moData[mo+'|'+site+'|'+td];
+        if(!d||!d.cost) {
+          tr+='<td style="text-align:right;font-size:10px;color:var(--t3)">—</td><td style="text-align:right;font-size:10px;color:var(--t3)">—</td>';
+        } else {
+          var pct=tot.cost>0?(d.cost/tot.cost*100).toFixed(0):'';
+          tr+='<td style="text-align:right;font-size:10.5px;font-family:\'JetBrains Mono\',monospace;color:'+tdColor(td)+'">'+fmtRp(d.cost)
+            +'<br><span style="font-size:9px;color:var(--t3)">'+pct+'%</span></td>'
+            +'<td style="text-align:right;font-size:10.5px;font-family:\'JetBrains Mono\',monospace;color:var(--t2)">'+fmtRp(d.costTrip)+'</td>';
+        }
+      });
+      tr+='<td style="text-align:right;font-size:11px;font-weight:700;color:#1d4ed8;font-family:\'JetBrains Mono\',monospace">'+fmtRp(tot.cost)+momCost(tot.cost,prevTot?prevTot.cost:null)+'</td>';
+      tr+='</tr>';
+      tbody+=tr;
+    });
+  });
+
+  container.innerHTML=
+    '<div style="overflow-x:auto"><table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div>';
+}
+
+function buildCostBySegment(container) {
+  if(!container) return;
+  var moNames=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var {start:fs, end:fe} = getRange();
+  var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
+  var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+
+  // TD normalization (same as trip type table)
+  function normTd(td) {
+    td = (td||'').toLowerCase().trim();
+    if(!td||td==='#n/a'||td==='n/a'||td==='-'||td==='#value!') return null;
+    if(td==='customer via hub'||td==='hub customer'||td==='customer hub') return 'customer';
+    return td;
+  }
+
+  // Discover all td types
+  var tdSet = new Set();
+  ROWS.forEach(function(r) { var t=normTd(r.td); if(t) tdSet.add(t); });
+  const TD_ORDER = ['customer','store','hub','satelite','transfer'];
+  var tdTypes = [
+    ...TD_ORDER.filter(t=>tdSet.has(t)),
+    ...[...tdSet].filter(t=>!TD_ORDER.includes(t)).sort()
+  ];
+
+  // ── MONTHLY by segment ──
+  var moData = {}; // key: mo|site|td → computeCost result
+  allMonths.forEach(function(mo) {
+    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
+    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
+    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    SITES_LIST.forEach(function(site) {
+      var moFiltered=filterRows(ROWS,moD1,moD2,site);
+      var sub=SUB_SITES[site];
+      var effectiveSite=sub?sub.baseSite:site;
+      var sr=moFiltered.filter(r=>r.site===effectiveSite);
+      if(!sr.length) return;
+      // Group by td
+      var byTd={};
+      sr.forEach(function(r) {
+        var td=normTd(r.td)||'_other';
+        if(!byTd[td]) byTd[td]=[];
+        byTd[td].push(r);
+      });
+      tdTypes.forEach(function(td) {
+        moData[mo+'|'+site+'|'+td] = byTd[td] ? computeCost(byTd[td]) : null;
+      });
+      moData[mo+'|'+site+'|_total'] = computeCost(sr);
+    });
+  });
+
+  // Build thead — Bulan | Site | [td cols each: Cost + Cost/Trip] | Total Cost
+  var thead='<tr><th style="text-align:left">Bulan</th><th style="text-align:left">Site</th>';
+  tdTypes.forEach(function(td) {
+    var lbl=TD_LABEL[td]||('Trip '+td.charAt(0).toUpperCase()+td.slice(1));
+    thead+='<th style="text-align:right;color:'+tdColor(td)+'" colspan="2">'+lbl+'</th>';
+  });
+  thead+='<th style="text-align:right;color:#1d4ed8">TOTAL COST</th></tr>';
+
+  // Sub-header
+  thead+='<tr><th></th><th></th>';
+  tdTypes.forEach(function(td) {
+    thead+='<th style="text-align:right;font-size:9px;color:var(--t3)">Cost</th>'
+          +'<th style="text-align:right;font-size:9px;color:var(--t3)">Cost/Trip</th>';
+  });
+  thead+='<th></th></tr>';
+
+  var tbody='';
+  allMonths.forEach(function(mo,moIdx) {
+    var prevMo=moIdx>0?allMonths[moIdx-1]:null;
+    SITES_LIST.forEach(function(site) {
+      var totKey=mo+'|'+site+'|_total';
+      var tot=moData[totKey]; if(!tot) return;
+      var mn=moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+      var tr='<tr>'
+        +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+mn+'</td>'
+        +'<td style="font-size:11px;font-weight:600">'+(SL[site]||site)+'</td>';
+      tdTypes.forEach(function(td) {
+        var d=moData[mo+'|'+site+'|'+td];
+        var prev=prevMo?moData[prevMo+'|'+site+'|'+td]:null;
+        if(!d||!d.cost) {
+          tr+='<td style="text-align:right;color:var(--t3);font-size:11px">—</td>'
+             +'<td style="text-align:right;color:var(--t3);font-size:11px">—</td>';
+        } else {
+          tr+='<td style="text-align:right;font-size:11px;color:'+tdColor(td)+';font-family:\'JetBrains Mono\',monospace;font-weight:600">'+fmtRp(d.cost)+momCost(d.cost,prev?prev.cost:null)+'</td>'
+             +'<td style="text-align:right;font-size:10px;color:var(--t2);font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costTrip)+'</td>';
+        }
+      });
+      var prevTot=prevMo?moData[prevMo+'|'+site+'|_total']:null;
+      tr+='<td style="text-align:right;font-size:11px;font-weight:700;color:#1d4ed8;font-family:\'JetBrains Mono\',monospace">'+fmtRp(tot.cost)+momCost(tot.cost,prevTot?prevTot.cost:null)+'</td>';
+      tr+='</tr>';
+      tbody+=tr;
+    });
+  });
+
+  container.innerHTML=
+    '<div style="overflow-x:auto"><table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div>';
+}
+
 // ── TRIP COUNT BY TYPE DELIVERY (r.td) ─────────────────────────
 // COUNTUNIQUE r.lc (kolom A) grouped by r.td (kolom J / Type Delivery)
 // Types auto-discovered from data. Fixed color per type for consistency.
@@ -1962,6 +2151,32 @@ window.renderDetail=function(results,summary,start,end){
       + '<div id="costTableContainer"></div>';
     lastPanel.parentNode.insertBefore(costPanel, lastPanel);
     buildCostTable(document.getElementById('costTableContainer'));
+
+    // ── Cost by Segment Delivery panel ──
+    var costSegPanel = document.createElement('div');
+    costSegPanel.className = 'panel';
+    costSegPanel.style.marginTop = '14px';
+    costSegPanel.innerHTML =
+      '<div class="ph">'
+      + '<h3>Cost by Segment Delivery</h3>'
+      + '<span class="tag">Total Cost · UJP · Trip · Cost/Trip · Cost/DO · Cost/CBM · % of Total</span>'
+      + '</div>'
+      + '<div id="costSegTableContainer"></div>';
+    lastPanel.parentNode.insertBefore(costSegPanel, lastPanel);
+    buildCostBySegment(document.getElementById('costSegTableContainer'));
+
+    // ── Cost by Segment Delivery panel ──
+    var costSegPanel = document.createElement('div');
+    costSegPanel.className = 'panel';
+    costSegPanel.style.marginTop = '14px';
+    costSegPanel.innerHTML =
+      '<div class="ph">'
+      + '<h3>Cost by Segment Delivery</h3>'
+      + '<span class="tag">Total Cost · UJP · Trip · Cost/Trip · Cost/DO · Cost/CBM · % of Total</span>'
+      + '</div>'
+      + '<div id="costSegContainer"></div>';
+    lastPanel.parentNode.insertBefore(costSegPanel, lastPanel);
+    buildCostBySegment(document.getElementById('costSegContainer'));
 
     // ── Utilisasi panel ──
     var utilPanel = document.createElement('div');
