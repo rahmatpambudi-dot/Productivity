@@ -1447,13 +1447,20 @@ function filterUtilRows(start, end, site) {
         var vals = dayRows.map(function(r){ return r[key]; }).filter(function(v){ return v!=null; });
         return vals.length ? vals.reduce(function(s,v){ return s+v; },0) : null;
       }
+      var ahi = dayRows.find(function(r){ return r.site === 'AHI JABABEKA'; });
+      var hci = dayRows.find(function(r){ return r.site === 'HCI JABABEKA'; });
+      // AHI arm_assets often null — fallback to arm_avail as proxy
+      function getAssets(r) {
+        if(!r) return 0;
+        return (r.arm_assets != null) ? r.arm_assets : (r.arm_avail || 0);
+      }
       merged.push({
         site: 'JABABEKA', date: date,
         drv_plan:   sumF('drv_plan'),
         drv_aktual: sumF('drv_aktual'),
         ast_plan:   sumF('ast_plan'),
         ast_aktual: sumF('ast_aktual'),
-        arm_assets: sumFNullable('arm_assets'), // null if both NaN
+        arm_assets: getAssets(hci) + getAssets(ahi) || null,
         arm_avail:  sumFNullable('arm_avail'),
         arm_util:   sumFNullable('arm_util'),
       });
