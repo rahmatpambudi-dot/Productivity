@@ -75,6 +75,11 @@ def map_cols(headers):
         "olfDet":      find("OLF DETERMINE", "OLF DET"),
         "satelite":    find("SATELITE", "SATELIT"),
         "jenisArmada": find("JENIS ARMADA", "JENIS ARM"),
+        "jalur":       find("JALUR"),
+        "ujp":         find("UJP"),
+        "totalCost":   find("TOTAL COST"),
+        "profFee":     find("PROF FEE"),
+        "sewaArmada":  find("SEWA ARMADA"),
     }
 
 def parse_date_str(s):
@@ -107,6 +112,12 @@ def cell(r, idx):
     if idx < 0 or idx >= len(r): return ""
     return str(r[idx]).strip()
 
+def to_float(s):
+    """Parse float from cell, strip commas"""
+    if not s: return None
+    try: return float(str(s).replace(',','').replace('%','').strip())
+    except: return None
+
 def slim_row(r, cols, sheet_name, site):
     return {
         "sheet": sheet_name,
@@ -127,6 +138,11 @@ def slim_row(r, cols, sheet_name, site):
         "od":    cell(r, cols["olfDet"]).strip().lower() if cols["olfDet"] >= 0 else "",
         "sat":   cell(r, cols["satelite"]).upper() if cols["satelite"] >= 0 else "",
         "ja":    cell(r, cols["jenisArmada"]).upper() if cols.get("jenisArmada", -1) >= 0 else "",
+        "jalur": cell(r, cols["jalur"]).strip() if cols.get("jalur",-1) >= 0 else "",
+        "ujp":   to_float(cell(r, cols["ujp"])) if cols.get("ujp",-1) >= 0 else None,
+        "cost":  to_float(cell(r, cols["totalCost"])) if cols.get("totalCost",-1) >= 0 else None,
+        "pf":    to_float(cell(r, cols["profFee"])) if cols.get("profFee",-1) >= 0 else None,
+        "sewa":  to_float(cell(r, cols["sewaArmada"])) if cols.get("sewaArmada",-1) >= 0 else None,
     }
 
 def parse_tat_py(s):
