@@ -1382,9 +1382,32 @@ const UTIL_SUBSITE_MAP = {
   'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
 };
 
-// Days to exclude per site based on significant drop analysis (>5% vs weekday avg)
-// HCI JABABEKA: no exclusion, AHI JABABEKA: no exclusion, TALLO: no exclusion
-// HCI CIKUPA: exclude Sunday, CORP SIDOARJO: exclude Sat+Sun, CORP TAMORA: exclude Sunday
+// ── National holidays Indonesia 2026 (exclude from utilisasi) ──
+const HOLIDAYS_2026 = new Set([
+  '2026-01-01', // Tahun Baru
+  '2026-01-27', // Isra Miraj
+  '2026-01-29', // Tahun Baru Imlek
+  '2026-03-20', // Hari Raya Nyepi
+  '2026-03-21', // Idul Fitri
+  '2026-03-22', // Idul Fitri
+  '2026-03-23', // Cuti Bersama Idul Fitri
+  '2026-03-24', // Cuti Bersama Idul Fitri
+  '2026-03-25', // Cuti Bersama Idul Fitri
+  '2026-03-26', // Cuti Bersama Idul Fitri
+  '2026-04-03', // Wafat Isa Almasih
+  '2026-05-01', // Hari Buruh
+  '2026-05-14', // Kenaikan Isa Almasih
+  '2026-05-20', // Hari Kebangkitan Nasional (cuti bersama)
+  '2026-05-29', // Waisak
+  '2026-06-01', // Hari Pancasila
+  '2026-06-06', // Idul Adha
+  '2026-06-26', // Tahun Baru Islam
+  '2026-08-17', // HUT RI
+  '2026-09-04', // Maulid Nabi
+  '2026-12-25', // Natal
+  '2026-12-26', // Cuti Bersama Natal
+]);
+
 const UTIL_EXCLUDE_DOW = {
   'HCI CIKUPA':    [0],       // 0=Sunday
   'CORP SIDOARJO': [0, 6],    // 0=Sunday, 6=Saturday
@@ -1397,6 +1420,8 @@ function filterUtilRows(start, end, site) {
     if(!r.date) return false;
     if(r.date < start || r.date > end) return false;
     if(!srcSites.includes(r.site)) return false;
+    // Exclude national holidays
+    if(HOLIDAYS_2026.has(r.date)) return false;
     // Per-site day exclusion
     var excl = UTIL_EXCLUDE_DOW[r.site];
     if(excl && excl.length) {
@@ -1422,13 +1447,20 @@ function filterUtilRows(start, end, site) {
         var vals = dayRows.map(function(r){ return r[key]; }).filter(function(v){ return v!=null; });
         return vals.length ? vals.reduce(function(s,v){ return s+v; },0) : null;
       }
+      var ahi = dayRows.find(function(r){ return r.site === 'AHI JABABEKA'; });
+      var hci = dayRows.find(function(r){ return r.site === 'HCI JABABEKA'; });
+      // AHI arm_assets often null — fallback to arm_avail as proxy
+      function getAssets(r) {
+        if(!r) return 0;
+        return (r.arm_assets != null) ? r.arm_assets : (r.arm_avail || 0);
+      }
       merged.push({
         site: 'JABABEKA', date: date,
         drv_plan:   sumF('drv_plan'),
         drv_aktual: sumF('drv_aktual'),
         ast_plan:   sumF('ast_plan'),
         ast_aktual: sumF('ast_aktual'),
-        arm_assets: sumFNullable('arm_assets'), // null if both NaN
+        arm_assets: getAssets(hci) + getAssets(ahi) || null,
         arm_avail:  sumFNullable('arm_avail'),
         arm_util:   sumFNullable('arm_util'),
       });
@@ -1562,6 +1594,180 @@ function buildMonthlyUtilTable(container) {
     '<div style="overflow-x:auto">'
     +'<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
     +'</div>'+legendHtml;
+}
+
+// ── COST ANALYSIS ─────────────────────────────────────────────
+// Fields: r.jalur, r.ujp, r.cost, r.pf, r.sewa, r.lc, r.do, r.cbm
+
+function fmtRp(v) {
+  if(v==null) return '—';
+  if(v>=1e9) return (v/1e9).toFixed(2)+' M';
+  if(v>=1e6) return (v/1e6).toFixed(1)+' jt';
+  return Math.round(v).toLocaleString('id-ID');
+}
+function fmtRpFull(v) {
+  if(v==null) return '—';
+  return Math.round(v).toLocaleString('id-ID');
+}
+function momCost(cur, prev) {
+  if(cur==null||prev==null) return '';
+  var d=cur-prev; if(Math.abs(d)<1000) return '';
+  var color=d>0?'#b91c1c':'#166534'; // cost naik = merah, turun = hijau
+  return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+fmtRp(Math.abs(d))+'</span>';
+}
+
+function computeCost(rows) {
+  if(!rows.length) return null;
+  var ujp=0, cost=0, pf=0, sewa=0, doSum=0, cbm=0;
+  var lcSet = new Set();
+  rows.forEach(function(r) {
+    if(r.ujp)  ujp  += r.ujp;
+    if(r.cost) cost += r.cost;
+    if(r.pf)   pf   += r.pf;
+    if(r.sewa) sewa += r.sewa;
+    if(r.do)   doSum += parseFloat(r.do)||0;
+    if(r.cbm)  cbm  += parseFloat(r.cbm)||0;
+    if(r.lc)   lcSet.add(r.lc);
+  });
+  var trip = lcSet.size;
+  return {
+    ujp:      ujp,
+    cost:     cost,
+    pf:       pf,
+    sewa:     sewa,
+    trip:     trip,
+    doSum:    doSum,
+    cbm:      cbm,
+    costTrip: trip>0   ? cost/trip  : null,
+    costDo:   doSum>0  ? cost/doSum : null,
+    costCbm:  cbm>0    ? cost/cbm   : null,
+    ujpTrip:  trip>0   ? ujp/trip   : null,
+  };
+}
+
+function buildCostTable(container) {
+  if(!container) return;
+  var moNames=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var {start:fs, end:fe} = getRange();
+  var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
+  var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+
+  // ── MONTHLY TABLE ──
+  var moData = {};
+  allMonths.forEach(function(mo) {
+    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
+    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
+    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    SITES_LIST.forEach(function(site) {
+      var moFiltered=filterRows(ROWS,moD1,moD2,site);
+      var sub=SUB_SITES[site];
+      var effectiveSite=sub?sub.baseSite:site;
+      var sr=moFiltered.filter(r=>r.site===effectiveSite);
+      if(!sr.length) return;
+      moData[mo+'|'+site]=computeCost(sr);
+    });
+  });
+
+  var moThead='<tr>'
+    +'<th style="text-align:left">Bulan</th>'
+    +'<th style="text-align:left">Site</th>'
+    +'<th style="text-align:right;color:#1d4ed8">Total Cost</th>'
+    +'<th style="text-align:right;color:#0369a1">UJP</th>'
+    +'<th style="text-align:right;color:#7c3aed">Prof Fee</th>'
+    +'<th style="text-align:right;color:#0f766e">Sewa Armada</th>'
+    +'<th style="text-align:right;color:#374151">Trip</th>'
+    +'<th style="text-align:right;color:#374151">Cost/Trip</th>'
+    +'<th style="text-align:right;color:#374151">Cost/DO</th>'
+    +'<th style="text-align:right;color:#374151">Cost/CBM</th>'
+    +'</tr>';
+
+  var moTbody='';
+  allMonths.forEach(function(mo,moIdx) {
+    var prevMo=moIdx>0?allMonths[moIdx-1]:null;
+    SITES_LIST.forEach(function(site) {
+      var key=mo+'|'+site;
+      var d=moData[key]; if(!d) return;
+      var prev=prevMo?moData[prevMo+'|'+site]:null;
+      var mn=moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+      moTbody+='<tr>'
+        +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+mn+'</td>'
+        +'<td style="font-size:11px;font-weight:600">'+( SL[site]||site)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-weight:700;color:#1d4ed8;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.cost)+momCost(d.cost,prev?prev.cost:null)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#0369a1;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.ujp)+momCost(d.ujp,prev?prev.ujp:null)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#7c3aed;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.pf)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#0f766e;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.sewa)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+d.trip.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costTrip)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDo)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costCbm)+'</td>'
+        +'</tr>';
+    });
+  });
+
+  // ── PER JALUR TABLE ──
+  // Aggregate all months combined, per site per jalur
+  var jalurData = {};
+  SITES_LIST.forEach(function(site) {
+    var daysInFe=new Date(parseInt(fe.slice(0,4)),parseInt(fe.slice(5,7)),0).getDate();
+    var allFiltered=filterRows(ROWS,fs,fe,site);
+    var sub=SUB_SITES[site];
+    var effectiveSite=sub?sub.baseSite:site;
+    var sr=allFiltered.filter(r=>r.site===effectiveSite);
+    sr.forEach(function(r) {
+      var jalur=(r.jalur||'').trim()||'Lainnya';
+      var key=site+'|'+jalur;
+      if(!jalurData[key]) jalurData[key]={site:site,jalur:jalur,rows:[]};
+      jalurData[key].rows.push(r);
+    });
+  });
+
+  // Sort by total cost desc
+  var jalurEntries=Object.values(jalurData).map(function(e){
+    return Object.assign({},computeCost(e.rows),{site:e.site,jalur:e.jalur});
+  }).filter(function(e){return e.cost>0;})
+    .sort(function(a,b){return b.cost-a.cost;});
+
+  var jalurThead='<tr>'
+    +'<th style="text-align:left">Site</th>'
+    +'<th style="text-align:left">Jalur</th>'
+    +'<th style="text-align:right;color:#1d4ed8">Total Cost</th>'
+    +'<th style="text-align:right;color:#0369a1">UJP</th>'
+    +'<th style="text-align:right;color:#374151">Trip</th>'
+    +'<th style="text-align:right;color:#374151">DO</th>'
+    +'<th style="text-align:right;color:#374151">Cost/Trip</th>'
+    +'<th style="text-align:right;color:#374151">Cost/DO</th>'
+    +'<th style="text-align:right;color:#374151">Cost/CBM</th>'
+    +'<th style="text-align:right;color:#374151">% of Total</th>'
+    +'</tr>';
+
+  // Grand total for % calc
+  var grandCost=jalurEntries.reduce(function(s,e){return s+(e.cost||0);},0);
+
+  var jalurTbody='';
+  var prevSite='';
+  jalurEntries.forEach(function(e,i) {
+    var pct=grandCost>0?(e.cost/grandCost*100).toFixed(1):'—';
+    var siteLbl=e.site!==prevSite?(SL[e.site]||e.site):'';
+    prevSite=e.site;
+    jalurTbody+='<tr style="'+(i%2===0?'':'background:#f8fafc')+'">'
+      +'<td style="font-size:11px;font-weight:600;color:#0f172a">'+siteLbl+'</td>'
+      +'<td style="font-size:11px;color:var(--t2)">'+e.jalur+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-weight:700;color:#1d4ed8;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.cost)+'</td>'
+      +'<td style="text-align:right;font-size:11px;color:#0369a1;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.ujp)+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+e.trip.toLocaleString('id-ID')+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+Math.round(e.doSum).toLocaleString('id-ID')+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costTrip)+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDo)+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costCbm)+'</td>'
+      +'<td style="text-align:right;font-size:11px;font-weight:700;color:#64748b;font-family:\'JetBrains Mono\',monospace">'+pct+'%</td>'
+      +'</tr>';
+  });
+
+  container.innerHTML=
+    '<div style="padding:4px 0 10px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;padding:12px 16px 6px">TREND BULANAN</div>'
+    +'<div style="overflow-x:auto"><table class="mtt"><thead>'+moThead+'</thead><tbody>'+moTbody+'</tbody></table></div>'
+    +'<div style="padding:12px 16px 6px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;border-top:1px solid #f1f5f2;margin-top:8px">PER JALUR (periode terpilih)</div>'
+    +'<div style="overflow-x:auto"><table class="mtt"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
 }
 
 // ── TRIP COUNT BY TYPE DELIVERY (r.td) ─────────────────────────
@@ -1743,6 +1949,19 @@ window.renderDetail=function(results,summary,start,end){
     var allPanels = document.querySelectorAll('#content .panel');
     var lastPanel = allPanels[allPanels.length - 1];
     if (!lastPanel) return;
+
+    // ── Cost Analysis panel ──
+    var costPanel = document.createElement('div');
+    costPanel.className = 'panel';
+    costPanel.style.marginTop = '14px';
+    costPanel.innerHTML =
+      '<div class="ph">'
+      + '<h3>Cost Analysis</h3>'
+      + '<span class="tag">Total Cost · UJP · Prof Fee · Sewa · Cost/Trip · Cost/DO · Cost/CBM</span>'
+      + '</div>'
+      + '<div id="costTableContainer"></div>';
+    lastPanel.parentNode.insertBefore(costPanel, lastPanel);
+    buildCostTable(document.getElementById('costTableContainer'));
 
     // ── Utilisasi panel ──
     var utilPanel = document.createElement('div');
