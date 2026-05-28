@@ -1382,9 +1382,32 @@ const UTIL_SUBSITE_MAP = {
   'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
 };
 
-// Days to exclude per site based on significant drop analysis (>5% vs weekday avg)
-// HCI JABABEKA: no exclusion, AHI JABABEKA: no exclusion, TALLO: no exclusion
-// HCI CIKUPA: exclude Sunday, CORP SIDOARJO: exclude Sat+Sun, CORP TAMORA: exclude Sunday
+// ── National holidays Indonesia 2026 (exclude from utilisasi) ──
+const HOLIDAYS_2026 = new Set([
+  '2026-01-01', // Tahun Baru
+  '2026-01-27', // Isra Miraj
+  '2026-01-29', // Tahun Baru Imlek
+  '2026-03-20', // Hari Raya Nyepi
+  '2026-03-21', // Idul Fitri
+  '2026-03-22', // Idul Fitri
+  '2026-03-23', // Cuti Bersama Idul Fitri
+  '2026-03-24', // Cuti Bersama Idul Fitri
+  '2026-03-25', // Cuti Bersama Idul Fitri
+  '2026-03-26', // Cuti Bersama Idul Fitri
+  '2026-04-03', // Wafat Isa Almasih
+  '2026-05-01', // Hari Buruh
+  '2026-05-14', // Kenaikan Isa Almasih
+  '2026-05-20', // Hari Kebangkitan Nasional (cuti bersama)
+  '2026-05-29', // Waisak
+  '2026-06-01', // Hari Pancasila
+  '2026-06-06', // Idul Adha
+  '2026-06-26', // Tahun Baru Islam
+  '2026-08-17', // HUT RI
+  '2026-09-04', // Maulid Nabi
+  '2026-12-25', // Natal
+  '2026-12-26', // Cuti Bersama Natal
+]);
+
 const UTIL_EXCLUDE_DOW = {
   'HCI CIKUPA':    [0],       // 0=Sunday
   'CORP SIDOARJO': [0, 6],    // 0=Sunday, 6=Saturday
@@ -1397,6 +1420,8 @@ function filterUtilRows(start, end, site) {
     if(!r.date) return false;
     if(r.date < start || r.date > end) return false;
     if(!srcSites.includes(r.site)) return false;
+    // Exclude national holidays
+    if(HOLIDAYS_2026.has(r.date)) return false;
     // Per-site day exclusion
     var excl = UTIL_EXCLUDE_DOW[r.site];
     if(excl && excl.length) {
