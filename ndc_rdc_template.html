@@ -1704,70 +1704,139 @@ function buildCostTable(container) {
     });
   });
 
-  // ── PER JALUR TABLE ──
-  // Aggregate all months combined, per site per jalur
-  var jalurData = {};
+  // ── Segment filter pills ──
+  // Discover td types present in data
+  var allTdFound = new Set();
   SITES_LIST.forEach(function(site) {
-    var daysInFe=new Date(parseInt(fe.slice(0,4)),parseInt(fe.slice(5,7)),0).getDate();
-    var allFiltered=filterRows(ROWS,fs,fe,site);
-    var sub=SUB_SITES[site];
-    var effectiveSite=sub?sub.baseSite:site;
-    var sr=allFiltered.filter(r=>r.site===effectiveSite);
-    sr.forEach(function(r) {
-      var jalur=(r.jalur||'').trim()||'Lainnya';
-      var key=site+'|'+jalur;
-      if(!jalurData[key]) jalurData[key]={site:site,jalur:jalur,rows:[]};
-      jalurData[key].rows.push(r);
+    var allFiltered = filterRows(ROWS, fs, fe, site);
+    var sub = SUB_SITES[site];
+    var effectiveSite = sub ? sub.baseSite : site;
+    allFiltered.filter(r=>r.site===effectiveSite).forEach(function(r) {
+      var td = (r.td||'').toLowerCase().trim();
+      if(td && td!=='#n/a' && td!=='n/a' && td!=='-') {
+        if(td==='customer via hub'||td==='hub customer'||td==='customer hub') td='customer';
+        allTdFound.add(td);
+      }
     });
   });
+  const SEG_ORDER = ['customer','store','hub','satelite','transfer'];
+  var segTypes = [
+    ...SEG_ORDER.filter(t=>allTdFound.has(t)),
+    ...[...allTdFound].filter(t=>!SEG_ORDER.includes(t)).sort()
+  ];
 
-  // Sort by total cost desc
-  var jalurEntries=Object.values(jalurData).map(function(e){
-    return Object.assign({},computeCost(e.rows),{site:e.site,jalur:e.jalur});
-  }).filter(function(e){return e.cost>0;})
-    .sort(function(a,b){return b.cost-a.cost;});
+  // Build filter pills HTML
+  var pillsHtml = '<div id="costSegFilter" style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px 8px;border-top:1px solid #f1f5f2">'
+    + '<span style="font-size:10px;font-weight:700;color:#94a3b8;align-self:center;letter-spacing:1px;text-transform:uppercase;margin-right:4px">SEGMENT</span>';
+  var allPill = '<button onclick="setCostSeg(\'_all\',this)" data-seg="_all" style="padding:4px 12px;border-radius:20px;border:1px solid #1d4ed8;background:#1d4ed8;color:#fff;font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">Semua</button>';
+  pillsHtml += allPill;
+  segTypes.forEach(function(td) {
+    var lbl = TD_LABEL[td] || ('Trip '+td.charAt(0).toUpperCase()+td.slice(1));
+    var col = tdColor(td);
+    pillsHtml += '<button onclick="setCostSeg(\''+td+'\',this)" data-seg="'+td+'" style="padding:4px 12px;border-radius:20px;border:1px solid '+col+';background:transparent;color:'+col+';font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">'+lbl+'</button>';
+  });
+  pillsHtml += '</div>';
+  pillsHtml += '<div id="costJalurTableWrap"></div>';
 
-  var jalurThead='<tr>'
-    +'<th style="text-align:left">Site</th>'
-    +'<th style="text-align:left">Jalur</th>'
-    +'<th style="text-align:right;color:#1d4ed8">Total Cost</th>'
-    +'<th style="text-align:right;color:#0369a1">UJP</th>'
-    +'<th style="text-align:right;color:#374151">Trip</th>'
-    +'<th style="text-align:right;color:#374151">DO</th>'
-    +'<th style="text-align:right;color:#374151">Cost/Trip</th>'
-    +'<th style="text-align:right;color:#374151">Cost/DO</th>'
-    +'<th style="text-align:right;color:#374151">Cost/CBM</th>'
-    +'<th style="text-align:right;color:#374151">% of Total</th>'
-    +'</tr>';
-
-  // Grand total for % calc
-  var grandCost=jalurEntries.reduce(function(s,e){return s+(e.cost||0);},0);
-
-  var jalurTbody='';
-  var prevSite='';
-  jalurEntries.forEach(function(e,i) {
-    var pct=grandCost>0?(e.cost/grandCost*100).toFixed(1):'—';
-    var siteLbl=e.site!==prevSite?(SL[e.site]||e.site):'';
-    prevSite=e.site;
-    jalurTbody+='<tr style="'+(i%2===0?'':'background:#f8fafc')+'">'
-      +'<td style="font-size:11px;font-weight:600;color:#0f172a">'+siteLbl+'</td>'
-      +'<td style="font-size:11px;color:var(--t2)">'+e.jalur+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-weight:700;color:#1d4ed8;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.cost)+'</td>'
-      +'<td style="text-align:right;font-size:11px;color:#0369a1;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.ujp)+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+e.trip.toLocaleString('id-ID')+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+Math.round(e.doSum).toLocaleString('id-ID')+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costTrip)+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDo)+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costCbm)+'</td>'
-      +'<td style="text-align:right;font-size:11px;font-weight:700;color:#64748b;font-family:\'JetBrains Mono\',monospace">'+pct+'%</td>'
-      +'</tr>';
+  // ── PER JALUR TABLE builder (callable with td filter) ──
+  window._costJalurRows = {}; // store rows by site for re-filtering
+  SITES_LIST.forEach(function(site) {
+    var allFiltered = filterRows(ROWS, fs, fe, site);
+    var sub = SUB_SITES[site];
+    var effectiveSite = sub ? sub.baseSite : site;
+    window._costJalurRows[site] = allFiltered.filter(r=>r.site===effectiveSite);
   });
 
-  container.innerHTML=
+  window.renderCostJalur = function(segFilter) {
+    var jalurData = {};
+    SITES_LIST.forEach(function(site) {
+      var sr = window._costJalurRows[site] || [];
+      // Apply segment filter
+      if(segFilter && segFilter !== '_all') {
+        sr = sr.filter(function(r) {
+          var td = (r.td||'').toLowerCase().trim();
+          if(td==='customer via hub'||td==='hub customer'||td==='customer hub') td='customer';
+          return td === segFilter;
+        });
+      }
+      sr.forEach(function(r) {
+        var jalur = (r.jalur||'').trim();
+        if(!jalur||jalur==='#n/a'||jalur==='#N/A') return; // exclude #N/A
+        var key = site+'|'+jalur;
+        if(!jalurData[key]) jalurData[key]={site:site,jalur:jalur,rows:[]};
+        jalurData[key].rows.push(r);
+      });
+    });
+
+    var jalurEntries = Object.values(jalurData).map(function(e){
+      return Object.assign({},computeCost(e.rows),{site:e.site,jalur:e.jalur});
+    }).filter(function(e){return e.cost>0;})
+      .sort(function(a,b){return b.cost-a.cost;});
+
+    var grandCost = jalurEntries.reduce(function(s,e){return s+(e.cost||0);},0);
+
+    var jalurThead='<tr>'
+      +'<th style="text-align:left">Site</th>'
+      +'<th style="text-align:left">Jalur</th>'
+      +'<th style="text-align:right;color:#1d4ed8">Total Cost</th>'
+      +'<th style="text-align:right;color:#0369a1">UJP</th>'
+      +'<th style="text-align:right;color:#374151">Trip</th>'
+      +'<th style="text-align:right;color:#374151">DO</th>'
+      +'<th style="text-align:right;color:#374151">Cost/Trip</th>'
+      +'<th style="text-align:right;color:#374151">Cost/DO</th>'
+      +'<th style="text-align:right;color:#374151">Cost/CBM</th>'
+      +'<th style="text-align:right;color:#374151">% of Total</th>'
+      +'</tr>';
+
+    var jalurTbody='';
+    var prevSite='';
+    jalurEntries.forEach(function(e,i) {
+      var pct = grandCost>0?(e.cost/grandCost*100).toFixed(1):'—';
+      var siteLbl = e.site!==prevSite?(SL[e.site]||e.site):'';
+      prevSite = e.site;
+      jalurTbody+='<tr style="'+(i%2===0?'':'background:#f8fafc')+'">'
+        +'<td style="font-size:11px;font-weight:600;color:#0f172a">'+siteLbl+'</td>'
+        +'<td style="font-size:11px;color:var(--t2)">'+e.jalur+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-weight:700;color:#1d4ed8;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.cost)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#0369a1;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.ujp)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+e.trip.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+Math.round(e.doSum).toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costTrip)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDo)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costCbm)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-weight:700;color:#64748b;font-family:\'JetBrains Mono\',monospace">'+pct+'%</td>'
+        +'</tr>';
+    });
+
+    var wrap = document.getElementById('costJalurTableWrap');
+    if(wrap) wrap.innerHTML =
+      '<div style="padding:6px 16px 6px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">PER JALUR (periode terpilih)</div>'
+      +'<div style="overflow-x:auto"><table class="mtt"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
+  };
+
+  window.setCostSeg = function(seg, btn) {
+    // Update pill styles
+    document.querySelectorAll('#costSegFilter button').forEach(function(b) {
+      var s = b.getAttribute('data-seg');
+      var col = s==='_all' ? '#1d4ed8' : tdColor(s);
+      if(b === btn) {
+        b.style.background = col;
+        b.style.color = '#fff';
+      } else {
+        b.style.background = 'transparent';
+        b.style.color = col;
+      }
+    });
+    window.renderCostJalur(seg);
+  };
+
+  container.innerHTML =
     '<div style="padding:4px 0 10px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;padding:12px 16px 6px">TREND BULANAN</div>'
     +'<div style="overflow-x:auto"><table class="mtt"><thead>'+moThead+'</thead><tbody>'+moTbody+'</tbody></table></div>'
-    +'<div style="padding:12px 16px 6px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;border-top:1px solid #f1f5f2;margin-top:8px">PER JALUR (periode terpilih)</div>'
-    +'<div style="overflow-x:auto"><table class="mtt"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
+    + pillsHtml;
+
+  // Render jalur table with default "Semua"
+  window.renderCostJalur('_all');
 }
 
 function buildCostBySegment(container) {
@@ -2151,19 +2220,6 @@ window.renderDetail=function(results,summary,start,end){
       + '<div id="costTableContainer"></div>';
     lastPanel.parentNode.insertBefore(costPanel, lastPanel);
     buildCostTable(document.getElementById('costTableContainer'));
-
-    // ── Cost by Segment Delivery panel ──
-    var costSegPanel = document.createElement('div');
-    costSegPanel.className = 'panel';
-    costSegPanel.style.marginTop = '14px';
-    costSegPanel.innerHTML =
-      '<div class="ph">'
-      + '<h3>Cost by Segment Delivery</h3>'
-      + '<span class="tag">Total Cost · UJP · Trip · Cost/Trip · Cost/DO · Cost/CBM · % of Total</span>'
-      + '</div>'
-      + '<div id="costSegTableContainer"></div>';
-    lastPanel.parentNode.insertBefore(costSegPanel, lastPanel);
-    buildCostBySegment(document.getElementById('costSegTableContainer'));
 
     // ── Cost by Segment Delivery panel ──
     var costSegPanel = document.createElement('div');
