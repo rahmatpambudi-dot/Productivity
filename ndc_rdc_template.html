@@ -1614,6 +1614,12 @@ function buildMonthlyUtilTable(container) {
 // ── COST ANALYSIS ─────────────────────────────────────────────
 // Fields: r.jalur, r.ujp, r.cost, r.pf, r.sewa, r.lc, r.do, r.cbm
 
+// Global TD color/label maps
+const TD_COLOR = {'customer':'#1a73e8','store':'#34a85a','satelite':'#e37400','hub':'#a142f4','transfer':'#d93025'};
+const TD_LABEL = {'customer':'Trip Customer','store':'Trip Store','satelite':'Trip Satelite','hub':'Trip Hub','transfer':'Trip Transfer (NDC/RDC/SDC)'};
+function tdColor(td) { return TD_COLOR[td] || '#9aa0a6'; }
+function tdLabel(td) { return TD_LABEL[td] || ('Trip '+td.charAt(0).toUpperCase()+td.slice(1)); }
+
 function fmtRp(v) {
   if(v==null) return '—';
   if(v>=1e9) return (v/1e9).toFixed(2)+' M';
@@ -1861,12 +1867,6 @@ function buildCostBySegment(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
 
-  // TD label & color reuse
-  function tdLabel(td) { return TD_LABEL[td] || ('Trip '+td.charAt(0).toUpperCase()+td.slice(1)); }
-  function tdColor(td) { return TD_COLOR[td] || '#9aa0a6'; }
-  const TD_COLOR = {'customer':'#1a73e8','store':'#34a85a','satelite':'#e37400','hub':'#a142f4','transfer':'#d93025'};
-  const TD_LABEL = {'customer':'Customer','store':'Store','satelite':'Satelite','hub':'Hub','transfer':'Transfer'};
-
   // Collect all td types
   var tdSet = new Set();
   ROWS.forEach(r => { if(r.td) tdSet.add((r.td+'').toLowerCase().trim()); });
@@ -2053,25 +2053,6 @@ function buildMonthlyTripTypeTable(container) {
   const allMonths = [...new Set(ROWS.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
   const SITES_LIST = currentSite === 'ALL' ? SITES : [currentSite];
 
-  // ── Fixed color map per known td value ──
-  const TD_COLOR = {
-    'customer':  '#1a73e8',
-    'store':     '#34a85a',
-    'satelite':  '#e37400',
-    'hub':       '#a142f4',
-    'transfer':  '#d93025',
-  };
-  // Friendly labels
-  const TD_LABEL = {
-    'customer':  'Trip Customer',
-    'store':     'Trip Store',
-    'satelite':  'Trip Satelite',
-    'hub':       'Trip Hub',
-    'transfer':  'Trip Transfer (NDC/RDC/SDC)',
-  };
-  function tdColor(td) { return TD_COLOR[td] || '#9aa0a6'; }
-  function tdLabel(td) { return TD_LABEL[td] || ('Trip ' + td.charAt(0).toUpperCase() + td.slice(1)); }
-
   // ── 1. Discover all unique r.td values present in data ──
   const tdSet = new Set();
   ROWS.forEach(r => { if (r.td) tdSet.add((r.td+'').toLowerCase().trim()); });
@@ -2249,7 +2230,7 @@ window.renderDetail=function(results,summary,start,end){
         + '<div id="tripTypeTableContainer"></div></div>';
       buildMonthlyTripTypeTable(document.getElementById('tripTypeTableContainer'));
     }
-  }, 60);
+  }, 200);
 };
 
 function applyCmp() {
