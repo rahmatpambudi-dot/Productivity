@@ -1424,10 +1424,24 @@ const HOLIDAYS_2026 = new Set([
   '2026-12-26', // Cuti Bersama Natal
 ]);
 
+// ── Per-site DOW exclusions (based on arm_util drop >15% vs weekday baseline) ──
 const UTIL_EXCLUDE_DOW = {
-  'HCI CIKUPA':    [0],       // 0=Sunday
-  'CORP SIDOARJO': [0, 6],    // 0=Sunday, 6=Saturday
-  'CORP TAMORA':   [0],       // 0=Sunday
+  'AHI JABABEKA': [0],      // Sunday: 49.8% drop
+  'HCI CIKUPA':   [0],      // Sunday: 20.8% drop
+  'CORP SIDOARJO':[0],      // Sunday: 23.1% drop
+  'CORP TAMORA':  [0],      // Sunday: 37.9% drop
+  // HCI JABABEKA: no exclusion (Sunday drop only 1.3%)
+  // CORP TALLO: no exclusion (Sunday drop only 7.6%)
+};
+
+// ── Per-site holiday exclusions (based on arm_util drop >20% vs weekday baseline) ──
+const UTIL_EXCLUDE_HOLIDAYS = {
+  'HCI JABABEKA':  new Set(['2026-03-24','2026-03-25','2026-03-26']),
+  'AHI JABABEKA':  new Set(['2026-03-20','2026-03-23','2026-03-24','2026-03-25','2026-03-26','2026-06-06']),
+  'HCI CIKUPA':    new Set(['2026-03-20','2026-03-23','2026-03-24','2026-03-25','2026-04-03']),
+  'CORP SIDOARJO': new Set(['2026-01-01','2026-03-20','2026-03-24','2026-05-14','2026-05-20']),
+  'CORP TALLO':    new Set(['2026-03-21','2026-03-22','2026-03-23','2026-05-01','2026-06-06']),
+  'CORP TAMORA':   new Set(['2026-01-01','2026-03-23','2026-04-03']),
 };
 
 function filterUtilRows(start, end, site) {
@@ -1436,8 +1450,11 @@ function filterUtilRows(start, end, site) {
     if(!r.date) return false;
     if(r.date < start || r.date > end) return false;
     if(!srcSites.includes(r.site)) return false;
-    // Exclude national holidays
+    // Exclude national holidays (global)
     if(HOLIDAYS_2026.has(r.date)) return false;
+    // Exclude per-site holidays (based on actual impact analysis)
+    var siteHolidays = UTIL_EXCLUDE_HOLIDAYS[r.site];
+    if(siteHolidays && siteHolidays.has(r.date)) return false;
     // Per-site day exclusion
     var excl = UTIL_EXCLUDE_DOW[r.site];
     if(excl && excl.length) {
