@@ -2,7 +2,7 @@ name: Update NDC RDC Dashboard
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # 09:00 WIB (UTC+7)
+    - cron: '0 2 * * *'
   workflow_dispatch:
   push:
     branches: [main]
