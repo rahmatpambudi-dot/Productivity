@@ -966,8 +966,8 @@ function buildMonthlyTrendTable(container) {
   var allResults={};
   allMonths.forEach(function(mo) {
     var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var moD1=mo+'-01';
+    var moD2=mo+'-'+String(daysInMo).padStart(2,'0');
     SITES_LIST.forEach(function(site){
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       allResults[mo+'|'+site]=moFiltered.length?(computeSite(moFiltered,site)||{}):null;
@@ -1543,8 +1543,8 @@ function buildMonthlyUtilTable(container) {
   var allData = {};
   allMonths.forEach(function(mo) {
     var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-    var moD1 = mo + '-' + String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2 = mo + '-' + String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
+    var moD1 = mo + '-01';
+    var moD2 = mo + '-' + String(daysInMo).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
       var moRows = filterUtilRows(moD1, moD2, site);
       allData[mo+'|'+site] = moRows.length ? computeUtil(moRows) : null;
@@ -1670,8 +1670,8 @@ function buildCostTable(container) {
   var moData = {};
   allMonths.forEach(function(mo) {
     var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var moD1=mo+'-01';
+    var moD2=mo+'-'+String(daysInMo).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var sub=SUB_SITES[site];
@@ -1876,8 +1876,8 @@ function buildCostBySegment(container) {
   var moData = {}; // mo|site|td → computeCost result
   allMonths.forEach(function(mo) {
     var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var moD1=mo+'-01';
+    var moD2=mo+'-'+String(daysInMo).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var sub=SUB_SITES[site]; var effectiveSite=sub?sub.baseSite:site;
@@ -1972,8 +1972,8 @@ function buildCostBySegment(container) {
   var moData = {}; // key: mo|site|td → computeCost result
   allMonths.forEach(function(mo) {
     var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var moD1=mo+'-01';
+    var moD2=mo+'-'+String(daysInMo).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var sub=SUB_SITES[site];
@@ -2079,8 +2079,8 @@ function buildMonthlyTripTypeTable(container) {
   var allData = {}; // key: mo+'|'+site → { td: Set<lc>, _total: Set<lc> }
   allMonths.forEach(function(mo) {
     var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-    var moD1 = mo + '-' + String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2 = mo + '-' + String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
+    var moD1 = mo + '-01';
+    var moD2 = mo + '-' + String(daysInMo).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
       var moFiltered = filterRows(ROWS, moD1, moD2, site);
       var sub = SUB_SITES[site];
