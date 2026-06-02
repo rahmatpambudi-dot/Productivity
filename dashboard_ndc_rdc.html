@@ -514,6 +514,14 @@ function computeSite(rows, site) {
   const totalCbmStore = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
   const totalDoCust = ssum(drR.map(r=>parseFloat(r.do)||0));
   const totalDpCust = ssum(drR.map(r=>parseFloat(r.dp)||0));
+  // DO/Trip Customer — no filter (all td=customer, all kat, all ta)
+  const drAll = srMain.filter(r => r.td === 'customer');
+  const doTrAll = drAll.map(r=>parseFloat(r.do)||0);
+  const lcByDate = {};
+  drAll.forEach(r=>{ if(r.date&&r.lc){ if(!lcByDate[r.date]) lcByDate[r.date]={lc:new Set()}; lcByDate[r.date].lc.add(r.lc); }});
+  const doAllSum = ssum(doTrAll);
+  const tripAllCount = Object.values(lcByDate).reduce(function(s,v){return s+v.lc.size;},0);
+  const doTripAll = tripAllCount>0 ? doAllSum/tripAllCount : null;
   return {
     site, label: SL[site]||site,
     ritase: avg(ritVals), olf: oM>0?oL/oM:null,
@@ -523,13 +531,14 @@ function computeSite(rows, site) {
     cbmDp: doDpN>0?cbmTotal/doDpN:null,
     tatDirect: avg(tatD), tatStore: avg(tatS),
     totalCbmStore, totalDoCust, totalDpCust,
+    doTripAll,
     rowCount: sr.length,
   };
 }
 
 function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(Boolean); }
 function makeSummary(results) {
-  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore'];
+  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore','doTripAll'];
   const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust'];
   return {
     site:'NDC & RDC', label:'NDC & RDC',
@@ -810,6 +819,7 @@ function renderComparison() {
     { key:'dpNonReg',label:'DP Non Reg',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
     { key:'dpReg',label:'DP (Regular)',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 8.0;},hi:true },
     { key:'doTrip',label:'DO/Trip',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 11.0;},hi:true },
+    { key:'doTripAll',label:'DO/Trip Customer',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
     { key:'tatDirect',label:'TAT (Direct)',fmt:function(v){return tatStr(v);},tgt:null,hi:false },
     { key:'tatStore',label:'TAT (Store)',fmt:function(v){return tatStr(v);},tgt:null,hi:false },
     { key:'totalCbmStore',label:'CBM Store',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
@@ -928,6 +938,8 @@ function buildMonthlyTrendTable(container) {
     { key:'dpNonReg',label:'DP Non Reg',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
     { key:'dpReg',label:'DP (Regular)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 8.0;},hi:true },
     { key:'doTrip',label:'DO/Trip',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 11.0;},hi:true },
+    { key:'doTripAll',label:'DO/Trip Customer',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
+    { key:'doTripAll',label:'DO/Trip Customer',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
     { key:'tatDirect',label:'TAT (Direct)',fmt:v=>tatStr(v),tgt:null,hi:false },
     { key:'tatStore',label:'TAT (Store)',fmt:v=>tatStr(v),tgt:null,hi:false },
     { key:'totalCbmStore',label:'CBM Store',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
