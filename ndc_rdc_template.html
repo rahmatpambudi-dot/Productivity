@@ -1540,7 +1540,7 @@ function buildMonthlyUtilTable(container) {
   var {start:fs, end:fe} = getRange();
   var allMonths = [...new Set(UTIL_ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
-  allMonths=allMonths.filter(function(mo){ return mo>=fsMonth && mo<=feMonth; });
+  allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
   var SITES_LIST = currentSite === 'ALL' ? SITES : [currentSite];
 
   // Compute per month per site
@@ -1675,7 +1675,7 @@ function buildCostTable(container) {
   var {start:fs, end:fe} = getRange();
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
-  allMonths=allMonths.filter(function(mo){ return mo>=fsMonth && mo<=feMonth; });
+  allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
   var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
 
   // ── MONTHLY TABLE ──
@@ -1871,7 +1871,7 @@ function buildCostBySegment(container) {
   var {start:fs, end:fe} = getRange();
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
-  allMonths=allMonths.filter(function(mo){ return mo>=fsMonth && mo<=feMonth; });
+  allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
   var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
 
   // Collect all td types
@@ -1958,7 +1958,7 @@ function buildCostBySegment(container) {
   var {start:fs, end:fe} = getRange();
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
-  allMonths=allMonths.filter(function(mo){ return mo>=fsMonth && mo<=feMonth; });
+  allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
   var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
 
   // TD normalization (same as trip type table)
