@@ -1108,6 +1108,9 @@ function renderDetail(results, summary, start, end) {
         <div id="cmpResult"><p style="color:var(--t3);font-size:12px">Pilih kedua periode lalu klik Bandingkan.</p></div>
       </div>
     </div>
+    <div id="costAnalysisPanel" style="margin-top:14px"></div>
+    <div id="utilisasiPanel" style="margin-top:14px"></div>
+    <div id="tripTypePanel" style="margin-top:14px"></div>
   `;
 
   const labs=results.map(r=>r.label);
@@ -2202,63 +2205,38 @@ window.renderDetail=function(results,summary,start,end){
   _origRD(results,summary,start,end);
   // Defer trendline build so DOM canvas is ready
   setTimeout(function(){ buildTrendline(results,summary,start,end); },10);
-  // Inject Trip Type & Utilisasi table panels before last panel
+  // ── Inject extra panels into dedicated containers ──
   setTimeout(function(){
-    var allPanels = document.querySelectorAll('#content .panel');
-    var lastPanel = allPanels[allPanels.length - 1];
-    if (!lastPanel) return;
-
-    // ── Cost Analysis panel ──
-    var costPanel = document.createElement('div');
-    costPanel.className = 'panel';
-    costPanel.style.marginTop = '14px';
-    costPanel.innerHTML =
-      '<div class="ph">'
-      + '<h3>Cost Analysis</h3>'
-      + '<span class="tag">Total Cost · UJP · Prof Fee · Sewa · Cost/Trip · Cost/DO · Cost/CBM</span>'
-      + '</div>'
-      + '<div id="costTableContainer"></div>';
-    lastPanel.parentNode.insertBefore(costPanel, lastPanel);
-    buildCostTable(document.getElementById('costTableContainer'));
-
-    // ── Cost by Segment Delivery panel ──
-    var costSegPanel = document.createElement('div');
-    costSegPanel.className = 'panel';
-    costSegPanel.style.marginTop = '14px';
-    costSegPanel.innerHTML =
-      '<div class="ph">'
-      + '<h3>Cost by Segment Delivery</h3>'
-      + '<span class="tag">Total Cost · UJP · Trip · Cost/Trip · Cost/DO · Cost/CBM · % of Total</span>'
-      + '</div>'
-      + '<div id="costSegContainer"></div>';
-    lastPanel.parentNode.insertBefore(costSegPanel, lastPanel);
-    buildCostBySegment(document.getElementById('costSegContainer'));
-
-    // ── Utilisasi panel ──
-    var utilPanel = document.createElement('div');
-    utilPanel.className = 'panel';
-    utilPanel.style.marginTop = '14px';
-    utilPanel.innerHTML =
-      '<div class="ph">'
-      + '<h3>Utilisasi MPP & Armada</h3>'
-      + '<span class="tag">Driver · Ast. Driver · Armada · % Aktual vs Plan</span>'
-      + '</div>'
-      + '<div id="utilTableContainer"></div>';
-    lastPanel.parentNode.insertBefore(utilPanel, lastPanel);
-    buildMonthlyUtilTable(document.getElementById('utilTableContainer'));
-
-    // ── Trip Type panel ──
-    var newPanel = document.createElement('div');
-    newPanel.className = 'panel';
-    newPanel.style.marginTop = '14px';
-    newPanel.innerHTML =
-      '<div class="ph">'
-      + '<h3>Trip per Type Delivery</h3>'
-      + '<span class="tag">COUNTUNIQUE LC · group by r.td · % vs total</span>'
-      + '</div>'
-      + '<div id="tripTypeTableContainer"></div>';
-    lastPanel.parentNode.insertBefore(newPanel, lastPanel);
-    buildMonthlyTripTypeTable(document.getElementById('tripTypeTableContainer'));
+    // Cost Analysis
+    var costEl = document.getElementById('costAnalysisPanel');
+    if(costEl) {
+      costEl.innerHTML =
+        '<div class="panel">'
+        + '<div class="ph"><h3>Cost Analysis</h3>'
+        + '<span class="tag">Total Cost · UJP · Prof Fee · Sewa · Cost/Trip · Cost/DO · Cost/CBM</span></div>'
+        + '<div id="costTableContainer"></div></div>';
+      buildCostTable(document.getElementById('costTableContainer'));
+    }
+    // Utilisasi
+    var utilEl = document.getElementById('utilisasiPanel');
+    if(utilEl) {
+      utilEl.innerHTML =
+        '<div class="panel">'
+        + '<div class="ph"><h3>Utilisasi MPP & Armada</h3>'
+        + '<span class="tag">Driver · Ast. Driver · Armada · % Aktual vs Plan</span></div>'
+        + '<div id="utilTableContainer"></div></div>';
+      buildMonthlyUtilTable(document.getElementById('utilTableContainer'));
+    }
+    // Trip Type
+    var tripEl = document.getElementById('tripTypePanel');
+    if(tripEl) {
+      tripEl.innerHTML =
+        '<div class="panel">'
+        + '<div class="ph"><h3>Trip per Type Delivery</h3>'
+        + '<span class="tag">COUNTUNIQUE LC · group by r.td · % vs total</span></div>'
+        + '<div id="tripTypeTableContainer"></div></div>';
+      buildMonthlyTripTypeTable(document.getElementById('tripTypeTableContainer'));
+    }
   }, 60);
 };
 
