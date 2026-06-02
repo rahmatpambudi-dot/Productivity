@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NDC & RDC — Performance Dashboard</title>
+<!-- v2.1 full-month-fix -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -353,7 +354,7 @@ const TARGETS = {
   ritase:   { label:'Ritase', targetBySite:{ JABABEKA:1.15, CIKUPA:1.05, SDA:1.07, TALLO:1.25, TAMORA:1.25, NATIONAL:1.15 }, targetNational:1.15, dir:'up', fmt: v=>v!=null?v.toFixed(2):'—', tgtFmt:'site-specific' },
   dpMix:    { label:'DP Mix', target: 8.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
   dpReg:    { label:'DP Reg', target: 8.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
-  doTrip:   { label:'DO/Trip', target: 11.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
+  doTrip:   { label:'DO/Trip (Regular)', target: 11.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
 };
 let cmpA = { start:'', end:'' };
 let cmpB = { start:'', end:'' };
@@ -750,7 +751,7 @@ function buildKesimpulan(resA, resB, sumA, sumB) {
     { key:'ritase',label:'Ritase',tgtFn:(site)=>getTarget('ritase',site),dir:'up',fmtV:v=>v.toFixed(2) },
     { key:'dpMix',label:'DP Mix',tgt:8.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'8.0' },
     { key:'dpReg',label:'DP Reg',tgt:8.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'8.0' },
-    { key:'doTrip',label:'DO/Trip',tgt:11.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'11.0' },
+    { key:'doTrip',label:'DO/Trip (Regular)',tgt:11.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'11.0' },
   ];
   const site = currentSite==='ALL' ? null : currentSite;
   checks.forEach(c => {
@@ -818,8 +819,8 @@ function renderComparison() {
     { key:'dpMix',label:'DP (Mix)',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 8.0;},hi:true },
     { key:'dpNonReg',label:'DP Non Reg',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
     { key:'dpReg',label:'DP (Regular)',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 8.0;},hi:true },
-    { key:'doTrip',label:'DO/Trip',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 11.0;},hi:true },
-    { key:'doTripAll',label:'DO/Trip Customer',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
+    { key:'doTrip',label:'DO/Trip (Regular)',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:function(){return 11.0;},hi:true },
+    { key:'doTripAll',label:'DO/Trip (Mix)',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
     { key:'tatDirect',label:'TAT (Direct)',fmt:function(v){return tatStr(v);},tgt:null,hi:false },
     { key:'tatStore',label:'TAT (Store)',fmt:function(v){return tatStr(v);},tgt:null,hi:false },
     { key:'totalCbmStore',label:'CBM Store',fmt:function(v){return v!=null?v.toFixed(1):'—';},tgt:null,hi:true },
@@ -937,8 +938,8 @@ function buildMonthlyTrendTable(container) {
     { key:'dpMix',label:'DP (Mix)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 8.0;},hi:true },
     { key:'dpNonReg',label:'DP Non Reg',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
     { key:'dpReg',label:'DP (Regular)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 8.0;},hi:true },
-    { key:'doTrip',label:'DO/Trip',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 11.0;},hi:true },
-    { key:'doTripAll',label:'DO/Trip Customer',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
+    { key:'doTrip',label:'DO/Trip (Regular)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:function(){return 11.0;},hi:true },
+    { key:'doTripAll',label:'DO/Trip (Mix)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
     { key:'tatDirect',label:'TAT (Direct)',fmt:v=>tatStr(v),tgt:null,hi:false },
     { key:'tatStore',label:'TAT (Store)',fmt:v=>tatStr(v),tgt:null,hi:false },
     { key:'totalCbmStore',label:'CBM Store',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
@@ -1021,7 +1022,7 @@ function renderDetail(results, summary, start, end) {
     { key:'dpMix',label:'DP Mix',fmt:v=>pf(v,1)},
     { key:'dpNonReg',label:'DP Non Reg',fmt:v=>pf(v,1)},
     { key:'dpReg',label:'DP Reg',fmt:v=>pf(v,1)},
-    { key:'doTrip',label:'DO/Trip',fmt:v=>pf(v,1)},
+    { key:'doTrip',label:'DO/Trip (Regular)',fmt:v=>pf(v,1)},
     { key:'doDp',label:'DO/DP Direct',fmt:v=>pf(v,2)},
     { key:'cbmDo',label:'CBM/DO',fmt:v=>pf(v,2)},
     { key:'cbmDp',label:'CBM/DP',fmt:v=>pf(v,2)},
@@ -1033,7 +1034,7 @@ function renderDetail(results, summary, start, end) {
     { key:'ritase',label:'Ritase',fmt:v=>v!=null?v.toFixed(2):'—',tgtFmt:(site)=>`Target ≥${getTarget('ritase',site)||1.15}`},
     { key:'dpMix',label:'DP Mix',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥8.0'},
     { key:'dpReg',label:'DP Reg',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥8.0'},
-    { key:'doTrip',label:'DO/Trip',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥11.0'},
+    { key:'doTrip',label:'DO/Trip (Regular)',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥11.0'},
   ];
   const achDisplay = currentSite==='ALL' ? [...results, {...summary, site:'NDC_RDC_AVG', label:'AVG'}] : results;
   let achCards='';
@@ -1150,7 +1151,7 @@ function renderDetail(results, summary, start, end) {
     {label:'DP Non Reg',data:results.map(r=>r.dpNonReg),backgroundColor:'rgba(217,48,37,.4)',borderColor:'#d93025',borderWidth:1,borderRadius:4},
   ]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0}}}});
   charts.dDO=new Chart(document.getElementById('dDO').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
-    {label:'DO/Trip',data:results.map(r=>r.doTrip),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
+    {label:'DO/Trip (Regular)',data:results.map(r=>r.doTrip),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
     {label:'DO/DP',data:results.map(r=>r.doDp),backgroundColor:'rgba(227,116,0,.5)',borderColor:'#e37400',borderWidth:1,borderRadius:4},
   ]},options:co});
 }
@@ -1181,7 +1182,7 @@ function buildTrendline(results, summary, s, e) {
 
   var trendSeries=[
     {key:'olf',    label:'OLF',    color:'#E67E22', axis:'yR', fmt:function(v){return v!=null?+(v*100).toFixed(1):null;}, disp:function(v){return v.toFixed(1)+'%';}},
-    {key:'doTrip', label:'DO/Trip',color:'#1A73E8', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
+    {key:'doTrip', label:'DO/Trip (Regular)',color:'#1A73E8', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
     {key:'dpReg',  label:'DP Reg', color:'#D62B1F', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
     {key:'dpMix',  label:'DP Mix', color:'#7B2D8B', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
     {key:'ritase', label:'Ritase', color:'#1E3448', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(2):null;},       disp:function(v){return v.toFixed(2);}},
