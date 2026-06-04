@@ -247,6 +247,10 @@ body.export-mode #exitExport { display:block; }
   <div class="s-sec">
     <div class="s-lbl">Filter Site</div>
     <div class="s-item" id="site-ALL" onclick="setSite('ALL')"><span>Semua Site</span><span class="s-badge">5</span></div>
+    <div class="s-item" id="site-NDC" onclick="setSite('NDC')"><span>NDC</span><span class="s-badge">3</span></div>
+    <div class="s-item" id="site-RDC" onclick="setSite('RDC')"><span>RDC</span><span class="s-badge">2</span></div>
+    <div class="s-item" id="site-NDC" onclick="setSite('NDC')"><span>NDC</span><span class="s-badge" style="background:rgba(26,115,232,.3);color:#93c4fd">3</span></div>
+    <div class="s-item" id="site-RDC" onclick="setSite('RDC')"><span>RDC</span><span class="s-badge" style="background:rgba(227,116,0,.3);color:#fcd980">2</span></div>
   </div>
   <div class="s-sec">
     <div class="s-lbl">NDC</div>
@@ -289,6 +293,10 @@ body.export-mode #exitExport { display:block; }
       <button class="btn-apply" onclick="applyFilter()">Terapkan</button>
       <select class="s-filter" id="siteSelect" onchange="onSiteChange()">
         <option value="ALL">Semua Site</option>
+        <option value="NDC">NDC</option>
+        <option value="RDC">RDC</option>
+        <option value="NDC">NDC (Jababeka + Cikupa + Sidoarjo)</option>
+        <option value="RDC">RDC (Tallo + Tamora)</option>
         <option value="JABABEKA">Jababeka (Corporate)</option>
         <option value="JAB_HCI">Jababeka — HCI</option>
         <option value="JAB_AHI">Jababeka — AHI</option>
@@ -336,10 +344,18 @@ let currentSite = 'ALL';
 let charts = {};
 const SL = {
   JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora',
+  NDC:'NDC', RDC:'RDC',
   JAB_HCI:'JAB - HCI', JAB_AHI:'JAB - AHI', JAB_FBI:'JAB - FBI', JAB_KLS:'JAB - KLS',
   SDA_HCI:'SDA - HCI', SDA_AHI:'SDA - AHI', SDA_FBI:'SDA - FBI',
+  NDC:'NDC', RDC:'RDC',
 };
 const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
+const SITES_NDC = ['JABABEKA','CIKUPA','SDA'];
+const SITES_RDC = ['TALLO','TAMORA'];
+const SITE_GROUPS = {
+  NDC: ['JABABEKA','CIKUPA','SDA'],
+  RDC: ['TALLO','TAMORA'],
+};
 const SUB_SITES = {
   JAB_HCI: { baseSite:'JABABEKA', owners:['HCI'] },
   JAB_AHI: { baseSite:'JABABEKA', owners:['AHI','NKA','TGI'] },
@@ -424,6 +440,7 @@ function getRange() {
 
 function filterRows(rows, start, end, site) {
   const sub = SUB_SITES[site];
+  const siteGroup = site === 'NDC' ? SITES_NDC : (site === 'RDC' ? SITES_RDC : null);
   return rows.filter(r => {
     if (!r.date) return false;
     if (r.date < start || r.date > end) return false;
@@ -431,6 +448,7 @@ function filterRows(rows, start, end, site) {
       if (r.site !== sub.baseSite) return false;
       return sub.owners.some(o => (r.owner||'').toUpperCase() === o.toUpperCase());
     }
+    if (siteGroup) return siteGroup.includes(r.site);
     if (site !== 'ALL') {
       if (site === 'JABABEKA') return r.site === 'JABABEKA';
       return r.site === site;
@@ -594,7 +612,10 @@ function setNav(n) {
 function render() {
   const {start,end} = getRange();
   const filtered = filterRows(ROWS, start, end, currentSite);
-  const results = currentSite === 'ALL' ? computeAll(filtered) : [computeSite(filtered, currentSite)];
+  const results = currentSite === 'ALL' ? computeAll(filtered) :
+    currentSite === 'NDC' ? SITES_NDC.map(s => computeSite(filterRows(ROWS, start, end, s), s)).filter(Boolean) :
+    currentSite === 'RDC' ? SITES_RDC.map(s => computeSite(filterRows(ROWS, start, end, s), s)).filter(Boolean) :
+    [computeSite(filtered, currentSite)];
   const summary = makeSummary(results);
   const d1 = new Date(start).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   const d2 = new Date(end).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
@@ -1396,6 +1417,8 @@ const UTIL_SUBSITE_MAP = {
   'TALLO':   ['CORP TALLO'],
   'TAMORA':  ['CORP TAMORA'],
   'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
+  'NDC':     ['HCI JABABEKA','AHI JABABEKA','HCI CIKUPA','CORP SIDOARJO'],
+  'RDC':     ['CORP TALLO','CORP TAMORA'],
 };
 
 // ── National holidays Indonesia 2026 (exclude from utilisasi) ──
