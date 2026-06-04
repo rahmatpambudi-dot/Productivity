@@ -1537,39 +1537,44 @@ function filterUtilRows(start, end, site) {
 }
 
 function computeUtil(rows, allRows) {
-  // allRows = semua hari tanpa filter DOW/holiday (untuk assets)
-  // rows = hari aktif saja (untuk util/avail/MPP)
   if(!rows.length) return null;
   var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
-  var armAvailList=[], armUtilList=[];
+  var armAssetsList=[], armAvailList=[], armUtilList=[];
 
-  // Assets: pakai semua hari (tidak filter DOW/holiday) karena assets = fixed
+  // Assets untuk DISPLAY: pakai allRows (semua hari, assets = fixed)
   var assetRows = allRows && allRows.length ? allRows : rows;
-  var rawAssets = assetRows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
+  var rawAssetsAll = assetRows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
+  rawAssetsAll.sort(function(a,b){return a-b;});
+  var medAll = rawAssetsAll.length ? rawAssetsAll[Math.floor(rawAssetsAll.length/2)] : null;
+  var displayAssets = medAll; // median assets dari semua hari
+
+  // Avail & Util: pakai filtered rows (hari aktif saja)
+  var rawAssets = rows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
   rawAssets.sort(function(a,b){return a-b;});
   var medAssets = rawAssets.length ? rawAssets[Math.floor(rawAssets.length/2)] : null;
-  var armAssetsList = rawAssets.filter(function(v){ return !medAssets || v <= medAssets * 2.0; });
 
   rows.forEach(function(r) {
     var hasActivity = r.arm_util != null && r.arm_util > 0;
+    var assetOk = !medAssets || !r.arm_assets || (r.arm_assets <= medAssets * 2.0);
     drvPlan   += r.drv_plan   || 0;
     drvAkt    += r.drv_aktual || 0;
     astPlan   += r.ast_plan   || 0;
     astAkt    += r.ast_aktual || 0;
-    if(hasActivity) {
-      if(r.arm_avail != null) armAvailList.push(r.arm_avail);
-      if(r.arm_util  != null) armUtilList.push(r.arm_util);
+    if(hasActivity && assetOk) {
+      if(r.arm_assets != null) armAssetsList.push(r.arm_assets);
+      if(r.arm_avail  != null) armAvailList.push(r.arm_avail);
+      if(r.arm_util   != null) armUtilList.push(r.arm_util);
     }
   });
 
   var avg = function(arr) { return arr.length ? arr.reduce(function(s,v){return s+v;},0)/arr.length : null; };
-  var avgAssets = avg(armAssetsList);
+  var avgAssets = avg(armAssetsList); // untuk availability calc
   var avgAvail  = avg(armAvailList);
   var avgUtil   = avg(armUtilList);
   return {
     drvUtil:     drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
     astUtil:     astPlan  > 0 ? astAkt  / astPlan  * 100 : null,
-    armAssets:   avgAssets,
+    armAssets:   displayAssets || avgAssets, // display pakai median allRows
     armAvailAbs: avgAvail,
     armAvailPct: (avgAssets && avgAvail) ? avgAvail / avgAssets * 100 : null,
     armUtilPct:  (avgAvail  && avgUtil)  ? avgUtil  / avgAvail  * 100 : null,
