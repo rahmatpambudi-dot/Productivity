@@ -247,6 +247,7 @@ body.export-mode #exitExport { display:block; }
   <div class="s-sec">
     <div class="s-lbl">Filter Site</div>
     <div class="s-item" id="site-ALL" onclick="setSite('ALL')"><span>Semua Site</span><span class="s-badge">5</span></div>
+    <div class="s-item" id="site-NDC_RDC" onclick="setSite('NDC_RDC')"><span>NDC & RDC</span><span class="s-badge">5</span></div>
     <div class="s-item" id="site-NDC" onclick="setSite('NDC')"><span>NDC</span><span class="s-badge">3</span></div>
     <div class="s-item" id="site-RDC" onclick="setSite('RDC')"><span>RDC</span><span class="s-badge">2</span></div>
     <div class="s-item" id="site-NDC" onclick="setSite('NDC')"><span>NDC</span><span class="s-badge" style="background:rgba(26,115,232,.3);color:#93c4fd">3</span></div>
@@ -293,6 +294,7 @@ body.export-mode #exitExport { display:block; }
       <button class="btn-apply" onclick="applyFilter()">Terapkan</button>
       <select class="s-filter" id="siteSelect" onchange="onSiteChange()">
         <option value="ALL">Semua Site</option>
+        <option value="NDC_RDC">NDC &amp; RDC</option>
         <option value="NDC">NDC</option>
         <option value="RDC">RDC</option>
         <option value="NDC">NDC (Jababeka + Cikupa + Sidoarjo)</option>
@@ -344,10 +346,10 @@ let currentSite = 'ALL';
 let charts = {};
 const SL = {
   JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora',
-  NDC:'NDC', RDC:'RDC',
+  NDC:'NDC', RDC:'RDC', NDC_RDC:'NDC & RDC',
   JAB_HCI:'JAB - HCI', JAB_AHI:'JAB - AHI', JAB_FBI:'JAB - FBI', JAB_KLS:'JAB - KLS',
   SDA_HCI:'SDA - HCI', SDA_AHI:'SDA - AHI', SDA_FBI:'SDA - FBI',
-  NDC:'NDC', RDC:'RDC',
+  NDC:'NDC', RDC:'RDC', NDC_RDC:'NDC & RDC',
 };
 const SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
 const SITES_NDC = ['JABABEKA','CIKUPA','SDA'];
@@ -441,6 +443,7 @@ function getRange() {
 function filterRows(rows, start, end, site) {
   const sub = SUB_SITES[site];
   const siteGroup = site === 'NDC' ? SITES_NDC : (site === 'RDC' ? SITES_RDC : null);
+  if (site === 'NDC_RDC') return rows.filter(r => r.date && r.date >= start && r.date <= end);
   return rows.filter(r => {
     if (!r.date) return false;
     if (r.date < start || r.date > end) return false;
@@ -612,7 +615,7 @@ function setNav(n) {
 function render() {
   const {start,end} = getRange();
   const filtered = filterRows(ROWS, start, end, currentSite);
-  const results = currentSite === 'ALL' ? computeAll(filtered) :
+  const results = (currentSite === 'ALL' || currentSite === 'NDC_RDC') ? computeAll(filtered) :
     currentSite === 'NDC' ? SITES_NDC.map(s => computeSite(filterRows(ROWS, start, end, s), s)).filter(Boolean) :
     currentSite === 'RDC' ? SITES_RDC.map(s => computeSite(filterRows(ROWS, start, end, s), s)).filter(Boolean) :
     [computeSite(filtered, currentSite)];
@@ -1419,6 +1422,7 @@ const UTIL_SUBSITE_MAP = {
   'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
   'NDC':     ['HCI JABABEKA','AHI JABABEKA','HCI CIKUPA','CORP SIDOARJO'],
   'RDC':     ['CORP TALLO','CORP TAMORA'],
+  'NDC_RDC': ['HCI JABABEKA','AHI JABABEKA','HCI CIKUPA','CORP SIDOARJO','CORP TALLO','CORP TAMORA'],
 };
 
 // ── National holidays Indonesia 2026 (exclude from utilisasi) ──
