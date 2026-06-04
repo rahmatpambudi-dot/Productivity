@@ -2189,12 +2189,20 @@ function buildMonthlyTripTypeTable(container) {
       tr += '<td style="font-weight:600;font-size:11px">'+siteLbl+'</td>';
       tdTypes.forEach(function(td) {
         var cnt = entry[td] ? entry[td].size : 0;
+        var prevCnt = prevEntry && prevEntry[td] ? prevEntry[td].size : null;
         var pct = total > 0 ? (cnt / total * 100).toFixed(1) : '0.0';
         if (cnt === 0) {
           tr += '<td style="text-align:center;color:var(--t3);font-size:11px">—</td>';
         } else {
+          var mom = '';
+          if(prevCnt!=null && cnt!==prevCnt) {
+            var d = cnt - prevCnt;
+            var color = d>0?'#0f9d58':'#d93025';
+            mom = '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(d).toLocaleString('id-ID')+'</span>';
+          }
           tr += '<td style="text-align:center;font-size:11px;font-weight:600;font-family:\'JetBrains Mono\',monospace">'
             + '<span style="color:'+tdColor(td)+'">'+cnt.toLocaleString('id-ID')+'</span>'
+            + mom
             + '<br><span style="font-size:9px;color:var(--t3);font-weight:400">'+pct+'%</span>'
             + '</td>';
         }
