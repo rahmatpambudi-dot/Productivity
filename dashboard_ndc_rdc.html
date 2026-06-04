@@ -1446,24 +1446,57 @@ const UTIL_EXCLUDE_HOLIDAYS = {
 
 function filterUtilRows(start, end, site) {
   var srcSites = UTIL_SUBSITE_MAP[site] || Object.keys(UTIL_SITE_MAP);
+
+  // ALL rows in range — for assets (tidak filter DOW/holiday)
+  var allRows = UTIL_ROWS.filter(function(r) {
+    if(!r.date) return false;
+    if(r.date < start || r.date > end) return false;
+    return srcSites.includes(r.site);
+  });
+
+  // FILTERED rows — untuk UTL/Avail/MPP (exclude DOW/holiday)
   var rows = UTIL_ROWS.filter(function(r) {
     if(!r.date) return false;
     if(r.date < start || r.date > end) return false;
     if(!srcSites.includes(r.site)) return false;
-    // Exclude national holidays (global)
     if(HOLIDAYS_2026.has(r.date)) return false;
-    // Exclude per-site holidays (based on actual impact analysis)
     var siteHolidays = UTIL_EXCLUDE_HOLIDAYS[r.site];
     if(siteHolidays && siteHolidays.has(r.date)) return false;
-    // Per-site day exclusion
     var excl = UTIL_EXCLUDE_DOW[r.site];
     if(excl && excl.length) {
-      var d = new Date(r.date);
-      var dow = d.getDay(); // 0=Sun, 6=Sat
+      var dow = new Date(r.date).getDay();
       if(excl.includes(dow)) return false;
     }
     return true;
   });
+
+  function mergeRows(rowSet) {
+    if(site !== 'JABABEKA' || srcSites.length <= 1) return rowSet;
+    var byDate = {};
+    rowSet.forEach(function(r) {
+      if(!byDate[r.date]) byDate[r.date] = [];
+      byDate[r.date].push(r);
+    });
+    var merged = [];
+    Object.keys(byDate).sort().forEach(function(date) {
+      var dayRows = byDate[date];
+      function sumF(key) { return dayRows.reduce(function(s,r){ return s+(r[key]||0); },0); }
+      function sumFN(key) {
+        var vals = dayRows.map(function(r){ return r[key]; }).filter(function(v){ return v!=null; });
+        return vals.length ? vals.reduce(function(s,v){ return s+v; },0) : null;
+      }
+      var ahi = dayRows.find(function(r){ return r.site==='AHI JABABEKA'; });
+      var hci = dayRows.find(function(r){ return r.site==='HCI JABABEKA'; });
+      function getA(r) { return !r?0:(r.arm_assets!=null?r.arm_assets:(r.arm_avail||0)); }
+      merged.push({ site:'JABABEKA', date:date,
+        drv_plan:sumF('drv_plan'), drv_aktual:sumF('drv_aktual'),
+        ast_plan:sumF('ast_plan'), ast_aktual:sumF('ast_aktual'),
+        arm_assets: getA(hci)+getA(ahi)||null,
+        arm_avail: sumFN('arm_avail'), arm_util: sumFN('arm_util'),
+      });
+    });
+    return merged;
+  }
 
   // For JABABEKA (HCI+AHI combined): sum per day (capacity is additive)
   if(site === 'JABABEKA' && srcSites.length > 1) {
@@ -1498,38 +1531,34 @@ function filterUtilRows(start, end, site) {
         arm_util:   sumFNullable('arm_util'),
       });
     });
-    return merged;
+    return {rows: merged, allRows: mergeRows(allRows)};
   }
-  return rows;
+  return {rows: rows, allRows: allRows};
 }
 
-function computeUtil(rows) {
+function computeUtil(rows, allRows) {
+  // allRows = semua hari tanpa filter DOW/holiday (untuk assets)
+  // rows = hari aktif saja (untuk util/avail/MPP)
   if(!rows.length) return null;
   var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
-  var armAssetsList=[], armAvailList=[], armUtilList=[];
+  var armAvailList=[], armUtilList=[];
 
-  // Get median assets per unique date (after daily aggregation already done)
-  // to detect outliers like Tamora 209 vs normal 29
-  var rawAssets = rows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
+  // Assets: pakai semua hari (tidak filter DOW/holiday) karena assets = fixed
+  var assetRows = allRows && allRows.length ? allRows : rows;
+  var rawAssets = assetRows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
   rawAssets.sort(function(a,b){return a-b;});
   var medAssets = rawAssets.length ? rawAssets[Math.floor(rawAssets.length/2)] : null;
+  var armAssetsList = rawAssets.filter(function(v){ return !medAssets || v <= medAssets * 2.0; });
 
   rows.forEach(function(r) {
-    // Skip days with zero or null util (libur, belum diisi)
     var hasActivity = r.arm_util != null && r.arm_util > 0;
-
-    // Skip asset outliers >2x median — data entry error (e.g. 209 vs median 29)
-    var assetOk = !medAssets || !r.arm_assets || (r.arm_assets <= medAssets * 2.0);
-
     drvPlan   += r.drv_plan   || 0;
     drvAkt    += r.drv_aktual || 0;
     astPlan   += r.ast_plan   || 0;
     astAkt    += r.ast_aktual || 0;
-
-    if(hasActivity && assetOk) {
-      if(r.arm_assets != null) armAssetsList.push(r.arm_assets);
-      if(r.arm_avail  != null) armAvailList.push(r.arm_avail);
-      if(r.arm_util   != null) armUtilList.push(r.arm_util);
+    if(hasActivity) {
+      if(r.arm_avail != null) armAvailList.push(r.arm_avail);
+      if(r.arm_util  != null) armUtilList.push(r.arm_util);
     }
   });
 
@@ -1567,8 +1596,8 @@ function buildMonthlyUtilTable(container) {
     var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
     var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
-      var moRows = filterUtilRows(moD1, moD2, site);
-      allData[mo+'|'+site] = moRows.length ? computeUtil(moRows) : null;
+      var result = filterUtilRows(moD1, moD2, site);
+      allData[mo+'|'+site] = result.rows.length ? computeUtil(result.rows, result.allRows) : null;
     });
   });
 
