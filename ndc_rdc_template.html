@@ -440,8 +440,6 @@ function getRange() {
 
 function filterRows(rows, start, end, site) {
   const sub = SUB_SITES[site];
-  const siteGroup = site === 'NDC' ? SITES_NDC : (site === 'RDC' ? SITES_RDC : null);
-  if (site === 'NDC_RDC') return rows.filter(r => r.date && r.date >= start && r.date <= end);
   return rows.filter(r => {
     if (!r.date) return false;
     if (r.date < start || r.date > end) return false;
@@ -449,12 +447,11 @@ function filterRows(rows, start, end, site) {
       if (r.site !== sub.baseSite) return false;
       return sub.owners.some(o => (r.owner||'').toUpperCase() === o.toUpperCase());
     }
-    if (siteGroup) return siteGroup.includes(r.site);
-    if (site !== 'ALL') {
-      if (site === 'JABABEKA') return r.site === 'JABABEKA';
-      return r.site === site;
-    }
-    return true;
+    if (site === 'ALL' || site === 'NDC_RDC') return true;
+    if (site === 'NDC') return SITES_NDC.includes(r.site);
+    if (site === 'RDC') return SITES_RDC.includes(r.site);
+    if (site === 'JABABEKA') return r.site === 'JABABEKA';
+    return r.site === site;
   });
 }
 
@@ -613,9 +610,10 @@ function setNav(n) {
 function render() {
   const {start,end} = getRange();
   const filtered = filterRows(ROWS, start, end, currentSite);
-  const results = (currentSite === 'ALL' || currentSite === 'NDC_RDC') ? computeAll(filtered) :
-    currentSite === 'NDC' ? SITES_NDC.map(s => computeSite(filterRows(ROWS, start, end, s), s)).filter(Boolean) :
-    currentSite === 'RDC' ? SITES_RDC.map(s => computeSite(filterRows(ROWS, start, end, s), s)).filter(Boolean) :
+  const results = currentSite === 'ALL' ? computeAll(filtered) :
+    currentSite === 'NDC_RDC' ? [makeSummary(computeAll(filtered))].map(r=>({...r, site:'NDC_RDC', label:'NDC & RDC'})) :
+    currentSite === 'NDC' ? [makeSummary(SITES_NDC.map(s=>computeSite(filterRows(ROWS,start,end,s),s)).filter(Boolean))].map(r=>({...r,site:'NDC',label:'NDC'})) :
+    currentSite === 'RDC' ? [makeSummary(SITES_RDC.map(s=>computeSite(filterRows(ROWS,start,end,s),s)).filter(Boolean))].map(r=>({...r,site:'RDC',label:'RDC'})) :
     [computeSite(filtered, currentSite)];
   const summary = makeSummary(results);
   const d1 = new Date(start).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
@@ -993,7 +991,15 @@ function buildMonthlyTrendTable(container) {
     var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
     SITES_LIST.forEach(function(site){
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
-      allResults[mo+'|'+site]=moFiltered.length?(computeSite(moFiltered,site)||{}):null;
+      var moResult = null;
+      if(site==='NDC_RDC'||site==='NDC'||site==='RDC') {
+        var subSites = site==='NDC' ? SITES_NDC : site==='RDC' ? SITES_RDC : SITES;
+        var subResults = subSites.map(function(s){ return computeSite(filterRows(ROWS,moD1,moD2,s),s); }).filter(Boolean);
+        moResult = subResults.length ? {...makeSummary(subResults), site:site, label:SL[site]||site} : null;
+      } else {
+        moResult = moFiltered.length?(computeSite(moFiltered,site)||{}):null;
+      }
+      allResults[mo+'|'+site]=moResult;
     });
   });
   function momBadge(key,cur,prev,hi) {
@@ -1617,7 +1623,7 @@ function buildMonthlyUtilTable(container) {
   var allMonths = [...new Set(UTIL_ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
+  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
 
   // Compute per month per site
   var allData = {};
@@ -1752,7 +1758,7 @@ function buildCostTable(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
+  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
 
   // ── MONTHLY TABLE ──
   var moData = {};
@@ -1978,7 +1984,7 @@ function buildCostBySegment(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
+  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
 
   // Collect all td types
   var tdSet = new Set();
@@ -2065,7 +2071,7 @@ function buildCostBySegment(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
+  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
 
   // TD normalization (same as trip type table)
   function normTd(td) {
@@ -2166,7 +2172,7 @@ function buildMonthlyTripTypeTable(container) {
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const {start: fs, end: fe} = getRange();
   const allMonths = [...new Set(ROWS.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
-  const SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
+  const SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
 
   // ── 1. Discover all unique r.td values present in data ──
   const tdSet = new Set();
