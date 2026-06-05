@@ -2405,159 +2405,193 @@ function renderSlide(results, summary, start, end) {
 
 function generatePPT() {
   if(typeof PptxGenJS === 'undefined') { document.getElementById('pptStatus').textContent = '❌ Library belum load, refresh dulu'; return; }
-  document.getElementById('pptStatus').textContent = '⏳ Generating...';
+  document.getElementById('pptStatus').textContent = '⏳ Generating slides...';
+
   var {start:s, end:e} = getRange();
-  var filtered = filterRows(ROWS, s, e, currentSite);
-  var results = currentSite==='ALL' ? computeAll(filtered) :
-    currentSite==='NDC_RDC' ? [{...makeSummary(computeAll(filtered)),site:'NDC_RDC',label:'NDC & RDC'}] :
-    currentSite==='NDC' ? [{...makeSummary(SITES_NDC.map(function(ss){return computeSite(filterRows(ROWS,s,e,ss),ss);}).filter(Boolean)),site:'NDC',label:'NDC'}] :
-    currentSite==='RDC' ? [{...makeSummary(SITES_RDC.map(function(ss){return computeSite(filterRows(ROWS,s,e,ss),ss);}).filter(Boolean)),site:'RDC',label:'RDC'}] :
-    [computeSite(filtered,currentSite)];
-  var summary = makeSummary(results);
-  var siteLabel = currentSite==='ALL'?'Semua Site':currentSite==='NDC_RDC'?'NDC & RDC':currentSite==='NDC'?'NDC':currentSite==='RDC'?'RDC':(SL[currentSite]||currentSite);
-  var d1 = new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-  var d2 = new Date(e).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-  var periode = d1+' s/d '+d2;
   var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var siteLabel = currentSite==='ALL'?'Semua Site':currentSite==='NDC_RDC'?'NDC & RDC':currentSite==='NDC'?'NDC':currentSite==='RDC'?'RDC':(SL[currentSite]||currentSite);
+
+  // Build list of all months in range
   var allMonths = [...new Set(ROWS.map(function(r){return r.date?r.date.slice(0,7):null;}).filter(Boolean))].sort();
   var feMonth = e.slice(0,7);
   allMonths = allMonths.filter(function(mo){return mo<=feMonth;});
 
+  // BU list per site
+  var BU_MAP = {
+    'JABABEKA': [
+      {key:'JABABEKA', label:'Corporate'},
+      {key:'JAB_HCI', label:'HCI'},
+      {key:'JAB_AHI', label:'AHI'},
+      {key:'JAB_FBI', label:'FBI'},
+      {key:'JAB_KLS', label:'KLS'},
+    ],
+    'SDA': [
+      {key:'SDA', label:'Corporate'},
+      {key:'SDA_HCI', label:'HCI'},
+      {key:'SDA_AHI', label:'AHI'},
+      {key:'SDA_FBI', label:'FBI'},
+    ],
+    'CIKUPA':  [{key:'CIKUPA', label:'Corporate'}],
+    'TALLO':   [{key:'TALLO',  label:'Corporate'}],
+    'TAMORA':  [{key:'TAMORA', label:'Corporate'}],
+  };
+
+  // Get sites to process
+  var SITE_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES :
+    currentSite==='NDC' ? SITES_NDC :
+    currentSite==='RDC' ? SITES_RDC :
+    SUB_SITES[currentSite] ? [SUB_SITES[currentSite].baseSite] : [currentSite];
+
   var prs = new PptxGenJS();
   prs.layout = 'LAYOUT_WIDE';
-  var CLR_TEXT = '0f172a', CLR_GRAY = '64748b', CLR_HDR = '1e2a3a';
+  var CLR_TEXT='0f172a', CLR_GRAY='64748b', CLR_HDR='1e2a3a', CLR_GREEN='166534';
 
-  function addHdr(slide, title, sub) {
-    slide.addText('Kawan Lama Group', {x:0.3,y:0.1,w:5,h:0.22,fontSize:8,color:'94a3b8'});
-    slide.addText(title, {x:0.3,y:0.3,w:12.5,h:0.4,fontSize:16,bold:true,color:CLR_TEXT});
-    if(sub) slide.addText(sub, {x:0.3,y:0.68,w:12.5,h:0.22,fontSize:9,color:CLR_GRAY});
-    slide.addShape(prs.ShapeType.line,{x:0.3,y:0.92,w:12.7,h:0,line:{color:'e2e8f0',width:0.75}});
-  }
-
-  function makeTableOpts(colW) {
-    return {
-      x:0.3,y:1.0,w:12.7,colW:colW,
-      fontSize:7.5,fontFace:'Calibri',rowH:0.25,
-      border:{type:'solid',pt:0.5,color:'e2e8f0'},
-      align:'center',valign:'middle',color:CLR_TEXT,
-      autoPage:true,autoPageRepeatHeader:true,
-      autoPageSlideStartY:1.0,
-    };
-  }
-
-  function moRows(mo, filterFn) {
-    var daysInMo = new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var d1 = mo+'-'+String(parseInt(s.slice(8,10))).padStart(2,'0');
-    var d2 = mo+'-'+String(Math.min(parseInt(e.slice(8,10)),daysInMo)).padStart(2,'0');
-    return {d1:d1,d2:d2,mn:moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4)};
-  }
-
-  function getSiteList() {
-    return currentSite==='ALL'||currentSite==='NDC_RDC'?SITES:currentSite==='NDC'?SITES_NDC:currentSite==='RDC'?SITES_RDC:[currentSite];
+  function addHdr(slide, site, bu, mo, prevMo) {
+    var moLabel = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+    var prevLabel = prevMo ? moNames[parseInt(prevMo.slice(5,7))-1]+' '+prevMo.slice(0,4) : '—';
+    slide.addText('Kawan Lama Group', {x:0.3,y:0.08,w:5,h:0.2,fontSize:8,color:'94a3b8'});
+    slide.addText('Transport Operations Performance', {x:0.3,y:0.26,w:8,h:0.3,fontSize:13,bold:true,color:CLR_TEXT});
+    slide.addText(site+' · '+bu, {x:0.3,y:0.54,w:8,h:0.25,fontSize:10,color:CLR_GREEN,bold:true});
+    // Month badge
+    slide.addText(moLabel, {x:9.5,y:0.1,w:3.5,h:0.35,fontSize:14,bold:true,color:'ffffff',align:'center',fill:{type:'solid',color:CLR_HDR},rectRadius:0.05});
+    slide.addText('vs '+prevLabel, {x:9.5,y:0.45,w:3.5,h:0.22,fontSize:9,color:CLR_GRAY,align:'center'});
+    slide.addShape(prs.ShapeType.line,{x:0.3,y:0.82,w:12.7,h:0,line:{color:'e2e8f0',width:0.75}});
   }
 
   function hdrRow(cells) {
-    return cells.map(function(c){return {text:c,options:{bold:true,color:'ffffff',fill:{type:'solid',color:CLR_HDR},align:'center',fontSize:7.5}};});
+    return cells.map(function(c){return {text:c,options:{bold:true,color:'ffffff',fill:{type:'solid',color:CLR_HDR},align:'center',fontSize:7.5,fontFace:'Calibri'}};});
   }
 
-  // ── SLIDE 1: Cover ──
-  var sl1 = prs.addSlide();
-  sl1.background = {color:'1e2a3a'};
-  sl1.addText('Kawan Lama Group',{x:0.5,y:1.2,w:12.3,h:0.4,fontSize:13,color:'94a3b8',align:'center'});
-  sl1.addText('Transport Operations Performance',{x:0.5,y:1.7,w:12.3,h:0.7,fontSize:26,bold:true,color:'ffffff',align:'center'});
-  sl1.addText(siteLabel,{x:0.5,y:2.5,w:12.3,h:0.55,fontSize:20,bold:true,color:'86efac',align:'center'});
-  sl1.addText(periode,{x:0.5,y:3.15,w:12.3,h:0.35,fontSize:12,color:'94a3b8',align:'center'});
-  var kpis2=[{l:'OLF Store',v:summary.olf!=null?(summary.olf*100).toFixed(1)+'%':'—'},{l:'Ritase',v:summary.ritase!=null?summary.ritase.toFixed(2):'—'},{l:'DO/Trip (Mix)',v:summary.doTripAll!=null?summary.doTripAll.toFixed(1):'—'},{l:'DP Mix',v:summary.dpMix!=null?summary.dpMix.toFixed(1):'—'}];
-  kpis2.forEach(function(k,i){var x=1.3+i*2.7;sl1.addText(k.l,{x:x,y:4.1,w:2.4,h:0.22,fontSize:8,color:'94a3b8',align:'center'});sl1.addText(k.v,{x:x,y:4.32,w:2.4,h:0.45,fontSize:18,bold:true,color:'86efac',align:'center'});});
+  function valCell(v, prev, higherBetter, isPercent, isTAT) {
+    var txt = v!=null?v:'—';
+    var mom = '';
+    if(v!=null && prev!=null) {
+      var diff = (isTAT ? v-prev : v-prev);
+      if(Math.abs(diff) > 0.001) {
+        var good = higherBetter ? diff>0 : diff<0;
+        var arrow = diff>0?'▲':'▼';
+        var clr = good?'166534':'b91c1c';
+        var diffStr = isTAT ? tatStr(Math.abs(diff)) : (isPercent?(Math.abs(diff)*100).toFixed(1)+'%':Math.abs(diff)<10?Math.abs(diff).toFixed(1):Math.round(Math.abs(diff)).toLocaleString('id-ID'));
+        mom = '\n'+arrow+' '+diffStr;
+      }
+    }
+    return {text:txt+(mom?mom:''), options:{fontSize:7.5,fontFace:'Calibri',align:'center',color:CLR_TEXT,paraSpaceAfter:0}};
+  }
 
-  // ── SLIDE 2: Trend Bulanan ──
-  var sl2 = prs.addSlide();
-  addHdr(sl2,'Trend Bulanan per Site',siteLabel+' · '+periode);
-  var hdr2 = hdrRow(['BULAN','SITE','RITASE','OLF','DP STORE','DP MIX','DP REG','DO/TRIP (R)','DO/TRIP (M)','TAT DIRECT','TAT STORE']);
-  var data2 = [hdr2];
-  allMonths.forEach(function(mo){
-    var mr = moRows(mo);
-    getSiteList().forEach(function(site){
-      var moF = filterRows(ROWS,mr.d1,mr.d2,site);
-      var res = computeSite(moF,site); if(!res||!res.rowCount) return;
-      data2.push([mr.mn,SL[site]||site,
-        res.ritase!=null?res.ritase.toFixed(2):'—',
-        res.olf!=null?(res.olf*100).toFixed(1)+'%':'—',
-        res.dpStore!=null?res.dpStore.toFixed(1):'—',
-        res.dpMix!=null?res.dpMix.toFixed(1):'—',
-        res.dpReg!=null?res.dpReg.toFixed(1):'—',
-        res.doTrip!=null?res.doTrip.toFixed(1):'—',
-        res.doTripAll!=null?res.doTripAll.toFixed(1):'—',
-        tatStr(res.tatDirect),tatStr(res.tatStore),
-      ]);
+  function makeTableOpts(x,y,w,colW) {
+    return {x:x,y:y,w:w,colW:colW,fontSize:7.5,fontFace:'Calibri',rowH:0.3,
+      border:{type:'solid',pt:0.5,color:'e2e8f0'},align:'center',valign:'middle',color:CLR_TEXT};
+  }
+
+  // ── SLIDE 1: COVER ──
+  var cov = prs.addSlide();
+  cov.background = {color:'1e2a3a'};
+  cov.addText('Kawan Lama Group',{x:0.5,y:1.5,w:12.3,h:0.4,fontSize:13,color:'94a3b8',align:'center'});
+  cov.addText('Transport Operations Performance',{x:0.5,y:2.0,w:12.3,h:0.65,fontSize:24,bold:true,color:'ffffff',align:'center'});
+  cov.addText(siteLabel,{x:0.5,y:2.75,w:12.3,h:0.5,fontSize:18,bold:true,color:'86efac',align:'center'});
+  var d1=new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  var d2=new Date(e).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  cov.addText(d1+' s/d '+d2,{x:0.5,y:3.3,w:12.3,h:0.35,fontSize:12,color:'94a3b8',align:'center'});
+  // List BU content
+  var covRows = [];
+  SITE_LIST.forEach(function(site){
+    var bus = BU_MAP[site]||[{key:site,label:'Corporate'}];
+    bus.forEach(function(bu){covRows.push({text:SL[site]||site,options:{fontSize:9,color:'94a3b8',bold:false}}+' '+bu.label);});
+  });
+  cov.addText('Slide per BU: '+SITE_LIST.map(function(s){return (BU_MAP[s]||[{label:'Corporate'}]).map(function(b){return (SL[s]||s)+' '+b.label;}).join(', ');}).join(' · '),
+    {x:0.5,y:4.0,w:12.3,h:0.5,fontSize:9,color:'475569',align:'center'});
+
+  // ── PER SITE → PER BU → PER MONTH ──
+  SITE_LIST.forEach(function(site) {
+    var bus = BU_MAP[site] || [{key:site, label:'Corporate'}];
+    bus.forEach(function(bu) {
+      allMonths.forEach(function(mo, moIdx) {
+        var prevMo = moIdx > 0 ? allMonths[moIdx-1] : null;
+        var dIM = new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
+        var d1c = mo+'-'+String(parseInt(s.slice(8,10))).padStart(2,'0');
+        var d2c = mo+'-'+String(Math.min(parseInt(e.slice(8,10)),dIM)).padStart(2,'0');
+        var moF = filterRows(ROWS,d1c,d2c,bu.key);
+        var sub = SUB_SITES[bu.key];
+        var sr = sub ? moF : (bu.key==='JABABEKA'||bu.key==='SDA'||bu.key==='CIKUPA'||bu.key==='TALLO'||bu.key==='TAMORA') ? moF.filter(function(r){return r.site===bu.key;}) : moF;
+        var res = computeSite(sr.length?sr:moF, bu.key); if(!res||!res.rowCount) return;
+
+        var prevRes = null;
+        if(prevMo) {
+          var pIM=new Date(parseInt(prevMo.slice(0,4)),parseInt(prevMo.slice(5,7)),0).getDate();
+          var pd1=prevMo+'-'+String(parseInt(s.slice(8,10))).padStart(2,'0');
+          var pd2=prevMo+'-'+String(Math.min(parseInt(e.slice(8,10)),pIM)).padStart(2,'0');
+          var pF=filterRows(ROWS,pd1,pd2,bu.key);
+          var pSr=sub?pF:(bu.key==='JABABEKA'||bu.key==='SDA'||bu.key==='CIKUPA'||bu.key==='TALLO'||bu.key==='TAMORA')?pF.filter(function(r){return r.site===bu.key;}):pF;
+          prevRes = computeSite(pSr.length?pSr:pF, bu.key);
+        }
+        var pr = prevRes || {};
+
+        var sl = prs.addSlide();
+        addHdr(sl, SL[site]||site, bu.label, mo, prevMo);
+
+        // ── Section 1: Productivity Metrics ──
+        sl.addText('PRODUKTIVITAS',{x:0.3,y:0.9,w:4,h:0.2,fontSize:8,bold:true,color:CLR_GREEN});
+        var prodHdr = hdrRow(['METRIK','NILAI','vs PREV','TARGET','STATUS']);
+        var prodRows = [
+          ['OLF Store', res.olf!=null?(res.olf*100).toFixed(1)+'%':'—', prevRes&&prevRes.olf!=null?((res.olf-prevRes.olf)*100).toFixed(1)+'%':'—', '≥85%', res.olf!=null?(res.olf>=0.85?'✓':'✗'):'—'],
+          ['Ritase', res.ritase!=null?res.ritase.toFixed(2):'—', prevRes&&prevRes.ritase!=null?(res.ritase-prevRes.ritase).toFixed(2):'—', '≥1.15', res.ritase!=null?(res.ritase>=1.15?'✓':'✗'):'—'],
+          ['DO/Trip (Regular)', res.doTrip!=null?res.doTrip.toFixed(1):'—', prevRes&&prevRes.doTrip!=null?(res.doTrip-prevRes.doTrip).toFixed(1):'—', '≥11.0', res.doTrip!=null?(res.doTrip>=11?'✓':'✗'):'—'],
+          ['DO/Trip (Mix)', res.doTripAll!=null?res.doTripAll.toFixed(1):'—', prevRes&&prevRes.doTripAll!=null?(res.doTripAll-prevRes.doTripAll).toFixed(1):'—', '—', '—'],
+          ['DP Mix', res.dpMix!=null?res.dpMix.toFixed(1):'—', prevRes&&prevRes.dpMix!=null?(res.dpMix-prevRes.dpMix).toFixed(1):'—', '≥8.0', res.dpMix!=null?(res.dpMix>=8?'✓':'✗'):'—'],
+          ['DP Regular', res.dpReg!=null?res.dpReg.toFixed(1):'—', prevRes&&prevRes.dpReg!=null?(res.dpReg-prevRes.dpReg).toFixed(1):'—', '≥8.0', res.dpReg!=null?(res.dpReg>=8?'✓':'✗'):'—'],
+          ['TAT Direct', tatStr(res.tatDirect), prevRes&&prevRes.tatDirect!=null?tatStr(Math.abs(res.tatDirect-prevRes.tatDirect)):'—', '—', '—'],
+          ['TAT Store', tatStr(res.tatStore), prevRes&&prevRes.tatStore!=null?tatStr(Math.abs(res.tatStore-prevRes.tatStore)):'—', '—', '—'],
+          ['CBM Store', res.totalCbmStore!=null?res.totalCbmStore.toFixed(0):'—', prevRes&&prevRes.totalCbmStore!=null?(res.totalCbmStore-prevRes.totalCbmStore).toFixed(0):'—', '—', '—'],
+        ];
+        sl.addTable([prodHdr,...prodRows.map(function(r){return r.map(function(c,i){return {text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:i===0?'left':'center',color:i===4?(c==='✓'?'166534':c==='✗'?'b91c1c':CLR_TEXT):CLR_TEXT,bold:i===4&&c==='✗'}};});})],
+          makeTableOpts(0.3,1.1,6.1,[1.8,1.0,1.0,0.8,0.8]));
+
+        // ── Section 2: Utilisasi ──
+        sl.addText('UTILISASI MPP & ARMADA',{x:6.6,y:0.9,w:6,h:0.2,fontSize:8,bold:true,color:'7c3aed'});
+        var utilResult = null;
+        try {
+          var ur = filterUtilRows(d1c,d2c,bu.key);
+          utilResult = ur.rows.length?computeUtil(ur.rows,ur.allRows):null;
+        } catch(e){}
+        var utilRows2 = [
+          hdrRow(['METRIK','NILAI','vs PREV']),
+          ['UTL Driver', utilResult&&utilResult.drvUtil!=null?utilResult.drvUtil.toFixed(1)+'%':'—', '—'],
+          ['UTL Ast. Driver', utilResult&&utilResult.astUtil!=null?utilResult.astUtil.toFixed(1)+'%':'—', '—'],
+          ['Armada Assets', utilResult&&utilResult.armAssets!=null?Math.round(utilResult.armAssets).toString():'—', '—'],
+          ['Availability', utilResult&&utilResult.armAvailPct!=null?utilResult.armAvailPct.toFixed(1)+'%':'—', '—'],
+          ['UTL Armada', utilResult&&utilResult.armUtilPct!=null?utilResult.armUtilPct.toFixed(1)+'%':'—', '—'],
+        ];
+        sl.addTable(utilRows2.map(function(r,ri){return Array.isArray(r[0])?r:r.map(function(c,ci){return {text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:ci===0?'left':'center',color:CLR_TEXT}};});}),
+          makeTableOpts(6.6,1.1,6.1,[2.2,1.5,1.5]));
+
+        // ── Section 3: Trip per Type ──
+        sl.addText('TRIP PER TYPE',{x:0.3,y:4.05,w:4,h:0.2,fontSize:8,bold:true,color:'1d4ed8'});
+        var tdTypes=['customer','store','hub','satelite','transfer'];
+        var entryNow={_total:new Set()};
+        sr.forEach(function(r){if(!r.lc)return;var td=(r.td||'').toLowerCase().trim();if(!td||td==='#n/a')return;if(td.includes('hub')&&td.includes('customer'))td='customer';entryNow._total.add(r.lc);if(!entryNow[td])entryNow[td]=new Set();entryNow[td].add(r.lc);});
+        var tripHdr=hdrRow(['TYPE','TRIP','%']);
+        var tripData=[tripHdr];
+        tdTypes.forEach(function(td){var cnt=entryNow[td]?entryNow[td].size:0;if(!cnt)return;var pct=entryNow._total.size>0?(cnt/entryNow._total.size*100).toFixed(1)+'%':'—';tripData.push([TD_LABEL[td]||td,cnt.toLocaleString('id-ID'),pct].map(function(c,i){return{text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:i===0?'left':'center',color:CLR_TEXT}};}));});
+        tripData.push(['TOTAL',entryNow._total.size.toLocaleString('id-ID'),'100%'].map(function(c,i){return{text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:i===0?'left':'center',color:CLR_TEXT,bold:true}};}));
+        sl.addTable(tripData, makeTableOpts(0.3,4.25,3.5,[1.8,1.0,0.8]));
+
+        // ── Section 4: Cost ──
+        sl.addText('COST ANALYSIS',{x:4.1,y:4.05,w:4,h:0.2,fontSize:8,bold:true,color:'0369a1'});
+        var costNow=computeCost(sr);
+        var costRows2=[hdrRow(['METRIK','NILAI'])];
+        if(costNow&&costNow.cost){
+          [['Total Cost',fmtRp(costNow.cost)],['UJP',fmtRp(costNow.ujp)],['Prof Fee',fmtRp(costNow.pf)],['Sewa Armada',fmtRp(costNow.sewa)],['Cost/Trip',fmtRp(costNow.costTrip)],['Cost/DO',fmtRp(costNow.costDo)],['Cost/CBM',fmtRp(costNow.costCbm)]].forEach(function(r){costRows2.push(r.map(function(c,i){return{text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:i===0?'left':'right',color:CLR_TEXT}};}));});
+        }
+        sl.addTable(costRows2, makeTableOpts(4.1,4.25,5.4,[2.2,2.4]));
+
+        // Page number
+        sl.addText((SL[site]||site)+' · '+bu.label+' · '+moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4),
+          {x:0.3,y:7.2,w:12.7,h:0.2,fontSize:7,color:'cbd5e1',align:'left'});
+      });
     });
   });
-  if(data2.length>1) sl2.addTable(data2,makeTableOpts([1.3,1.2,0.9,0.85,0.9,0.85,0.85,1.0,1.0,1.05,1.05]));
 
-  // ── SLIDE 3: Utilisasi ──
-  var sl3 = prs.addSlide();
-  addHdr(sl3,'Utilisasi MPP & Armada',siteLabel+' · '+periode);
-  var hdr3 = hdrRow(['BULAN','SITE','UTL DRIVER','UTL AST. DRIVER','ARMADA ASSETS','AVAILABILITY','UTL ARMADA']);
-  var data3 = [hdr3];
-  allMonths.forEach(function(mo){
-    var mr = moRows(mo);
-    getSiteList().forEach(function(site){
-      var allR=[],filtR=[];
-      filterUtilRows(mr.d1,mr.d2,site).rows&&(filtR=filterUtilRows(mr.d1,mr.d2,site).rows,allR=filterUtilRows(mr.d1,mr.d2,site).allRows);
-      var u=filtR.length?computeUtil(filtR,allR):null; if(!u) return;
-      data3.push([mr.mn,SL[site]||site,
-        u.drvUtil!=null?u.drvUtil.toFixed(1)+'%':'—',
-        u.astUtil!=null?u.astUtil.toFixed(1)+'%':'—',
-        u.armAssets!=null?Math.round(u.armAssets).toString():'—',
-        u.armAvailPct!=null?u.armAvailPct.toFixed(1)+'%':'—',
-        u.armUtilPct!=null?u.armUtilPct.toFixed(1)+'%':'—',
-      ]);
-    });
-  });
-  if(data3.length>1) sl3.addTable(data3,makeTableOpts([1.6,1.6,1.9,1.9,1.8,1.8,1.8]));
-
-  // ── SLIDE 4: Trip per Type ──
-  var sl4 = prs.addSlide();
-  addHdr(sl4,'Trip per Type Delivery',siteLabel+' · '+periode);
-  var tdT=['customer','store','hub','satelite','transfer'];
-  var hdr4 = hdrRow(['BULAN','SITE','CUSTOMER','STORE','HUB','SATELITE','TRANSFER','TOTAL']);
-  var data4 = [hdr4];
-  allMonths.forEach(function(mo){
-    var mr = moRows(mo);
-    getSiteList().forEach(function(site){
-      var moF = filterRows(ROWS,mr.d1,mr.d2,site);
-      var sub=SUB_SITES[site];
-      var sr=(site==='NDC_RDC'||site==='NDC'||site==='RDC')?moF:moF.filter(function(r){return r.site===(sub?sub.baseSite:site);});
-      if(!sr.length) return;
-      var entry={_total:new Set()};
-      sr.forEach(function(r){if(!r.lc)return;var td=(r.td||'').toLowerCase().trim();if(!td||td==='#n/a')return;if(td.includes('hub'&&td.includes('customer')))td='customer';entry._total.add(r.lc);if(!entry[td])entry[td]=new Set();entry[td].add(r.lc);});
-      if(!entry._total.size)return;
-      var row=[mr.mn,SL[site]||site];
-      tdT.forEach(function(t){row.push(entry[t]?entry[t].size.toLocaleString('id-ID'):'—');});
-      row.push(entry._total.size.toLocaleString('id-ID'));
-      data4.push(row);
-    });
-  });
-  if(data4.length>1) sl4.addTable(data4,makeTableOpts([1.3,1.3,1.55,1.55,1.4,1.55,1.55,1.8]));
-
-  // ── SLIDE 5: Cost Analysis ──
-  var sl5 = prs.addSlide();
-  addHdr(sl5,'Cost Analysis',siteLabel+' · '+periode);
-  var hdr5 = hdrRow(['BULAN','SITE','TOTAL COST','UJP','PROF FEE','SEWA ARMADA','TRIP','COST/TRIP','COST/DO']);
-  var data5 = [hdr5];
-  allMonths.forEach(function(mo){
-    var mr = moRows(mo);
-    getSiteList().forEach(function(site){
-      var moF = filterRows(ROWS,mr.d1,mr.d2,site);
-      var sub=SUB_SITES[site];
-      var sr=(site==='NDC_RDC'||site==='NDC'||site==='RDC')?moF:moF.filter(function(r){return r.site===(sub?sub.baseSite:site);});
-      var c=computeCost(sr); if(!c||!c.cost)return;
-      data5.push([mr.mn,SL[site]||site,fmtRp(c.cost),fmtRp(c.ujp),fmtRp(c.pf),fmtRp(c.sewa),c.trip.toLocaleString('id-ID'),fmtRp(c.costTrip),fmtRp(c.costDo)]);
-    });
-  });
-  if(data5.length>1) sl5.addTable(data5,makeTableOpts([1.2,1.2,1.6,1.4,1.3,1.5,1.0,1.5,1.5]));
-
-  var fname='NDC_RDC_'+siteLabel.replace(/\s/g,'_')+'_'+s.slice(0,7)+'_'+e.slice(0,7)+'.pptx';
+  var fname='TOP_'+siteLabel.replace(/\s/g,'_')+'_'+s.slice(0,7)+'_'+e.slice(0,7)+'.pptx';
   prs.writeFile({fileName:fname}).then(function(){
     document.getElementById('pptStatus').textContent='✅ Downloaded: '+fname;
   }).catch(function(err){
