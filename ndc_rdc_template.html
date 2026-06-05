@@ -1501,35 +1501,8 @@ function filterUtilRows(start, end, site) {
     return true;
   });
 
-  function mergeRows(rowSet) {
-    if(site !== 'JABABEKA' || srcSites.length <= 1) return rowSet;
-    var byDate = {};
-    rowSet.forEach(function(r) {
-      if(!byDate[r.date]) byDate[r.date] = [];
-      byDate[r.date].push(r);
-    });
-    var merged = [];
-    Object.keys(byDate).sort().forEach(function(date) {
-      var dayRows = byDate[date];
-      function sumF(key) { return dayRows.reduce(function(s,r){ return s+(r[key]||0); },0); }
-      function sumFN(key) {
-        var vals = dayRows.map(function(r){ return r[key]; }).filter(function(v){ return v!=null; });
-        return vals.length ? vals.reduce(function(s,v){ return s+v; },0) : null;
-      }
-      var ahi = dayRows.find(function(r){ return r.site==='AHI JABABEKA'; });
-      var hci = dayRows.find(function(r){ return r.site==='HCI JABABEKA'; });
-      function getA(r) { return !r?0:(r.arm_assets!=null?r.arm_assets:(r.arm_avail||0)); }
-      merged.push({ site:'JABABEKA', date:date,
-        drv_plan:sumF('drv_plan'), drv_aktual:sumF('drv_aktual'),
-        ast_plan:sumF('ast_plan'), ast_aktual:sumF('ast_aktual'),
-        arm_assets: getA(hci)+getA(ahi)||null,
-        arm_avail: sumFN('arm_avail'), arm_util: sumFN('arm_util'),
-      });
-    });
-    return merged;
-  }
-
-  // For JABABEKA (HCI+AHI combined): sum per day (capacity is additive)
+  // For group sites (NDC_RDC, NDC, RDC) — no merge, treat each site separately
+  // computeUtil will handle averaging across all sites
   if(site === 'JABABEKA' && srcSites.length > 1) {
     var byDate = {};
     rows.forEach(function(r) {
@@ -1562,7 +1535,7 @@ function filterUtilRows(start, end, site) {
         arm_util:   sumFNullable('arm_util'),
       });
     });
-    return {rows: merged, allRows: mergeRows(allRows)};
+    return {rows: merged, allRows: merged};
   }
   return {rows: rows, allRows: allRows};
 }
@@ -1632,8 +1605,20 @@ function buildMonthlyUtilTable(container) {
     var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
     var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
     SITES_LIST.forEach(function(site) {
-      var result = filterUtilRows(moD1, moD2, site);
-      allData[mo+'|'+site] = result.rows.length ? computeUtil(result.rows, result.allRows) : null;
+      var groupSites = site==='NDC_RDC' ? SITES : site==='NDC' ? SITES_NDC : site==='RDC' ? SITES_RDC : null;
+      if(groupSites) {
+        // Aggregate all sites in group
+        var allR = [], filtR = [];
+        groupSites.forEach(function(s) {
+          var r = filterUtilRows(moD1, moD2, s);
+          filtR = filtR.concat(r.rows);
+          allR = allR.concat(r.allRows);
+        });
+        allData[mo+'|'+site] = filtR.length ? computeUtil(filtR, allR) : null;
+      } else {
+        var result = filterUtilRows(moD1, moD2, site);
+        allData[mo+'|'+site] = result.rows.length ? computeUtil(result.rows, result.allRows) : null;
+      }
     });
   });
 
@@ -1769,8 +1754,13 @@ function buildCostTable(container) {
     SITES_LIST.forEach(function(site) {
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var sub=SUB_SITES[site];
-      var effectiveSite=sub?sub.baseSite:site;
-      var sr=moFiltered.filter(r=>r.site===effectiveSite);
+      var sr;
+      if(site==='NDC_RDC'||site==='NDC'||site==='RDC') {
+        sr=moFiltered;
+      } else {
+        var effectiveSite=sub?sub.baseSite:site;
+        sr=moFiltered.filter(r=>r.site===effectiveSite);
+      }
       if(!sr.length) return;
       moData[mo+'|'+site]=computeCost(sr);
     });
@@ -2099,8 +2089,13 @@ function buildCostBySegment(container) {
     SITES_LIST.forEach(function(site) {
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var sub=SUB_SITES[site];
-      var effectiveSite=sub?sub.baseSite:site;
-      var sr=moFiltered.filter(r=>r.site===effectiveSite);
+      var sr;
+      if(site==='NDC_RDC'||site==='NDC'||site==='RDC') {
+        sr=moFiltered;
+      } else {
+        var effectiveSite=sub?sub.baseSite:site;
+        sr=moFiltered.filter(r=>r.site===effectiveSite);
+      }
       if(!sr.length) return;
       // Group by td
       var byTd={};
@@ -2187,8 +2182,13 @@ function buildMonthlyTripTypeTable(container) {
     SITES_LIST.forEach(function(site) {
       var moFiltered = filterRows(ROWS, moD1, moD2, site);
       var sub = SUB_SITES[site];
-      var effectiveSite = sub ? sub.baseSite : site;
-      var sr = moFiltered.filter(r => r.site === effectiveSite);
+      var sr;
+      if(site==='NDC_RDC'||site==='NDC'||site==='RDC') {
+        sr = moFiltered; // already filtered by group
+      } else {
+        var effectiveSite = sub ? sub.baseSite : site;
+        sr = moFiltered.filter(r => r.site === effectiveSite);
+      }
       if (!sr.length) return;
       var entry = { _total: new Set() };
       sr.forEach(r => {
