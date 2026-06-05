@@ -1617,7 +1617,7 @@ function buildMonthlyUtilTable(container) {
   var allMonths = [...new Set(UTIL_ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite === 'ALL' ? SITES : [currentSite];
+  var SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
 
   // Compute per month per site
   var allData = {};
@@ -1752,7 +1752,7 @@ function buildCostTable(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+  var SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
 
   // ── MONTHLY TABLE ──
   var moData = {};
@@ -1978,7 +1978,7 @@ function buildCostBySegment(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+  var SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
 
   // Collect all td types
   var tdSet = new Set();
@@ -2065,7 +2065,7 @@ function buildCostBySegment(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL' ? SITES : [currentSite];
+  var SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
 
   // TD normalization (same as trip type table)
   function normTd(td) {
@@ -2166,7 +2166,7 @@ function buildMonthlyTripTypeTable(container) {
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const {start: fs, end: fe} = getRange();
   const allMonths = [...new Set(ROWS.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
-  const SITES_LIST = currentSite === 'ALL' ? SITES : [currentSite];
+  const SITES_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES : currentSite==='NDC' ? SITES_NDC : currentSite==='RDC' ? SITES_RDC : [currentSite];
 
   // ── 1. Discover all unique r.td values present in data ──
   const tdSet = new Set();
