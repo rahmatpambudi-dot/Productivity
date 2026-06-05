@@ -2426,10 +2426,11 @@ function generatePPT() {
   var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   var siteLabel = currentSite==='ALL'?'Semua Site':currentSite==='NDC_RDC'?'NDC & RDC':currentSite==='NDC'?'NDC':currentSite==='RDC'?'RDC':(SL[currentSite]||currentSite);
 
-  // Get all months up to filter end
-  var allMonths = [...new Set(ROWS.map(function(r){return r.date?r.date.slice(0,7):null;}).filter(Boolean))].sort();
+  // Only months within filter range
+  var fsMonth = s.slice(0,7);
   var feMonth = e.slice(0,7);
-  allMonths = allMonths.filter(function(mo){return mo<=feMonth;});
+  var allMonths = [...new Set(ROWS.map(function(r){return r.date?r.date.slice(0,7):null;}).filter(Boolean))].sort();
+  allMonths = allMonths.filter(function(mo){return mo>=fsMonth && mo<=feMonth;});
 
   // BU definitions
   var BU_MAP = {
