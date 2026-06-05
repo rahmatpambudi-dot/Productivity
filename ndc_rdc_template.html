@@ -1432,27 +1432,22 @@ const UTIL_SUBSITE_MAP = {
 // ── National holidays Indonesia 2026 (exclude from utilisasi) ──
 const HOLIDAYS_2026 = new Set([
   '2026-01-01', // Tahun Baru
-  '2026-01-27', // Isra Miraj
-  '2026-01-29', // Tahun Baru Imlek
-  '2026-03-20', // Hari Raya Nyepi
-  '2026-03-21', // Idul Fitri
-  '2026-03-22', // Idul Fitri
-  '2026-03-23', // Cuti Bersama Idul Fitri
-  '2026-03-24', // Cuti Bersama Idul Fitri
-  '2026-03-25', // Cuti Bersama Idul Fitri
-  '2026-03-26', // Cuti Bersama Idul Fitri
-  '2026-04-03', // Wafat Isa Almasih
+  '2026-01-16', // Isra Mi'raj
+  '2026-02-17', // Imlek
+  '2026-03-19', // Nyepi
+  '2026-03-21', // Idulfitri
+  '2026-03-22', // Idulfitri
+  '2026-04-03', // Wafat Yesus Kristus
+  '2026-04-05', // Paskah
   '2026-05-01', // Hari Buruh
-  '2026-05-14', // Kenaikan Isa Almasih
-  '2026-05-20', // Hari Kebangkitan Nasional (cuti bersama)
-  '2026-05-29', // Waisak
-  '2026-06-01', // Hari Pancasila
-  '2026-06-06', // Idul Adha
-  '2026-06-26', // Tahun Baru Islam
-  '2026-08-17', // HUT RI
-  '2026-09-04', // Maulid Nabi
+  '2026-05-14', // Kenaikan Yesus Kristus
+  '2026-05-27', // Idul Adha
+  '2026-05-31', // Waisak
+  '2026-06-01', // Hari Lahir Pancasila
+  '2026-06-16', // Tahun Baru Islam
+  '2026-08-17', // Proklamasi Kemerdekaan
+  '2026-08-25', // Maulid Nabi
   '2026-12-25', // Natal
-  '2026-12-26', // Cuti Bersama Natal
 ]);
 
 // ── Per-site DOW exclusions (based on arm_util drop >15% vs weekday baseline) ──
@@ -1484,10 +1479,11 @@ function filterUtilRows(start, end, site) {
     return srcSites.includes(r.site);
   });
 
-  // ACTIVE rows — exclude tanggal merah (arm_util null atau 0)
+  // ACTIVE rows — exclude tanggal merah (holidays) & hari idle (arm_util null/0)
   var rows = UTIL_ROWS.filter(function(r) {
     if(!r.date || r.date < start || r.date > end) return false;
     if(!srcSites.includes(r.site)) return false;
+    if(HOLIDAYS_2026.has(r.date)) return false;
     return r.arm_util != null && r.arm_util > 0;
   });
 
