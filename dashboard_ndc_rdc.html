@@ -2447,15 +2447,34 @@ function generatePPT() {
   prs.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 inches
   var CLR_TEXT='0f172a', CLR_GRAY='64748b', CLR_HDR='1e2a3a', CLR_GREEN='166534';
 
+  // Cache results to avoid recomputing
+  var _resCache = {};
   function getRes(buKey, mo) {
+    var cacheKey = buKey+'|'+mo;
+    if(_resCache[cacheKey] !== undefined) return _resCache[cacheKey];
     var dIM = new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
     var d1 = mo+'-'+String(parseInt(s.slice(8,10))).padStart(2,'0');
     var d2 = mo+'-'+String(Math.min(parseInt(e.slice(8,10)),dIM)).padStart(2,'0');
     var moF = filterRows(ROWS,d1,d2,buKey);
     var sub = SUB_SITES[buKey];
     var sr = sub ? moF : moF.filter(function(r){return r.site===(buKey==='JABABEKA'||buKey==='SDA'||buKey==='CIKUPA'||buKey==='TALLO'||buKey==='TAMORA'?buKey:buKey);});
-    return computeSite(sr.length?sr:moF, buKey);
+    var result = computeSite(sr.length?sr:moF, buKey);
+    _resCache[cacheKey] = result;
+    return result;
   }
+
+  // Pre-cache all results upfront
+  function preCacheAll() {
+    var months = allMonths.concat(allMonths.map(function(mo,i){return i>0?allMonths[i-1]:null;}).filter(Boolean));
+    var uniqueMonths = [...new Set(months)];
+    SITE_LIST.forEach(function(site){
+      var bus = BU_MAP[site]||[{key:site,label:'Corporate'}];
+      bus.forEach(function(bu){
+        uniqueMonths.forEach(function(mo){ getRes(bu.key, mo); });
+      });
+    });
+  }
+  preCacheAll();
 
   function fmtV(v, type) {
     if(v==null) return '—';
