@@ -531,8 +531,6 @@ function computeSite(rows, site) {
     return r.sa.includes('DALAM KOTA');
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=(isCIK?12:24));
   const totalCbmStore = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
-  const totalDoCust = ssum(drR.map(r=>parseFloat(r.do)||0));
-  const totalDpCust = ssum(drR.map(r=>parseFloat(r.dp)||0));
   // DO/Trip Customer — no filter (all td=customer, all kat, all ta)
   const drAll = srMain.filter(r => r.td === 'customer');
   const doTrAll = drAll.map(r=>parseFloat(r.do)||0);
@@ -541,6 +539,9 @@ function computeSite(rows, site) {
   const doAllSum = ssum(doTrAll);
   const tripAllCount = Object.values(lcByDate).reduce(function(s,v){return s+v.lc.size;},0);
   const doTripAll = tripAllCount>0 ? doAllSum/tripAllCount : null;
+  // totalDoCust & totalDpCust — all customer (no filter)
+  const totalDoCust = ssum(drAll.map(r=>parseFloat(r.do)||0));
+  const totalDpCust = ssum(drAll.map(r=>parseFloat(r.dp)||0));
   return {
     site, label: SL[site]||site,
     ritase: avg(ritVals), olf: oM>0?oL/oM:null,
