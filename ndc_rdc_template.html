@@ -2405,189 +2405,192 @@ function renderSlide(results, summary, start, end) {
 
 function generatePPT() {
   if(typeof PptxGenJS === 'undefined') { document.getElementById('pptStatus').textContent = '❌ Library belum load, refresh dulu'; return; }
-  document.getElementById('pptStatus').textContent = '⏳ Generating slides...';
+  document.getElementById('pptStatus').textContent = '⏳ Generating...';
 
   var {start:s, end:e} = getRange();
   var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   var siteLabel = currentSite==='ALL'?'Semua Site':currentSite==='NDC_RDC'?'NDC & RDC':currentSite==='NDC'?'NDC':currentSite==='RDC'?'RDC':(SL[currentSite]||currentSite);
 
-  // Build list of all months in range
+  // Get all months up to filter end
   var allMonths = [...new Set(ROWS.map(function(r){return r.date?r.date.slice(0,7):null;}).filter(Boolean))].sort();
   var feMonth = e.slice(0,7);
   allMonths = allMonths.filter(function(mo){return mo<=feMonth;});
 
-  // BU list per site
+  // BU definitions
   var BU_MAP = {
-    'JABABEKA': [
-      {key:'JABABEKA', label:'Corporate'},
-      {key:'JAB_HCI', label:'HCI'},
-      {key:'JAB_AHI', label:'AHI'},
-      {key:'JAB_FBI', label:'FBI'},
-      {key:'JAB_KLS', label:'KLS'},
-    ],
-    'SDA': [
-      {key:'SDA', label:'Corporate'},
-      {key:'SDA_HCI', label:'HCI'},
-      {key:'SDA_AHI', label:'AHI'},
-      {key:'SDA_FBI', label:'FBI'},
-    ],
-    'CIKUPA':  [{key:'CIKUPA', label:'Corporate'}],
-    'TALLO':   [{key:'TALLO',  label:'Corporate'}],
-    'TAMORA':  [{key:'TAMORA', label:'Corporate'}],
+    'JABABEKA': [{key:'JABABEKA',label:'Corporate'},{key:'JAB_HCI',label:'HCI'},{key:'JAB_AHI',label:'AHI'},{key:'JAB_FBI',label:'FBI'},{key:'JAB_KLS',label:'KLS'}],
+    'SDA':      [{key:'SDA',label:'Corporate'},{key:'SDA_HCI',label:'HCI'},{key:'SDA_AHI',label:'AHI'},{key:'SDA_FBI',label:'FBI'}],
+    'CIKUPA':   [{key:'CIKUPA',label:'Corporate'}],
+    'TALLO':    [{key:'TALLO',label:'Corporate'}],
+    'TAMORA':   [{key:'TAMORA',label:'Corporate'}],
   };
 
-  // Get sites to process
-  var SITE_LIST = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES :
-    currentSite==='NDC' ? SITES_NDC :
-    currentSite==='RDC' ? SITES_RDC :
-    SUB_SITES[currentSite] ? [SUB_SITES[currentSite].baseSite] : [currentSite];
+  var SITE_LIST = currentSite==='ALL'||currentSite==='NDC_RDC'?SITES:currentSite==='NDC'?SITES_NDC:currentSite==='RDC'?SITES_RDC:SUB_SITES[currentSite]?[SUB_SITES[currentSite].baseSite]:[currentSite];
 
   var prs = new PptxGenJS();
-  prs.layout = 'LAYOUT_WIDE';
+  prs.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 inches
   var CLR_TEXT='0f172a', CLR_GRAY='64748b', CLR_HDR='1e2a3a', CLR_GREEN='166534';
 
-  function addHdr(slide, site, bu, mo, prevMo) {
-    var moLabel = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
-    var prevLabel = prevMo ? moNames[parseInt(prevMo.slice(5,7))-1]+' '+prevMo.slice(0,4) : '—';
-    slide.addText('Kawan Lama Group', {x:0.3,y:0.08,w:5,h:0.2,fontSize:8,color:'94a3b8'});
-    slide.addText('Transport Operations Performance', {x:0.3,y:0.26,w:8,h:0.3,fontSize:13,bold:true,color:CLR_TEXT});
-    slide.addText(site+' · '+bu, {x:0.3,y:0.54,w:8,h:0.25,fontSize:10,color:CLR_GREEN,bold:true});
-    // Month badge
-    slide.addText(moLabel, {x:9.5,y:0.1,w:3.5,h:0.35,fontSize:14,bold:true,color:'ffffff',align:'center',fill:{type:'solid',color:CLR_HDR},rectRadius:0.05});
-    slide.addText('vs '+prevLabel, {x:9.5,y:0.45,w:3.5,h:0.22,fontSize:9,color:CLR_GRAY,align:'center'});
-    slide.addShape(prs.ShapeType.line,{x:0.3,y:0.82,w:12.7,h:0,line:{color:'e2e8f0',width:0.75}});
+  function getRes(buKey, mo) {
+    var dIM = new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
+    var d1 = mo+'-'+String(parseInt(s.slice(8,10))).padStart(2,'0');
+    var d2 = mo+'-'+String(Math.min(parseInt(e.slice(8,10)),dIM)).padStart(2,'0');
+    var moF = filterRows(ROWS,d1,d2,buKey);
+    var sub = SUB_SITES[buKey];
+    var sr = sub ? moF : moF.filter(function(r){return r.site===(buKey==='JABABEKA'||buKey==='SDA'||buKey==='CIKUPA'||buKey==='TALLO'||buKey==='TAMORA'?buKey:buKey);});
+    return computeSite(sr.length?sr:moF, buKey);
   }
 
-  function hdrRow(cells) {
-    return cells.map(function(c){return {text:c,options:{bold:true,color:'ffffff',fill:{type:'solid',color:CLR_HDR},align:'center',fontSize:7.5,fontFace:'Calibri'}};});
+  function fmtV(v, type) {
+    if(v==null) return '—';
+    if(type==='pct') return (v*100).toFixed(1)+'%';
+    if(type==='tat') return tatStr(v);
+    if(type==='int') return Math.round(v).toLocaleString('id-ID');
+    return v.toFixed(type||1);
   }
 
-  function valCell(v, prev, higherBetter, isPercent, isTAT) {
-    var txt = v!=null?v:'—';
-    var mom = '';
-    if(v!=null && prev!=null) {
-      var diff = (isTAT ? v-prev : v-prev);
-      if(Math.abs(diff) > 0.001) {
-        var good = higherBetter ? diff>0 : diff<0;
-        var arrow = diff>0?'▲':'▼';
-        var clr = good?'166534':'b91c1c';
-        var diffStr = isTAT ? tatStr(Math.abs(diff)) : (isPercent?(Math.abs(diff)*100).toFixed(1)+'%':Math.abs(diff)<10?Math.abs(diff).toFixed(1):Math.round(Math.abs(diff)).toLocaleString('id-ID'));
-        mom = '\n'+arrow+' '+diffStr;
-      }
-    }
-    return {text:txt+(mom?mom:''), options:{fontSize:7.5,fontFace:'Calibri',align:'center',color:CLR_TEXT,paraSpaceAfter:0}};
+  function delta(cur, prev, type, hiGood) {
+    if(cur==null||prev==null) return '';
+    var d = cur-prev;
+    if(Math.abs(d)<0.001) return '';
+    var good = hiGood ? d>0 : d<0;
+    var arrow = d>0?'▲':'▼';
+    var color = good?'0f9d58':'d93025';
+    var abs = Math.abs(d);
+    var str;
+    if(type==='pct') str=(abs*100).toFixed(1)+'%';
+    else if(type==='tat'){var h=Math.floor(abs),m=Math.round((abs-h)*60);str=(h>0?h+'j ':'')+m+'m';}
+    else if(type==='int') str=Math.round(abs).toLocaleString('id-ID');
+    else str=abs<10?abs.toFixed(1):Math.round(abs).toString();
+    return {text:arrow+' '+str, color:color};
   }
 
-  function makeTableOpts(x,y,w,colW) {
-    return {x:x,y:y,w:w,colW:colW,fontSize:7.5,fontFace:'Calibri',rowH:0.3,
-      border:{type:'solid',pt:0.5,color:'e2e8f0'},align:'center',valign:'middle',color:CLR_TEXT};
+  function cell(txt, bold, color, align) {
+    return {text:txt||'—', options:{fontSize:7.5,fontFace:'Calibri',bold:!!bold,color:color||CLR_TEXT,align:align||'center',valign:'middle'}};
+  }
+
+  function hdr(txt, color) {
+    return {text:txt, options:{fontSize:7.5,fontFace:'Calibri',bold:true,color:'ffffff',fill:{type:'solid',color:color||CLR_HDR},align:'center',valign:'middle'}};
+  }
+
+  function deltaCell(d) {
+    if(!d) return cell('—',false,CLR_GRAY);
+    return {text:d.text, options:{fontSize:7,fontFace:'Calibri',bold:true,color:d.color,align:'center',valign:'middle'}};
   }
 
   // ── SLIDE 1: COVER ──
   var cov = prs.addSlide();
-  cov.background = {color:'1e2a3a'};
+  cov.background={color:'1e2a3a'};
   cov.addText('Kawan Lama Group',{x:0.5,y:1.5,w:12.3,h:0.4,fontSize:13,color:'94a3b8',align:'center'});
   cov.addText('Transport Operations Performance',{x:0.5,y:2.0,w:12.3,h:0.65,fontSize:24,bold:true,color:'ffffff',align:'center'});
   cov.addText(siteLabel,{x:0.5,y:2.75,w:12.3,h:0.5,fontSize:18,bold:true,color:'86efac',align:'center'});
-  var d1=new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-  var d2=new Date(e).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
-  cov.addText(d1+' s/d '+d2,{x:0.5,y:3.3,w:12.3,h:0.35,fontSize:12,color:'94a3b8',align:'center'});
-  // List BU content
-  var covRows = [];
-  SITE_LIST.forEach(function(site){
-    var bus = BU_MAP[site]||[{key:site,label:'Corporate'}];
-    bus.forEach(function(bu){covRows.push({text:SL[site]||site,options:{fontSize:9,color:'94a3b8',bold:false}}+' '+bu.label);});
-  });
-  cov.addText('Slide per BU: '+SITE_LIST.map(function(s){return (BU_MAP[s]||[{label:'Corporate'}]).map(function(b){return (SL[s]||s)+' '+b.label;}).join(', ');}).join(' · '),
-    {x:0.5,y:4.0,w:12.3,h:0.5,fontSize:9,color:'475569',align:'center'});
+  var d1f=new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  var d2f=new Date(e).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+  cov.addText(d1f+' s/d '+d2f,{x:0.5,y:3.3,w:12.3,h:0.35,fontSize:12,color:'94a3b8',align:'center'});
 
-  // ── PER SITE → PER BU → PER MONTH ──
+  // METRICS definition
+  var METRICS = [
+    {label:'Ritase',          key:'ritase',        type:1,    tgt:1.15, hi:true},
+    {label:'OLF (Store)',     key:'olf',           type:'pct',tgt:0.85, hi:true},
+    {label:'DP (Store)',      key:'dpStore',       type:1,    tgt:null, hi:true},
+    {label:'DP (Mix)',        key:'dpMix',         type:1,    tgt:8.0,  hi:true},
+    {label:'DP Non Reg',      key:'dpNonReg',      type:1,    tgt:null, hi:true},
+    {label:'DP (Regular)',    key:'dpReg',         type:1,    tgt:8.0,  hi:true},
+    {label:'DO/Trip (Reg)',   key:'doTrip',        type:1,    tgt:11.0, hi:true},
+    {label:'DO/Trip (Mix)',   key:'doTripAll',     type:1,    tgt:null, hi:true},
+    {label:'TAT Direct',      key:'tatDirect',     type:'tat',tgt:null, hi:false},
+    {label:'TAT Store',       key:'tatStore',      type:'tat',tgt:null, hi:false},
+    {label:'CBM Store',       key:'totalCbmStore', type:'int',tgt:null, hi:true},
+    {label:'DO Customer',     key:'totalDoCust',   type:'int',tgt:null, hi:true},
+    {label:'DP Customer',     key:'totalDpCust',   type:'int',tgt:null, hi:true},
+  ];
+
+  // ── PER SITE → 1 SLIDE PER MONTH ──
   SITE_LIST.forEach(function(site) {
-    var bus = BU_MAP[site] || [{key:site, label:'Corporate'}];
-    bus.forEach(function(bu) {
-      allMonths.forEach(function(mo, moIdx) {
-        var prevMo = moIdx > 0 ? allMonths[moIdx-1] : null;
-        var dIM = new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-        var d1c = mo+'-'+String(parseInt(s.slice(8,10))).padStart(2,'0');
-        var d2c = mo+'-'+String(Math.min(parseInt(e.slice(8,10)),dIM)).padStart(2,'0');
-        var moF = filterRows(ROWS,d1c,d2c,bu.key);
-        var sub = SUB_SITES[bu.key];
-        var sr = sub ? moF : (bu.key==='JABABEKA'||bu.key==='SDA'||bu.key==='CIKUPA'||bu.key==='TALLO'||bu.key==='TAMORA') ? moF.filter(function(r){return r.site===bu.key;}) : moF;
-        var res = computeSite(sr.length?sr:moF, bu.key); if(!res||!res.rowCount) return;
+    var bus = BU_MAP[site] || [{key:site,label:'Corporate'}];
 
-        var prevRes = null;
-        if(prevMo) {
-          var pIM=new Date(parseInt(prevMo.slice(0,4)),parseInt(prevMo.slice(5,7)),0).getDate();
-          var pd1=prevMo+'-'+String(parseInt(s.slice(8,10))).padStart(2,'0');
-          var pd2=prevMo+'-'+String(Math.min(parseInt(e.slice(8,10)),pIM)).padStart(2,'0');
-          var pF=filterRows(ROWS,pd1,pd2,bu.key);
-          var pSr=sub?pF:(bu.key==='JABABEKA'||bu.key==='SDA'||bu.key==='CIKUPA'||bu.key==='TALLO'||bu.key==='TAMORA')?pF.filter(function(r){return r.site===bu.key;}):pF;
-          prevRes = computeSite(pSr.length?pSr:pF, bu.key);
-        }
-        var pr = prevRes || {};
+    allMonths.forEach(function(mo, moIdx) {
+      var prevMo = moIdx>0?allMonths[moIdx-1]:null;
+      var moLabel = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+      var prevLabel = prevMo?moNames[parseInt(prevMo.slice(5,7))-1]+' '+prevMo.slice(0,4):'—';
+      var siteName = SL[site]||site;
 
-        var sl = prs.addSlide();
-        addHdr(sl, SL[site]||site, bu.label, mo, prevMo);
+      var sl = prs.addSlide();
+      sl.background={color:'ffffff'};
 
-        // ── Section 1: Productivity Metrics ──
-        sl.addText('PRODUKTIVITAS',{x:0.3,y:0.9,w:4,h:0.2,fontSize:8,bold:true,color:CLR_GREEN});
-        var prodHdr = hdrRow(['METRIK','NILAI','vs PREV','TARGET','STATUS']);
-        var prodRows = [
-          ['OLF Store', res.olf!=null?(res.olf*100).toFixed(1)+'%':'—', prevRes&&prevRes.olf!=null?((res.olf-prevRes.olf)*100).toFixed(1)+'%':'—', '≥85%', res.olf!=null?(res.olf>=0.85?'✓':'✗'):'—'],
-          ['Ritase', res.ritase!=null?res.ritase.toFixed(2):'—', prevRes&&prevRes.ritase!=null?(res.ritase-prevRes.ritase).toFixed(2):'—', '≥1.15', res.ritase!=null?(res.ritase>=1.15?'✓':'✗'):'—'],
-          ['DO/Trip (Regular)', res.doTrip!=null?res.doTrip.toFixed(1):'—', prevRes&&prevRes.doTrip!=null?(res.doTrip-prevRes.doTrip).toFixed(1):'—', '≥11.0', res.doTrip!=null?(res.doTrip>=11?'✓':'✗'):'—'],
-          ['DO/Trip (Mix)', res.doTripAll!=null?res.doTripAll.toFixed(1):'—', prevRes&&prevRes.doTripAll!=null?(res.doTripAll-prevRes.doTripAll).toFixed(1):'—', '—', '—'],
-          ['DP Mix', res.dpMix!=null?res.dpMix.toFixed(1):'—', prevRes&&prevRes.dpMix!=null?(res.dpMix-prevRes.dpMix).toFixed(1):'—', '≥8.0', res.dpMix!=null?(res.dpMix>=8?'✓':'✗'):'—'],
-          ['DP Regular', res.dpReg!=null?res.dpReg.toFixed(1):'—', prevRes&&prevRes.dpReg!=null?(res.dpReg-prevRes.dpReg).toFixed(1):'—', '≥8.0', res.dpReg!=null?(res.dpReg>=8?'✓':'✗'):'—'],
-          ['TAT Direct', tatStr(res.tatDirect), prevRes&&prevRes.tatDirect!=null?tatStr(Math.abs(res.tatDirect-prevRes.tatDirect)):'—', '—', '—'],
-          ['TAT Store', tatStr(res.tatStore), prevRes&&prevRes.tatStore!=null?tatStr(Math.abs(res.tatStore-prevRes.tatStore)):'—', '—', '—'],
-          ['CBM Store', res.totalCbmStore!=null?res.totalCbmStore.toFixed(0):'—', prevRes&&prevRes.totalCbmStore!=null?(res.totalCbmStore-prevRes.totalCbmStore).toFixed(0):'—', '—', '—'],
-        ];
-        sl.addTable([prodHdr,...prodRows.map(function(r){return r.map(function(c,i){return {text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:i===0?'left':'center',color:i===4?(c==='✓'?'166534':c==='✗'?'b91c1c':CLR_TEXT):CLR_TEXT,bold:i===4&&c==='✗'}};});})],
-          makeTableOpts(0.3,1.1,6.1,[1.8,1.0,1.0,0.8,0.8]));
+      // Header
+      sl.addText('Kawan Lama Group',{x:0.25,y:0.08,w:5,h:0.18,fontSize:7.5,color:'94a3b8'});
+      sl.addText('Transport Operations Performance — '+siteName,{x:0.25,y:0.24,w:10,h:0.3,fontSize:13,bold:true,color:CLR_TEXT});
+      sl.addText(moLabel+' vs '+prevLabel,{x:0.25,y:0.52,w:10,h:0.22,fontSize:9,color:CLR_GRAY});
+      sl.addShape(prs.ShapeType.line,{x:0.25,y:0.77,w:12.83,h:0,line:{color:'e2e8f0',width:0.75}});
 
-        // ── Section 2: Utilisasi ──
-        sl.addText('UTILISASI MPP & ARMADA',{x:6.6,y:0.9,w:6,h:0.2,fontSize:8,bold:true,color:'7c3aed'});
-        var utilResult = null;
-        try {
-          var ur = filterUtilRows(d1c,d2c,bu.key);
-          utilResult = ur.rows.length?computeUtil(ur.rows,ur.allRows):null;
-        } catch(e){}
-        var utilRows2 = [
-          hdrRow(['METRIK','NILAI','vs PREV']),
-          ['UTL Driver', utilResult&&utilResult.drvUtil!=null?utilResult.drvUtil.toFixed(1)+'%':'—', '—'],
-          ['UTL Ast. Driver', utilResult&&utilResult.astUtil!=null?utilResult.astUtil.toFixed(1)+'%':'—', '—'],
-          ['Armada Assets', utilResult&&utilResult.armAssets!=null?Math.round(utilResult.armAssets).toString():'—', '—'],
-          ['Availability', utilResult&&utilResult.armAvailPct!=null?utilResult.armAvailPct.toFixed(1)+'%':'—', '—'],
-          ['UTL Armada', utilResult&&utilResult.armUtilPct!=null?utilResult.armUtilPct.toFixed(1)+'%':'—', '—'],
-        ];
-        sl.addTable(utilRows2.map(function(r,ri){return Array.isArray(r[0])?r:r.map(function(c,ci){return {text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:ci===0?'left':'center',color:CLR_TEXT}};});}),
-          makeTableOpts(6.6,1.1,6.1,[2.2,1.5,1.5]));
+      // ── TABLE: rows=METRIC, cols=BU pair (prev | cur | delta) ──
+      // Col widths: metric label (1.5) + per BU: prev(1.1) + cur(1.1) + delta(0.7) = 2.9
+      // Max BUs: 5 (Jababeka) → 1.5 + 5*2.9 = 16 → too wide for 13.33
+      // Use: metric(1.4) + per BU: prev(1.0) + cur(1.0) + delta(0.65) = 2.65
+      // 5 BU: 1.4 + 5*2.65 = 14.65 → still wide
+      // Limit display: metric(1.3) + BU(prev+cur+delta = 0.85+0.85+0.55=2.25)
+      // 5 BU: 1.3+5*2.25=12.55 ✓
 
-        // ── Section 3: Trip per Type ──
-        sl.addText('TRIP PER TYPE',{x:0.3,y:4.05,w:4,h:0.2,fontSize:8,bold:true,color:'1d4ed8'});
-        var tdTypes=['customer','store','hub','satelite','transfer'];
-        var entryNow={_total:new Set()};
-        sr.forEach(function(r){if(!r.lc)return;var td=(r.td||'').toLowerCase().trim();if(!td||td==='#n/a')return;if(td.includes('hub')&&td.includes('customer'))td='customer';entryNow._total.add(r.lc);if(!entryNow[td])entryNow[td]=new Set();entryNow[td].add(r.lc);});
-        var tripHdr=hdrRow(['TYPE','TRIP','%']);
-        var tripData=[tripHdr];
-        tdTypes.forEach(function(td){var cnt=entryNow[td]?entryNow[td].size:0;if(!cnt)return;var pct=entryNow._total.size>0?(cnt/entryNow._total.size*100).toFixed(1)+'%':'—';tripData.push([TD_LABEL[td]||td,cnt.toLocaleString('id-ID'),pct].map(function(c,i){return{text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:i===0?'left':'center',color:CLR_TEXT}};}));});
-        tripData.push(['TOTAL',entryNow._total.size.toLocaleString('id-ID'),'100%'].map(function(c,i){return{text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:i===0?'left':'center',color:CLR_TEXT,bold:true}};}));
-        sl.addTable(tripData, makeTableOpts(0.3,4.25,3.5,[1.8,1.0,0.8]));
+      var buW = 2.25; // width per BU group
+      var metW = 1.3;
+      var totalW = metW + bus.length*buW;
+      var x0 = (13.33-totalW)/2;
 
-        // ── Section 4: Cost ──
-        sl.addText('COST ANALYSIS',{x:4.1,y:4.05,w:4,h:0.2,fontSize:8,bold:true,color:'0369a1'});
-        var costNow=computeCost(sr);
-        var costRows2=[hdrRow(['METRIK','NILAI'])];
-        if(costNow&&costNow.cost){
-          [['Total Cost',fmtRp(costNow.cost)],['UJP',fmtRp(costNow.ujp)],['Prof Fee',fmtRp(costNow.pf)],['Sewa Armada',fmtRp(costNow.sewa)],['Cost/Trip',fmtRp(costNow.costTrip)],['Cost/DO',fmtRp(costNow.costDo)],['Cost/CBM',fmtRp(costNow.costCbm)]].forEach(function(r){costRows2.push(r.map(function(c,i){return{text:c+'',options:{fontSize:7.5,fontFace:'Calibri',align:i===0?'left':'right',color:CLR_TEXT}};}));});
-        }
-        sl.addTable(costRows2, makeTableOpts(4.1,4.25,5.4,[2.2,2.4]));
-
-        // Page number
-        sl.addText((SL[site]||site)+' · '+bu.label+' · '+moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4),
-          {x:0.3,y:7.2,w:12.7,h:0.2,fontSize:7,color:'cbd5e1',align:'left'});
+      // Build header rows
+      var hdrRow1 = [hdr('METRIK','2d3748')];
+      bus.forEach(function(bu){
+        hdrRow1.push({text:bu.label, options:{fontSize:8,fontFace:'Calibri',bold:true,color:'ffffff',fill:{type:'solid',color:CLR_HDR},align:'center',colspan:3}});
+        hdrRow1.push(null); hdrRow1.push(null); // colspan placeholders
       });
+
+      var hdrRow2 = [hdr('','2d3748')];
+      bus.forEach(function(bu){
+        hdrRow2.push(hdr(prevLabel,'374151'));
+        hdrRow2.push(hdr(moLabel,'166534'));
+        hdrRow2.push(hdr('Δ','64748b'));
+      });
+
+      // Build metric rows
+      var tableRows = [hdrRow1, hdrRow2];
+      METRICS.forEach(function(m) {
+        var row = [cell(m.label,true,CLR_TEXT,'left')];
+        bus.forEach(function(bu) {
+          var cur = getRes(bu.key, mo);
+          var prv = prevMo?getRes(bu.key, prevMo):null;
+          var curV = cur?cur[m.key]:null;
+          var prvV = prv?prv[m.key]:null;
+          var d = delta(curV, prvV, m.type, m.hi);
+          // Color cur value vs target
+          var curColor = CLR_TEXT;
+          if(m.tgt && curV!=null) {
+            var pct = m.hi ? curV/m.tgt : m.tgt/curV;
+            curColor = pct>=1.0?'166534':pct>=0.9?'92400e':'b91c1c';
+          }
+          row.push(cell(fmtV(prvV,m.type),false,CLR_GRAY));
+          row.push({text:fmtV(curV,m.type),options:{fontSize:7.5,fontFace:'Calibri',bold:true,color:curColor,align:'center',valign:'middle'}});
+          row.push(deltaCell(d));
+        });
+        tableRows.push(row);
+      });
+
+      // Col widths
+      var colW = [metW];
+      bus.forEach(function(){colW.push(0.75,0.85,0.65);});
+
+      sl.addTable(tableRows,{
+        x:x0, y:0.85, w:totalW,
+        colW:colW,
+        rowH:0.28,
+        fontSize:7.5,
+        fontFace:'Calibri',
+        border:{type:'solid',pt:0.5,color:'e2e8f0'},
+        align:'center',valign:'middle',
+        color:CLR_TEXT,
+      });
+
+      // Footer
+      sl.addText(siteName+' · '+moLabel+' vs '+prevLabel,{x:0.25,y:7.3,w:12.83,h:0.15,fontSize:6.5,color:'cbd5e1'});
     });
   });
 
