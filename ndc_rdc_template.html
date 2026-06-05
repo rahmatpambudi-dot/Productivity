@@ -1489,12 +1489,19 @@ function filterUtilRows(start, end, site) {
     return srcSites.includes(r.site);
   });
 
-  // ACTIVE rows — exclude holidays + Minggu (semua site) + arm_util null/0
+  // Per-site SO (Shut Out) dates — exclude dari UTL tapi bukan dari assets
+  var SO_DATES = {
+    'CORP SIDOARJO': new Set(['2026-05-20','2026-05-21','2026-05-22','2026-05-23']),
+  };
+
+  // ACTIVE rows — exclude holidays + Minggu (semua site) + SO dates + arm_util null/0
   var rows = UTIL_ROWS.filter(function(r) {
     if(!r.date || r.date < start || r.date > end) return false;
     if(!srcSites.includes(r.site)) return false;
     if(HOLIDAYS_2026.has(r.date)) return false;
     if(new Date(r.date).getDay()===0) return false; // Minggu
+    var soDates = SO_DATES[r.site];
+    if(soDates && soDates.has(r.date)) return false; // Shut Out
     return r.arm_util != null && r.arm_util > 0;
   });
 
