@@ -1633,7 +1633,7 @@ function buildMonthlyUtilTable(container) {
   function pfN(v) { return v!=null ? Math.round(v).toLocaleString('id-ID') : '—'; }
   function momBadge(cur, prev) {
     if(cur==null||prev==null) return '';
-    var d=cur-prev; if(Math.abs(d)<0.1) return '';
+    var d=cur-prev; if(Math.abs(d)<0.05) return '';
     var color=d>0?'#0f9d58':'#d93025';
     return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(1)+'%</span>';
   }
