@@ -1424,6 +1424,9 @@ const UTIL_SUBSITE_MAP = {
   'JAB_AHI': ['AHI JABABEKA'],
   'CIKUPA':  ['HCI CIKUPA'],
   'SDA':     ['CORP SIDOARJO'],
+  'SDA_HCI': null, // data utilisasi tidak tersedia per BU
+  'SDA_AHI': null,
+  'SDA_FBI': null,
   'TALLO':   ['CORP TALLO'],
   'TAMORA':  ['CORP TAMORA'],
   'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
@@ -1474,7 +1477,11 @@ const UTIL_EXCLUDE_HOLIDAYS = {
 };
 
 function filterUtilRows(start, end, site) {
-  var srcSites = UTIL_SUBSITE_MAP[site] || Object.keys(UTIL_SITE_MAP);
+  var srcSites = UTIL_SUBSITE_MAP[site];
+  // null = data tidak tersedia untuk sub-BU ini
+  if(srcSites === null) return {rows:[], allRows:[]};
+  // undefined = fallback semua site
+  if(srcSites === undefined) srcSites = Object.keys(UTIL_SITE_MAP);
 
   // ALL rows in range — untuk assets (semua hari, assets = fixed)
   var allRows = UTIL_ROWS.filter(function(r) {
