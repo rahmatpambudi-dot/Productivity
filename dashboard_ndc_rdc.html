@@ -1479,13 +1479,12 @@ function filterUtilRows(start, end, site) {
     return srcSites.includes(r.site);
   });
 
-  // ACTIVE rows — exclude holidays + Minggu per site + arm_util null/0
-  var SUNDAY_EXCLUDE = ['AHI JABABEKA','HCI CIKUPA','CORP SIDOARJO','CORP TAMORA'];
+  // ACTIVE rows — exclude holidays + Minggu (semua site) + arm_util null/0
   var rows = UTIL_ROWS.filter(function(r) {
     if(!r.date || r.date < start || r.date > end) return false;
     if(!srcSites.includes(r.site)) return false;
     if(HOLIDAYS_2026.has(r.date)) return false;
-    if(SUNDAY_EXCLUDE.includes(r.site) && new Date(r.date).getDay()===0) return false;
+    if(new Date(r.date).getDay()===0) return false; // Minggu
     return r.arm_util != null && r.arm_util > 0;
   });
 
