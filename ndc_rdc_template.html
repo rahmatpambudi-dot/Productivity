@@ -1478,31 +1478,19 @@ const UTIL_EXCLUDE_HOLIDAYS = {
 function filterUtilRows(start, end, site) {
   var srcSites = UTIL_SUBSITE_MAP[site] || Object.keys(UTIL_SITE_MAP);
 
-  // ALL rows in range — for assets (tidak filter DOW/holiday)
+  // ALL rows in range — untuk assets (semua hari, assets = fixed)
   var allRows = UTIL_ROWS.filter(function(r) {
-    if(!r.date) return false;
-    if(r.date < start || r.date > end) return false;
+    if(!r.date || r.date < start || r.date > end) return false;
     return srcSites.includes(r.site);
   });
 
-  // FILTERED rows — untuk UTL/Avail/MPP (exclude DOW/holiday)
+  // ACTIVE rows — exclude tanggal merah (arm_util null atau 0)
   var rows = UTIL_ROWS.filter(function(r) {
-    if(!r.date) return false;
-    if(r.date < start || r.date > end) return false;
+    if(!r.date || r.date < start || r.date > end) return false;
     if(!srcSites.includes(r.site)) return false;
-    if(HOLIDAYS_2026.has(r.date)) return false;
-    var siteHolidays = UTIL_EXCLUDE_HOLIDAYS[r.site];
-    if(siteHolidays && siteHolidays.has(r.date)) return false;
-    var excl = UTIL_EXCLUDE_DOW[r.site];
-    if(excl && excl.length) {
-      var dow = new Date(r.date).getDay();
-      if(excl.includes(dow)) return false;
-    }
-    return true;
+    return r.arm_util != null && r.arm_util > 0;
   });
 
-  // For group sites (NDC_RDC, NDC, RDC) — no merge, treat each site separately
-  // computeUtil will handle averaging across all sites
   if(site === 'JABABEKA' && srcSites.length > 1) {
     var byDate = {};
     rows.forEach(function(r) {
