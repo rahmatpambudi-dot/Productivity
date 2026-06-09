@@ -81,6 +81,7 @@ def map_cols(headers):
         "profFee":     find("PROF FEE"),
         "sewaArmada":  find("SEWA ARMADA"),
         "drvId":       find("DRIVERID", "DRIVER ID", "DRIVER_ID"),
+        "crewId":      find("CREW1ID", "CREW 1 ID", "CREW1 ID", "CREW_1_ID"),
     }
 
 def parse_date_str(s):
@@ -144,7 +145,8 @@ def slim_row(r, cols, sheet_name, site):
         "cost":  to_float(cell(r, cols["totalCost"])) if cols.get("totalCost",-1) >= 0 else None,
         "pf":    to_float(cell(r, cols["profFee"])) if cols.get("profFee",-1) >= 0 else None,
         "sewa":  to_float(cell(r, cols["sewaArmada"])) if cols.get("sewaArmada",-1) >= 0 else None,
-        "drvId": cell(r, cols["drvId"]).upper() if cols.get("drvId",-1) >= 0 else "",
+        "drvId":  cell(r, cols["drvId"]).upper()  if cols.get("drvId",-1)  >= 0 else "",
+        "crewId": cell(r, cols["crewId"]).upper() if cols.get("crewId",-1) >= 0 else "",
     }
 
 def parse_tat_py(s):
@@ -357,7 +359,7 @@ def compute_fbi_kls_util_by_date(all_rows):
     }
     KLS_EXCLUDE = HOLIDAYS | KLS_CUTI
 
-    buckets = defaultdict(lambda: {'drvid': set(), 'nopol': set()})
+    buckets = defaultdict(lambda: {'drvid': set(), 'nopol': set(), 'crewid': set()})
 
     for r in all_rows:
         date  = r.get('date')
@@ -366,6 +368,7 @@ def compute_fbi_kls_util_by_date(all_rows):
 
         nopol = (r.get('nopol') or '').strip().upper()
         drvid = r.get('drvId', '')
+        crewid = r.get('crewId', '')
 
         if nopol in FBI_NOPOL:
             bu = 'JAB_FBI'
@@ -388,15 +391,18 @@ def compute_fbi_kls_util_by_date(all_rows):
 
         if nopol: buckets[(bu, date)]['nopol'].add(nopol)
         if drvid: buckets[(bu, date)]['drvid'].add(drvid)
+        if crewid: buckets[(bu, date)]['crewid'].add(crewid)
 
     result = {}
     for (bu, date), v in buckets.items():
         drv_cnt   = len(v['drvid'])
         nopol_cnt = len(v['nopol'])
+        crew_cnt  = len(v['crewid'])
         result[(bu, date)] = {
             'drv_aktual':   drv_cnt,
             'drv_plan':     drv_cnt,
             'nopol_aktual': nopol_cnt,
+            'crew_aktual':  crew_cnt if bu == 'JAB_KLS' else 0,  # FBI no Ast.Driver
         }
     return result
 
@@ -585,7 +591,7 @@ def build():
         '2026-06-02','2026-06-03','2026-06-04','2026-06-05','2026-06-08',
     }
     KLS_EXCLUDE = HOLIDAYS_2026 | KLS_CUTI
-    fbi_buckets = defaultdict(lambda: {'lc': set(), 'nopol': set(), 'drvid': set()})
+    fbi_buckets = defaultdict(lambda: {'lc': set(), 'nopol': set(), 'drvid': set(), 'crewid': set()})
     for r in all_rows:
         date  = r.get('date')
         if not date: continue
@@ -606,10 +612,11 @@ def build():
         if bu == 'JAB_KLS':
             if dow >= 5: continue
             if date in KLS_EXCLUDE: continue
-        lc = r.get('lc',''); drvid = r.get('drvId','')
-        if lc:    fbi_buckets[(bu,date)]['lc'].add(lc)
-        if nopol: fbi_buckets[(bu,date)]['nopol'].add(nopol)
-        if drvid: fbi_buckets[(bu,date)]['drvid'].add(drvid)
+        lc = r.get('lc',''); drvid = r.get('drvId',''); crewid = r.get('crewId','')
+        if lc:     fbi_buckets[(bu,date)]['lc'].add(lc)
+        if nopol:  fbi_buckets[(bu,date)]['nopol'].add(nopol)
+        if drvid:  fbi_buckets[(bu,date)]['drvid'].add(drvid)
+        if crewid: fbi_buckets[(bu,date)]['crewid'].add(crewid)
 
     fbi_ritase = {}
     for (bu, date), v in fbi_buckets.items():
@@ -620,16 +627,17 @@ def build():
         }
 
     for (bu, date), v in fbi_kls_map.items():
-        assets = FBI_ASSETS if bu == 'JAB_FBI' else KLS_ASSETS
-        nopol  = v['nopol_aktual']
-        rit    = fbi_ritase.get((bu,date), {})
+        assets     = FBI_ASSETS if bu == 'JAB_FBI' else KLS_ASSETS
+        nopol      = v['nopol_aktual']
+        crew       = v.get('crew_aktual', 0)
+        rit        = fbi_ritase.get((bu,date), {})
         util_rows.append({
             'site':          bu,
             'date':          date,
             'drv_plan':      v['drv_plan'],
             'drv_aktual':    v['drv_aktual'],
-            'ast_plan':      None,
-            'ast_aktual':    None,
+            'ast_plan':      crew if bu == 'JAB_KLS' else None,  # plan = aktual
+            'ast_aktual':    crew if bu == 'JAB_KLS' else None,
             'arm_assets':    assets,
             'arm_avail':     nopol,
             'arm_util':      nopol,
