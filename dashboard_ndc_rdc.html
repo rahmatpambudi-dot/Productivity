@@ -2442,11 +2442,21 @@ function buildDemandPanel(container) {
   var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   var SAT_SITES = new Set(['JABABEKA','CIKUPA']);
 
+  // Sites list — ALL = 5 terpisah, group = 1 aggregate, sub-BU = 1
+  var isGroup = (currentSite==='NDC_RDC'||currentSite==='NDC'||currentSite==='RDC');
   var SITES_LIST;
-  if(currentSite==='ALL'||currentSite==='NDC_RDC') SITES_LIST = SITES;
-  else if(currentSite==='NDC') SITES_LIST = SITES_NDC;
-  else if(currentSite==='RDC') SITES_LIST = SITES_RDC;
+  if(currentSite==='ALL') SITES_LIST = SITES;
+  else if(currentSite==='NDC_RDC') SITES_LIST = ['NDC_RDC'];
+  else if(currentSite==='NDC') SITES_LIST = ['NDC'];
+  else if(currentSite==='RDC') SITES_LIST = ['RDC'];
   else SITES_LIST = [currentSite];
+
+  // Map group key → member sites
+  var GROUP_MAP = {
+    'NDC_RDC': SITES,
+    'NDC':     SITES_NDC,
+    'RDC':     SITES_RDC,
+  };
 
   // Get all months up to feMonth
   var {start:fs, end:fe} = getRange();
@@ -2479,9 +2489,26 @@ function buildDemandPanel(container) {
     var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
 
     SITES_LIST.forEach(function(site) {
-      var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
-      var rows = filterRows(ROWS, moD1, moD2, site);
-      allData[mo+'|'+site] = computeDemand(rows, effectiveSite);
+      var memberSites = GROUP_MAP[site]; // non-null if group key
+      if(memberSites) {
+        // Aggregate all member sites
+        var agg = {doC:0,doS:0,doH:0,doSat:0,cbmC:0,cbmS:0,cbmH:0,cbmSat:0};
+        var hasSat = false;
+        memberSites.forEach(function(s) {
+          var rows = filterRows(ROWS, moD1, moD2, s);
+          var d = computeDemand(rows, s);
+          agg.doC+=d.doC; agg.doS+=d.doS; agg.doH+=d.doH; agg.cbmC+=d.cbmC; agg.cbmS+=d.cbmS; agg.cbmH+=d.cbmH;
+          if(d.doSat!=null){ agg.doSat+=d.doSat; agg.cbmSat+=d.cbmSat; hasSat=true; }
+        });
+        allData[mo+'|'+site] = {
+          doC:agg.doC, doS:agg.doS, doH:agg.doH, doSat:hasSat?agg.doSat:null,
+          cbmC:agg.cbmC, cbmS:agg.cbmS, cbmH:agg.cbmH, cbmSat:hasSat?agg.cbmSat:null,
+        };
+      } else {
+        var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
+        var rows = filterRows(ROWS, moD1, moD2, site);
+        allData[mo+'|'+site] = computeDemand(rows, effectiveSite);
+      }
     });
   });
 
