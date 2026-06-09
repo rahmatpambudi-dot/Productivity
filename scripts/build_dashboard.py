@@ -320,8 +320,8 @@ def compute_ritase_by_site_date(all_rows):
 def compute_fbi_kls_util_by_date(all_rows):
     """
     Compute daily MPP & Armada metrics for JAB_FBI and JAB_KLS from trip data.
-    - FBI nopol: fixed list, exclude Minggu (DOW=0)
-    - KLS nopol: fixed list, exclude Sabtu (DOW=6) & Minggu (DOW=0)
+    - FBI nopol: fixed list, exclude Minggu (DOW=0) + HOLIDAYS_2026
+    - KLS nopol: fixed list, exclude Sabtu & Minggu + HOLIDAYS_2026 + cuti bersama
     - DriverId filter: only rows where nopol in FBI/KLS list
     Returns dict: { ('JAB_FBI'|'JAB_KLS', date): {drv_aktual, drv_plan, nopol_aktual} }
     """
@@ -342,6 +342,21 @@ def compute_fbi_kls_util_by_date(all_rows):
         'A8304VC','A8476VC','A8486VC','A8505VC','A8520VC',
     }
 
+    # Libur nasional 2026
+    HOLIDAYS = {
+        '2026-01-01','2026-01-16','2026-02-17','2026-03-19',
+        '2026-03-21','2026-03-22','2026-04-03','2026-04-05',
+        '2026-05-01','2026-05-14','2026-05-27','2026-05-31',
+        '2026-06-01','2026-06-16','2026-08-17','2026-08-25','2026-12-25',
+    }
+    # Cuti bersama KLS (dari trip data: aktivitas sangat rendah)
+    KLS_CUTI = {
+        '2026-03-20','2026-03-23','2026-03-24',           # cuti bersama Lebaran
+        '2026-06-02','2026-06-03','2026-06-04',           # cuti bersama Idul Adha
+        '2026-06-05','2026-06-08',                        # sisa cuti Idul Adha
+    }
+    KLS_EXCLUDE = HOLIDAYS | KLS_CUTI
+
     buckets = defaultdict(lambda: {'drvid': set(), 'nopol': set()})
 
     for r in all_rows:
@@ -359,12 +374,17 @@ def compute_fbi_kls_util_by_date(all_rows):
         else:
             continue
 
-        # Day exclusions
         try:
             dow = datetime.date.fromisoformat(date).weekday()  # Mon=0, Sun=6
         except: continue
-        if bu == 'JAB_FBI' and dow == 6: continue   # exclude Minggu
-        if bu == 'JAB_KLS' and dow >= 5: continue   # exclude Sabtu & Minggu
+
+        # Day exclusions
+        if bu == 'JAB_FBI':
+            if dow == 6: continue           # exclude Minggu
+            if date in HOLIDAYS: continue   # exclude libur nasional
+        if bu == 'JAB_KLS':
+            if dow >= 5: continue           # exclude Sabtu & Minggu
+            if date in KLS_EXCLUDE: continue
 
         if nopol: buckets[(bu, date)]['nopol'].add(nopol)
         if drvid: buckets[(bu, date)]['drvid'].add(drvid)
@@ -375,7 +395,7 @@ def compute_fbi_kls_util_by_date(all_rows):
         nopol_cnt = len(v['nopol'])
         result[(bu, date)] = {
             'drv_aktual':   drv_cnt,
-            'drv_plan':     drv_cnt,   # plan = aktual → UTL = 100%
+            'drv_plan':     drv_cnt,
             'nopol_aktual': nopol_cnt,
         }
     return result
@@ -554,6 +574,17 @@ def build():
     }
     fbi_kls_map = compute_fbi_kls_util_by_date(all_rows)
     # Build per-BU ritase (same nopol filter + day exclusions as compute_fbi_kls_util_by_date)
+    HOLIDAYS_2026 = {
+        '2026-01-01','2026-01-16','2026-02-17','2026-03-19',
+        '2026-03-21','2026-03-22','2026-04-03','2026-04-05',
+        '2026-05-01','2026-05-14','2026-05-27','2026-05-31',
+        '2026-06-01','2026-06-16','2026-08-17','2026-08-25','2026-12-25',
+    }
+    KLS_CUTI = {
+        '2026-03-20','2026-03-23','2026-03-24',
+        '2026-06-02','2026-06-03','2026-06-04','2026-06-05','2026-06-08',
+    }
+    KLS_EXCLUDE = HOLIDAYS_2026 | KLS_CUTI
     fbi_buckets = defaultdict(lambda: {'lc': set(), 'nopol': set(), 'drvid': set()})
     for r in all_rows:
         date  = r.get('date')
@@ -569,8 +600,12 @@ def build():
         try:
             dow = datetime.date.fromisoformat(date).weekday()
         except: continue
-        if bu == 'JAB_FBI' and dow == 6: continue
-        if bu == 'JAB_KLS' and dow >= 5: continue
+        if bu == 'JAB_FBI':
+            if dow == 6: continue
+            if date in HOLIDAYS_2026: continue
+        if bu == 'JAB_KLS':
+            if dow >= 5: continue
+            if date in KLS_EXCLUDE: continue
         lc = r.get('lc',''); drvid = r.get('drvId','')
         if lc:    fbi_buckets[(bu,date)]['lc'].add(lc)
         if nopol: fbi_buckets[(bu,date)]['nopol'].add(nopol)
