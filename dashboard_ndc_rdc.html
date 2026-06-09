@@ -244,7 +244,6 @@ body.export-mode #exitExport { display:block; }
     <div class="s-lbl">Menu</div>
     <div class="s-item active" id="nav-overview" onclick="setNav('overview')">📊 Overview</div>
     <div class="s-item" id="nav-detail" onclick="setNav('detail')">📋 Detail Metrik</div>
-    <div class="s-item" id="nav-demand" onclick="setNav('demand')">📦 Demand</div>
     <div class="s-item" id="nav-slide" onclick="setNav('slide')">🖼️ Slide</div>
   </div>
   <div class="s-div"></div>
@@ -643,12 +642,11 @@ function render() {
   const summary = makeSummary(results);
   const d1 = new Date(start).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   const d2 = new Date(end).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
-  document.getElementById('topTitle').textContent = `${currentNav==='overview'?'Overview':currentNav==='demand'?'Demand':'Detail Metrik'} — ${d1} s/d ${d2}`;
+  document.getElementById('topTitle').textContent = `${currentNav==='overview'?'Overview':'Detail Metrik'} — ${d1} s/d ${d2}`;
   Object.values(charts).forEach(c=>{ try{c.destroy()}catch(e){} });
   charts = {};
   if(currentNav === 'overview') renderOverview(results, summary, start, end);
   else if(currentNav === 'slide') renderSlide(results, summary, start, end);
-  else if(currentNav === 'demand') renderDemand(results, summary, start, end);
   else renderDetail(results, summary, start, end);
 }
 </script>
@@ -1164,6 +1162,7 @@ function renderDetail(results, summary, start, end) {
     <div id="costAnalysisPanel" style="margin-top:14px"></div>
     <div id="utilisasiPanel" style="margin-top:14px"></div>
     <div id="tripTypePanel" style="margin-top:14px"></div>
+    <div id="demandPanel" style="margin-top:14px"></div>
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Perbandingan Periode</h3><span class="tag">MoM / custom</span></div>
       <div style="padding:12px 16px">
@@ -2423,6 +2422,9 @@ window.renderDetail=function(results,summary,start,end){
         + '<div id="tripTypeTableContainer"></div></div>';
       buildMonthlyTripTypeTable(document.getElementById('tripTypeTableContainer'));
     }
+    // Demand
+    var demandEl = document.getElementById('demandPanel');
+    if(demandEl) buildDemandPanel(demandEl);
   }, 200);
 };
 
@@ -2435,18 +2437,16 @@ function applyCmp() {
 }
 
 // ── DEMAND PANEL ────────────────────────────────────────────────
-function renderDemand(results, summary, start, end) {
+function buildDemandPanel(container) {
+  if(!container) return;
   var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-  var SAT_SITES = new Set(['JABABEKA','CIKUPA']); // Satelite only di HCI Jab & HCI Cikupa
+  var SAT_SITES = new Set(['JABABEKA','CIKUPA']);
 
-  // Determine sites to show
   var SITES_LIST;
   if(currentSite==='ALL'||currentSite==='NDC_RDC') SITES_LIST = SITES;
   else if(currentSite==='NDC') SITES_LIST = SITES_NDC;
   else if(currentSite==='RDC') SITES_LIST = SITES_RDC;
   else SITES_LIST = [currentSite];
-
-  var sub = SUB_SITES[currentSite];
 
   // Get all months up to feMonth
   var {start:fs, end:fe} = getRange();
@@ -2546,29 +2546,25 @@ function renderDemand(results, summary, start, end) {
   var noteHtml = '<div style="padding:8px 16px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
     +'* Satelite hanya tersedia untuk HCI Jababeka & HCI Cikupa</div>';
 
-  document.getElementById('content').innerHTML =
-    '<div style="max-width:1200px;margin:0 auto">'
-
+  container.innerHTML =
     // DO table
-    +'<div class="panel" style="margin-bottom:14px">'
+    '<div class="panel" style="margin-bottom:14px">'
     +'<div class="ph"><h3>Demand — DO</h3><span class="tag">per type delivery</span></div>'
     +buildTable('do')
     +noteHtml
     +'</div>'
 
     // CBM table
-    +'<div class="panel" style="margin-bottom:14px">'
+    +'<div class="panel">'
     +'<div class="ph"><h3>Demand — CBM</h3><span class="tag">per type delivery</span></div>'
     +buildTable('cbm')
     +noteHtml
-    +'</div>'
-
     +'</div>';
 }
 
 function setNav(n) {
   currentNav=n;
-  ['overview','detail','demand','slide'].forEach(x=>{document.getElementById('nav-'+x)?.classList.toggle('active',x===n);});
+  ['overview','detail','slide'].forEach(x=>{document.getElementById('nav-'+x)?.classList.toggle('active',x===n);});
   render();
 }
 
