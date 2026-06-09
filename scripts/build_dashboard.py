@@ -322,23 +322,19 @@ def compute_fbi_kls_util_by_date(all_rows):
     Compute daily MPP & Armada metrics for JAB_FBI and JAB_KLS from trip data.
     - FBI: owner='FBI' in AHI JABABEKA sheet
     - KLS: sheet='KLS JABABEKA'
-    Returns dict: { ('JAB_FBI'|'JAB_KLS', date): {drv_aktual, nopol_aktual, crew_aktual} }
+    Returns dict: { ('JAB_FBI'|'JAB_KLS', date): {drv_aktual, drv_plan, nopol_aktual} }
     """
-    from collections import defaultdict
-    buckets = defaultdict(lambda: {'drvid': set(), 'nopol': set(), 'crewid': set()})
+    buckets = defaultdict(lambda: {'drvid': set(), 'nopol': set()})
 
     for r in all_rows:
         sheet = r.get('sheet', '')
         owner = (r.get('owner') or '').upper()
         date  = r.get('date')
         if not date: continue
-        td = (r.get('td') or '').lower()
-        if td == 'satelite': continue
+        if (r.get('td') or '').lower() == 'satelite': continue
 
-        # FBI = AHI JABABEKA rows with owner FBI
         if sheet == 'AHI JABABEKA' and owner == 'FBI':
             key = ('JAB_FBI', date)
-        # KLS = KLS JABABEKA sheet
         elif sheet == 'KLS JABABEKA':
             key = ('JAB_KLS', date)
         else:
@@ -351,16 +347,17 @@ def compute_fbi_kls_util_by_date(all_rows):
 
     result = {}
     for (bu, date), v in buckets.items():
-        drv_cnt  = len(v['drvid'])
+        drv_cnt   = len(v['drvid'])
         nopol_cnt = len(v['nopol'])
         result[(bu, date)] = {
-            'drv_aktual':  drv_cnt,
-            'drv_plan':    drv_cnt,   # plan = aktual → UTL = 100%
+            'drv_aktual':   drv_cnt,
+            'drv_plan':     drv_cnt,   # plan = aktual → UTL = 100%
             'nopol_aktual': nopol_cnt,
         }
     return result
 
 
+def aggregate_monthly(all_rows, timestamp):
     """Pre-compute all metrics per site per month for data_monthly.json"""
     SITES = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA']
     SL = {'JABABEKA':'Jababeka','CIKUPA':'Cikupa','SDA':'Sidoarjo','TALLO':'Tallo','TAMORA':'Tamora'}
@@ -514,14 +511,11 @@ def build():
         row['ritase_armada'] = r.get('ritase_armada')
         row['ritase_mpp']    = r.get('ritase_mpp')
 
-    # Inject synthetic rows for JAB_FBI & JAB_KLS (no data in Utilisasi sheet)
-    # arm_assets hardcoded: FBI=15, JAB_KLS=41
+    # Inject synthetic rows for JAB_FBI (assets=15) & JAB_KLS (assets=41)
     FBI_ASSETS = 15
     KLS_ASSETS = 41
     fbi_kls_map = compute_fbi_kls_util_by_date(all_rows)
-    fbi_ritase  = {}  # (bu, date) -> ritase from trip data
-    # Build per-BU ritase from trip data
-    from collections import defaultdict
+    # Build per-BU ritase
     fbi_buckets = defaultdict(lambda: {'lc': set(), 'nopol': set(), 'drvid': set()})
     for r in all_rows:
         sheet = r.get('sheet', '')
@@ -535,36 +529,39 @@ def build():
             bu = 'JAB_KLS'
         else:
             continue
-        lc = r.get('lc', ''); nopol = r.get('nopol', ''); drvid = r.get('drvId', '')
-        if lc:    fbi_buckets[(bu, date)]['lc'].add(lc)
-        if nopol: fbi_buckets[(bu, date)]['nopol'].add(nopol)
-        if drvid: fbi_buckets[(bu, date)]['drvid'].add(drvid)
+        lc = r.get('lc',''); nopol = r.get('nopol',''); drvid = r.get('drvId','')
+        if lc:    fbi_buckets[(bu,date)]['lc'].add(lc)
+        if nopol: fbi_buckets[(bu,date)]['nopol'].add(nopol)
+        if drvid: fbi_buckets[(bu,date)]['drvid'].add(drvid)
 
+    fbi_ritase = {}
     for (bu, date), v in fbi_buckets.items():
         lc_cnt = len(v['lc']); np_cnt = len(v['nopol']); dr_cnt = len(v['drvid'])
-        fbi_ritase[(bu, date)] = {
-            'ritase_armada': round(lc_cnt / np_cnt, 4) if np_cnt > 0 else None,
-            'ritase_mpp':    round(lc_cnt / dr_cnt, 4) if dr_cnt > 0 else None,
+        fbi_ritase[(bu,date)] = {
+            'ritase_armada': round(lc_cnt/np_cnt,4) if np_cnt>0 else None,
+            'ritase_mpp':    round(lc_cnt/dr_cnt,4) if dr_cnt>0 else None,
         }
 
     for (bu, date), v in fbi_kls_map.items():
         assets = FBI_ASSETS if bu == 'JAB_FBI' else KLS_ASSETS
         nopol  = v['nopol_aktual']
-        rit    = fbi_ritase.get((bu, date), {})
+        rit    = fbi_ritase.get((bu,date), {})
         util_rows.append({
-            'site':         bu,
-            'date':         date,
-            'drv_plan':     v['drv_plan'],
-            'drv_aktual':   v['drv_aktual'],
-            'ast_plan':     None,   # FBI no Ast.Driver; KLS uses HCI plan (not available per-BU)
-            'ast_aktual':   None,
-            'arm_assets':   assets,
-            'arm_avail':    nopol,
-            'arm_util':     nopol,  # util = avail (all available nopol are utilized)
+            'site':          bu,
+            'date':          date,
+            'drv_plan':      v['drv_plan'],
+            'drv_aktual':    v['drv_aktual'],
+            'ast_plan':      None,
+            'ast_aktual':    None,
+            'arm_assets':    assets,
+            'arm_avail':     nopol,
+            'arm_util':      nopol,
             'ritase_armada': rit.get('ritase_armada'),
             'ritase_mpp':    rit.get('ritase_mpp'),
         })
-    print(f"  + {len([k for k in fbi_kls_map if k[0]=='JAB_FBI'])} JAB_FBI rows, {len([k for k in fbi_kls_map if k[0]=='JAB_KLS'])} JAB_KLS rows injected")
+    fbi_cnt = sum(1 for k in fbi_kls_map if k[0]=='JAB_FBI')
+    kls_cnt = sum(1 for k in fbi_kls_map if k[0]=='JAB_KLS')
+    print(f"  + {fbi_cnt} JAB_FBI rows, {kls_cnt} JAB_KLS rows injected")
 
     with open(util_path, 'w', encoding='utf-8') as f:
         json.dump({"timestamp": timestamp, "rows": util_rows}, f, ensure_ascii=False, separators=(',',':'))
