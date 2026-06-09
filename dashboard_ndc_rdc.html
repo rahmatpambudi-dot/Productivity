@@ -1301,6 +1301,12 @@ function buildTrendline(results, summary, s, e) {
 
   var trendDatasets=trendSeries.map(function(s,i){
     var vals=trendData.map(function(d){return s.fmt(d[s.key]);});
+    // Trim trailing null/zero values (e.g. OLF not yet available for latest month)
+    if(s.key==='olf') {
+      var lastValid=vals.length-1;
+      while(lastValid>=0 && (vals[lastValid]==null||vals[lastValid]===0)) lastValid--;
+      for(var ti=lastValid+1;ti<vals.length;ti++) vals[ti]=null;
+    }
     var hasData=vals.some(function(v){return v!=null&&v!==0;});
     return {
       label:s.label, data:vals,
