@@ -37,7 +37,7 @@ def get_service():
     )
     return gapi_build("sheets", "v4", credentials=creds, cache_discovery=False)
 
-def fetch_sheet(service, sheet_name, range_str="A:AE"):
+def fetch_sheet(service, sheet_name, range_str="A:AQ"):
     result = service.spreadsheets().values().get(
         spreadsheetId=SPREADSHEET_ID,
         range=f"'{sheet_name}'!{range_str}",
