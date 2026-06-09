@@ -80,6 +80,7 @@ def map_cols(headers):
         "totalCost":   find("TOTAL COST"),
         "profFee":     find("PROF FEE"),
         "sewaArmada":  find("SEWA ARMADA"),
+        "drvId":       find("DRIVERID", "DRIVER ID", "DRIVER_ID"),
     }
 
 def parse_date_str(s):
@@ -143,6 +144,7 @@ def slim_row(r, cols, sheet_name, site):
         "cost":  to_float(cell(r, cols["totalCost"])) if cols.get("totalCost",-1) >= 0 else None,
         "pf":    to_float(cell(r, cols["profFee"])) if cols.get("profFee",-1) >= 0 else None,
         "sewa":  to_float(cell(r, cols["sewaArmada"])) if cols.get("sewaArmada",-1) >= 0 else None,
+        "drvId": cell(r, cols["drvId"]).upper() if cols.get("drvId",-1) >= 0 else "",
     }
 
 def parse_tat_py(s):
@@ -263,6 +265,56 @@ def fetch_utilisasi(service, timestamp):
 
     print(f"  ✓ {UTIL_SHEET_NAME}: {len(util_rows)} rows")
     return util_rows
+
+
+def compute_ritase_by_site_date(all_rows):
+    """
+    Compute per-site per-date:
+      ritase_armada = unique LC / unique Nopol
+      ritase_mpp    = unique LC / unique DriverId (non-empty)
+    Returns dict: { (site, date): {'ritase_armada': float, 'ritase_mpp': float} }
+    Site mapping aligns with UTIL_SITE_MAP (same as Sheets sheet names).
+    """
+    SHEET_TO_UTIL_SITE = {
+        'AHI JABABEKA':  'AHI JABABEKA',
+        'HCI JABABEKA':  'HCI JABABEKA',
+        'KLS JABABEKA':  None,           # KLS excluded from utilisasi
+        'HCI CIKUPA':    'HCI CIKUPA',
+        'CORP SIDOARJO': 'CORP SIDOARJO',
+        'CORP TALLO':    'CORP TALLO',
+        'CORP TAMORA':   'CORP TAMORA',
+    }
+    from collections import defaultdict
+    # bucket: (util_site, date) -> {lc, nopol, drvid}
+    buckets = defaultdict(lambda: {'lc': set(), 'nopol': set(), 'drvid': set()})
+
+    for r in all_rows:
+        util_site = SHEET_TO_UTIL_SITE.get(r.get('sheet'))
+        if not util_site: continue
+        date = r.get('date')
+        if not date: continue
+        td = (r.get('td') or '').lower()
+        if td == 'satelite': continue  # same exclusion as existing ritase logic
+
+        lc    = r.get('lc', '')
+        nopol = r.get('nopol', '')
+        drvid = r.get('drvId', '')
+
+        key = (util_site, date)
+        if lc:    buckets[key]['lc'].add(lc)
+        if nopol: buckets[key]['nopol'].add(nopol)
+        if drvid: buckets[key]['drvid'].add(drvid)
+
+    result = {}
+    for (util_site, date), v in buckets.items():
+        lc_cnt    = len(v['lc'])
+        nopol_cnt = len(v['nopol'])
+        drvid_cnt = len(v['drvid'])
+        result[(util_site, date)] = {
+            'ritase_armada': round(lc_cnt / nopol_cnt, 4) if nopol_cnt > 0 else None,
+            'ritase_mpp':    round(lc_cnt / drvid_cnt, 4) if drvid_cnt > 0 else None,
+        }
+    return result
 
 
 def aggregate_monthly(all_rows, timestamp):
@@ -411,6 +463,13 @@ def build():
 
     # data_utilisasi.json
     util_rows = fetch_utilisasi(service, timestamp)
+    # Inject ritase_armada & ritase_mpp per site per date from raw trip data
+    ritase_map = compute_ritase_by_site_date(all_rows)
+    for row in util_rows:
+        key = (row['site'], row['date'])
+        r = ritase_map.get(key, {})
+        row['ritase_armada'] = r.get('ritase_armada')
+        row['ritase_mpp']    = r.get('ritase_mpp')
     with open(util_path, 'w', encoding='utf-8') as f:
         json.dump({"timestamp": timestamp, "rows": util_rows}, f, ensure_ascii=False, separators=(',',':'))
     print(f"data_utilisasi.json: {os.path.getsize(util_path)/1024:.1f} KB, {len(util_rows)} rows")
