@@ -1578,13 +1578,20 @@ function computeUtil(rows, allRows) {
   var avgAssets = avg(armAssetsList); // untuk availability calc
   var avgAvail  = avg(armAvailList);
   var avgUtil   = avg(armUtilList);
+
+  // Ritase Armada & MPP: avg dari per-hari values di rows
+  var ritArmadaVals = rows.map(function(r){ return r.ritase_armada; }).filter(function(v){ return v!=null && v>0; });
+  var ritMppVals    = rows.map(function(r){ return r.ritase_mpp;    }).filter(function(v){ return v!=null && v>0; });
+
   return {
-    drvUtil:     drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
-    astUtil:     astPlan  > 0 ? astAkt  / astPlan  * 100 : null,
-    armAssets:   displayAssets || avgAssets, // display pakai median allRows
-    armAvailAbs: avgAvail,
-    armAvailPct: (avgAssets && avgAvail) ? avgAvail / avgAssets * 100 : null,
-    armUtilPct:  (avgAvail  && avgUtil)  ? avgUtil  / avgAvail  * 100 : null,
+    drvUtil:      drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
+    astUtil:      astPlan  > 0 ? astAkt  / astPlan  * 100 : null,
+    armAssets:    displayAssets || avgAssets,
+    armAvailAbs:  avgAvail,
+    armAvailPct:  (avgAssets && avgAvail) ? avgAvail / avgAssets * 100 : null,
+    armUtilPct:   (avgAvail  && avgUtil)  ? avgUtil  / avgAvail  * 100 : null,
+    ritaseArmada: avg(ritArmadaVals),
+    ritaseMpp:    avg(ritMppVals),
   };
 }
 
@@ -1638,6 +1645,12 @@ function buildMonthlyUtilTable(container) {
     var color=d>0?'#0f9d58':'#d93025';
     return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(1)+'%</span>';
   }
+  function momBadgeRaw(cur, prev, dec) {
+    if(cur==null||prev==null) return '';
+    var d=cur-prev; if(Math.abs(d)<0.005) return '';
+    var color=d>0?'#0f9d58':'#d93025';
+    return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+'</span>';
+  }
 
   var thead = '<tr>'
     +'<th style="text-align:left">Bulan</th>'
@@ -1647,6 +1660,8 @@ function buildMonthlyUtilTable(container) {
     +'<th style="text-align:center;color:#a142f4">Armada Assets</th>'
     +'<th style="text-align:center;color:#a142f4">Availability</th>'
     +'<th style="text-align:center;color:#e37400">UTL Armada</th>'
+    +'<th style="text-align:center;color:#e37400">Ritase Armada</th>'
+    +'<th style="text-align:center;color:#1a73e8">Ritase MPP</th>'
     +'</tr>';
 
   var tbody = '';
@@ -1665,6 +1680,8 @@ function buildMonthlyUtilTable(container) {
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:var(--t2)">'+pfN(d.armAssets)+'</td>'
         +'<td class="'+utilCls(d.armAvailPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+pf(d.armAvailPct)+momBadge(d.armAvailPct, prev?prev.armAvailPct:null)+'</td>'
         +'<td class="'+utilCls(d.armUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+pf(d.armUtilPct)+momBadge(d.armUtilPct, prev?prev.armUtilPct:null)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:var(--t2)">'+(d.ritaseArmada!=null?d.ritaseArmada.toFixed(2):'—')+(prev&&prev.ritaseArmada!=null&&d.ritaseArmada!=null?momBadgeRaw(d.ritaseArmada,prev.ritaseArmada,2):'')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+(d.ritaseMpp!=null?d.ritaseMpp.toFixed(2):'—')+(prev&&prev.ritaseMpp!=null&&d.ritaseMpp!=null?momBadgeRaw(d.ritaseMpp,prev.ritaseMpp,2):'')+'</td>'
         +'</tr>';
       tbody += tr;
     });
@@ -1676,6 +1693,7 @@ function buildMonthlyUtilTable(container) {
     +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#fff8e1;border:1px solid #f9c825;margin-right:4px"></span>85–94%</span>'
     +'<span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#fce8e6;border:1px solid #e57373;margin-right:4px"></span>< 85%</span>'
     +'<span style="margin-left:8px;color:var(--t2)">UTL Armada = Utilisasi / Availability · Availability = Avail / Assets</span>'
+    +'<span style="color:var(--t2)">Ritase Armada = LC / Nopol unik per hari · Ritase MPP = LC / DriverId unik per hari</span>'
     +'</div>';
 
   container.innerHTML =
