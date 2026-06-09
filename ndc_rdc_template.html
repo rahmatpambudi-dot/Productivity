@@ -2470,9 +2470,8 @@ function buildDemandPanel(container) {
   var allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort().filter(mo=>mo<=feMonth);
 
   // Compute demand per site per month
-  function computeDemand(rows, effectiveSite) {
-    var isJAB = effectiveSite==='JABABEKA';
-    var isSAT = SAT_SITES.has(effectiveSite);
+  function computeDemand(rows, effectiveSite, site) {
+    var isSAT = SAT_SITES.has(effectiveSite) && site !== 'JAB_FBI' && site !== 'JAB_KLS';
     var doC=0, doS=0, doH=0, doSat=0;
     var cbmC=0, cbmS=0, cbmH=0, cbmSat=0;
     rows.forEach(function(r) {
@@ -2502,7 +2501,7 @@ function buildDemandPanel(container) {
         var hasSat = false;
         memberSites.forEach(function(s) {
           var rows = filterRows(ROWS, moD1, moD2, s);
-          var d = computeDemand(rows, s);
+          var d = computeDemand(rows, s, s);
           agg.doC+=d.doC; agg.doS+=d.doS; agg.doH+=d.doH; agg.cbmC+=d.cbmC; agg.cbmS+=d.cbmS; agg.cbmH+=d.cbmH;
           if(d.doSat!=null){ agg.doSat+=d.doSat; agg.cbmSat+=d.cbmSat; hasSat=true; }
         });
@@ -2513,7 +2512,7 @@ function buildDemandPanel(container) {
       } else {
         var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
         var rows = filterRows(ROWS, moD1, moD2, site);
-        allData[mo+'|'+site] = computeDemand(rows, effectiveSite);
+        allData[mo+'|'+site] = computeDemand(rows, effectiveSite, site);
       }
     });
   });
