@@ -1415,6 +1415,8 @@ function buildTrendline(results, summary, s, e) {
 const UTIL_SITE_MAP = {
   'HCI JABABEKA': 'JABABEKA',
   'AHI JABABEKA': 'JABABEKA',
+  'JAB_FBI':      'JABABEKA',
+  'JAB_KLS':      'JABABEKA',
   'HCI CIKUPA':   'CIKUPA',
   'CORP SIDOARJO':'SDA',
   'CORP TALLO':   'TALLO',
@@ -1423,8 +1425,8 @@ const UTIL_SITE_MAP = {
 const UTIL_SUBSITE_MAP = {
   'JAB_HCI': ['HCI JABABEKA'],
   'JAB_AHI': ['AHI JABABEKA'],
-  'JAB_FBI': ['AHI JABABEKA'], // MPP data via AHI sheet; arm_assets hardcoded = 15
-  'JAB_KLS': ['HCI JABABEKA'], // MPP data via HCI sheet; arm_assets hardcoded = 41
+  'JAB_FBI': ['JAB_FBI'], // synthetic rows dari trip data; arm_assets hardcoded = 15
+  'JAB_KLS': ['JAB_KLS'], // synthetic rows dari trip data; arm_assets hardcoded = 41
   'CIKUPA':  ['HCI CIKUPA'],
   'SDA':     ['CORP SIDOARJO'],
   'SDA_HCI': null, // data utilisasi tidak tersedia per BU
