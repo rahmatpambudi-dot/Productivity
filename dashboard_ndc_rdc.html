@@ -2451,7 +2451,7 @@ function buildDemandPanel(container) {
   // Get all months up to feMonth
   var {start:fs, end:fe} = getRange();
   var feMonth = fe.slice(0,7);
-  var allMonths = [...new Set(ALL_ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort().filter(mo=>mo<=feMonth);
+  var allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort().filter(mo=>mo<=feMonth);
 
   // Compute demand per site per month
   function computeDemand(rows, effectiveSite) {
