@@ -483,8 +483,22 @@ function computeSite(rows, site) {
   const isCIK = effectiveSite === 'CIKUPA';
   const isSDA = effectiveSite === 'SDA';
   const isSub = !!sub;
+  const isKLS = site === 'JAB_KLS';
+  const isFBI = site === 'JAB_FBI';
   const sr = rows.filter(r => r.site === effectiveSite);
-  const ritRows = sr.filter(r => r.td !== 'satelite' && !(isCIK && (r.ja || '').toUpperCase() === 'MIN VAN OPS'));
+
+  // Nopol lists for FBI/KLS ritase calculation
+  const FBI_NOPOL_SET = new Set(['A8012ZV','A8607WX','A8386VX','A8976XA','B9015SCF','B9018SCF','A8157ZC','A8232ZC','B9747SCE','A8710ZE','A8711ZE','A8709ZE','A8541ZE','A8506ZD','A8088VC']);
+  const KLS_NOPOL_SET = new Set(['A8437ZH','A8481ZH','A8801XZ','A8537ZF','A8721VB','A8717VB','A8757VB','A8759VB','A8912VB','A8910VB','A8020VC','A8542XB','A8237VD','B9044BRO','B9068BEN','A8876ZX','A8002XW','A8503ZX','A8048ZX','A8288YX','A8976XY','A8908XY','B9190SDB','B9642SCE','A8098ZH','A8504ZX','A8339ZS','A8432ZS','A8159ZC','B9320SCE','A8721ZV','A8553VB','A8961VB','A8983VB','A8017VC','A8373VC','A8304VC','A8476VC','A8486VC','A8505VC','A8520VC']);
+
+  const ritRows = sr.filter(r => {
+    if(r.td === 'satelite') return false;
+    if(isCIK && (r.ja||'').toUpperCase() === 'MIN VAN OPS') return false;
+    // For FBI/KLS, filter by nopol list
+    if(isFBI) return FBI_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(isKLS) return KLS_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    return true;
+  });
   const byDate = {};
   ritRows.forEach(r => {
     if(!byDate[r.date]) byDate[r.date]={trips:new Set(),nopols:new Set()};
@@ -492,7 +506,9 @@ function computeSite(rows, site) {
     if(r.nopol) byDate[r.date].nopols.add(r.nopol);
   });
   const ritVals = Object.values(byDate).map(v=>{ return v.nopols.size>0 ? v.trips.size/v.nopols.size : null; }).filter(x=>x!=null);
-  const srMain = isJAB ? sr.filter(r => r.sheet !== 'KLS JABABEKA') : sr;
+
+  // srMain: for KLS include KLS sheet; for others exclude KLS sheet (existing logic)
+  const srMain = (isJAB && !isKLS) ? sr.filter(r => r.sheet !== 'KLS JABABEKA') : sr;
   const olfR = srMain.filter(r => {
     if(r.td !== 'store') return false;
     if(!isSub && isJAB && r.sheet === 'AHI JABABEKA' && r.owner === 'FBI') return false;
