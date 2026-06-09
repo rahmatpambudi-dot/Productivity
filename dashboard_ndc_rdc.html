@@ -565,7 +565,7 @@ function computeSite(rows, site) {
   const totalDpCust = ssum(drAll.map(r=>parseFloat(r.dp)||0));
   return {
     site, label: SL[site]||site,
-    ritase: avg(ritVals), olf: oM>0?oL/oM:null,
+    ritase: avg(ritVals), olf: (isKLS||isFBI) ? null : (oM>0?oL/oM:null),
     dpStore: avg(dpSt), dpMix: avg(dpMx), dpNonReg: avg(dpNR), dpReg: avg(dpRg),
     doTrip: avg(doTr), doDp: doDpN>0?doDpK/doDpN:null,
     cbmDo: doDpK>0?cbmTotal/doDpK:null,
