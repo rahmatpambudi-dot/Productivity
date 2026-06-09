@@ -320,30 +320,54 @@ def compute_ritase_by_site_date(all_rows):
 def compute_fbi_kls_util_by_date(all_rows):
     """
     Compute daily MPP & Armada metrics for JAB_FBI and JAB_KLS from trip data.
-    - FBI: owner='FBI' in AHI JABABEKA sheet
-    - KLS: sheet='KLS JABABEKA'
+    - FBI nopol: fixed list, exclude Minggu (DOW=0)
+    - KLS nopol: fixed list, exclude Sabtu (DOW=6) & Minggu (DOW=0)
+    - DriverId filter: only rows where nopol in FBI/KLS list
     Returns dict: { ('JAB_FBI'|'JAB_KLS', date): {drv_aktual, drv_plan, nopol_aktual} }
     """
+    import datetime
+
+    FBI_NOPOL = {
+        'A8012ZV','A8607WX','A8386VX','A8976XA','B9015SCF','B9018SCF',
+        'A8157ZC','A8232ZC','B9747SCE','A8710ZE','A8711ZE','A8709ZE',
+        'A8541ZE','A8506ZD','A8088VC',
+    }
+    KLS_NOPOL = {
+        'A8437ZH','A8481ZH','A8801XZ','A8537ZF','A8721VB','A8717VB',
+        'A8757VB','A8759VB','A8912VB','A8910VB','A8020VC','A8542XB',
+        'A8237VD','B9044BRO','B9068BEN','A8876ZX','A8002XW','A8503ZX',
+        'A8048ZX','A8288YX','A8976XY','A8908XY','B9190SDB','B9642SCE',
+        'A8098ZH','A8504ZX','A8339ZS','A8432ZS','A8159ZC','B9320SCE',
+        'A8721ZV','A8553VB','A8961VB','A8983VB','A8017VC','A8373VC',
+        'A8304VC','A8476VC','A8486VC','A8505VC','A8520VC',
+    }
+
     buckets = defaultdict(lambda: {'drvid': set(), 'nopol': set()})
 
     for r in all_rows:
-        sheet = r.get('sheet', '')
-        owner = (r.get('owner') or '').upper()
         date  = r.get('date')
         if not date: continue
         if (r.get('td') or '').lower() == 'satelite': continue
 
-        if sheet == 'AHI JABABEKA' and owner == 'FBI':
-            key = ('JAB_FBI', date)
-        elif sheet == 'KLS JABABEKA':
-            key = ('JAB_KLS', date)
+        nopol = (r.get('nopol') or '').strip().upper()
+        drvid = r.get('drvId', '')
+
+        if nopol in FBI_NOPOL:
+            bu = 'JAB_FBI'
+        elif nopol in KLS_NOPOL:
+            bu = 'JAB_KLS'
         else:
             continue
 
-        drvid = r.get('drvId', '')
-        nopol = r.get('nopol', '')
-        if drvid: buckets[key]['drvid'].add(drvid)
-        if nopol: buckets[key]['nopol'].add(nopol)
+        # Day exclusions
+        try:
+            dow = datetime.date.fromisoformat(date).weekday()  # Mon=0, Sun=6
+        except: continue
+        if bu == 'JAB_FBI' and dow == 6: continue   # exclude Minggu
+        if bu == 'JAB_KLS' and dow >= 5: continue   # exclude Sabtu & Minggu
+
+        if nopol: buckets[(bu, date)]['nopol'].add(nopol)
+        if drvid: buckets[(bu, date)]['drvid'].add(drvid)
 
     result = {}
     for (bu, date), v in buckets.items():
@@ -514,22 +538,40 @@ def build():
     # Inject synthetic rows for JAB_FBI (assets=15) & JAB_KLS (assets=41)
     FBI_ASSETS = 15
     KLS_ASSETS = 41
+    FBI_NOPOL = {
+        'A8012ZV','A8607WX','A8386VX','A8976XA','B9015SCF','B9018SCF',
+        'A8157ZC','A8232ZC','B9747SCE','A8710ZE','A8711ZE','A8709ZE',
+        'A8541ZE','A8506ZD','A8088VC',
+    }
+    KLS_NOPOL = {
+        'A8437ZH','A8481ZH','A8801XZ','A8537ZF','A8721VB','A8717VB',
+        'A8757VB','A8759VB','A8912VB','A8910VB','A8020VC','A8542XB',
+        'A8237VD','B9044BRO','B9068BEN','A8876ZX','A8002XW','A8503ZX',
+        'A8048ZX','A8288YX','A8976XY','A8908XY','B9190SDB','B9642SCE',
+        'A8098ZH','A8504ZX','A8339ZS','A8432ZS','A8159ZC','B9320SCE',
+        'A8721ZV','A8553VB','A8961VB','A8983VB','A8017VC','A8373VC',
+        'A8304VC','A8476VC','A8486VC','A8505VC','A8520VC',
+    }
     fbi_kls_map = compute_fbi_kls_util_by_date(all_rows)
-    # Build per-BU ritase
+    # Build per-BU ritase (same nopol filter + day exclusions as compute_fbi_kls_util_by_date)
     fbi_buckets = defaultdict(lambda: {'lc': set(), 'nopol': set(), 'drvid': set()})
     for r in all_rows:
-        sheet = r.get('sheet', '')
-        owner = (r.get('owner') or '').upper()
         date  = r.get('date')
         if not date: continue
         if (r.get('td') or '').lower() == 'satelite': continue
-        if sheet == 'AHI JABABEKA' and owner == 'FBI':
+        nopol = (r.get('nopol') or '').strip().upper()
+        if nopol in FBI_NOPOL:
             bu = 'JAB_FBI'
-        elif sheet == 'KLS JABABEKA':
+        elif nopol in KLS_NOPOL:
             bu = 'JAB_KLS'
         else:
             continue
-        lc = r.get('lc',''); nopol = r.get('nopol',''); drvid = r.get('drvId','')
+        try:
+            dow = datetime.date.fromisoformat(date).weekday()
+        except: continue
+        if bu == 'JAB_FBI' and dow == 6: continue
+        if bu == 'JAB_KLS' and dow >= 5: continue
+        lc = r.get('lc',''); drvid = r.get('drvId','')
         if lc:    fbi_buckets[(bu,date)]['lc'].add(lc)
         if nopol: fbi_buckets[(bu,date)]['nopol'].add(nopol)
         if drvid: fbi_buckets[(bu,date)]['drvid'].add(drvid)
