@@ -1423,6 +1423,8 @@ const UTIL_SITE_MAP = {
 const UTIL_SUBSITE_MAP = {
   'JAB_HCI': ['HCI JABABEKA'],
   'JAB_AHI': ['AHI JABABEKA'],
+  'JAB_FBI': ['AHI JABABEKA'], // MPP data via AHI sheet; arm_assets hardcoded = 15
+  'JAB_KLS': ['HCI JABABEKA'], // MPP data via HCI sheet; arm_assets hardcoded = 41
   'CIKUPA':  ['HCI CIKUPA'],
   'SDA':     ['CORP SIDOARJO'],
   'SDA_HCI': null, // data utilisasi tidak tersedia per BU
@@ -1434,6 +1436,12 @@ const UTIL_SUBSITE_MAP = {
   'NDC':     ['HCI JABABEKA','AHI JABABEKA','HCI CIKUPA','CORP SIDOARJO'],
   'RDC':     ['CORP TALLO','CORP TAMORA'],
   'NDC_RDC': ['HCI JABABEKA','AHI JABABEKA','HCI CIKUPA','CORP SIDOARJO','CORP TALLO','CORP TAMORA'],
+};
+
+// ── Hardcoded arm_assets untuk site yang belum ada di sheet Utilisasi ──
+const UTIL_HARDCODED_ASSETS = {
+  'JAB_FBI': 15,
+  'JAB_KLS': 41,
 };
 
 // ── National holidays Indonesia 2026 (exclude from utilisasi) ──
@@ -1543,7 +1551,7 @@ function filterUtilRows(start, end, site) {
   return {rows: rows, allRows: allRows};
 }
 
-function computeUtil(rows, allRows) {
+function computeUtil(rows, allRows, site) {
   if(!rows.length) return null;
   var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
   var armAssetsList=[], armAvailList=[], armUtilList=[];
@@ -1553,7 +1561,9 @@ function computeUtil(rows, allRows) {
   var rawAssetsAll = assetRows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
   rawAssetsAll.sort(function(a,b){return a-b;});
   var medAll = rawAssetsAll.length ? rawAssetsAll[Math.floor(rawAssetsAll.length/2)] : null;
-  var displayAssets = medAll; // median assets dari semua hari
+  // Hardcoded override untuk site tanpa data assets di Utilisasi sheet
+  var hardcodedAssets = site ? (UTIL_HARDCODED_ASSETS[site] || null) : null;
+  var displayAssets = hardcodedAssets || medAll; // hardcode takes priority
 
   // Avail & Util: pakai filtered rows (hari aktif saja)
   var rawAssets = rows.map(function(r){ return r.arm_assets; }).filter(function(v){ return v!=null && v>0; });
@@ -1575,7 +1585,7 @@ function computeUtil(rows, allRows) {
   });
 
   var avg = function(arr) { return arr.length ? arr.reduce(function(s,v){return s+v;},0)/arr.length : null; };
-  var avgAssets = avg(armAssetsList); // untuk availability calc
+  var avgAssets = hardcodedAssets || avg(armAssetsList); // hardcode overrides availability calc too
   var avgAvail  = avg(armAvailList);
   var avgUtil   = avg(armUtilList);
 
@@ -1624,10 +1634,10 @@ function buildMonthlyUtilTable(container) {
           filtR = filtR.concat(r.rows);
           allR = allR.concat(r.allRows);
         });
-        allData[mo+'|'+site] = filtR.length ? computeUtil(filtR, allR) : null;
+        allData[mo+'|'+site] = filtR.length ? computeUtil(filtR, allR, site) : null;
       } else {
         var result = filterUtilRows(moD1, moD2, site);
-        allData[mo+'|'+site] = result.rows.length ? computeUtil(result.rows, result.allRows) : null;
+        allData[mo+'|'+site] = result.rows.length ? computeUtil(result.rows, result.allRows, site) : null;
       }
     });
   });
