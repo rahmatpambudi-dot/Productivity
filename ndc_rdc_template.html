@@ -244,6 +244,7 @@ body.export-mode #exitExport { display:block; }
     <div class="s-lbl">Menu</div>
     <div class="s-item active" id="nav-overview" onclick="setNav('overview')">📊 Overview</div>
     <div class="s-item" id="nav-detail" onclick="setNav('detail')">📋 Detail Metrik</div>
+    <div class="s-item" id="nav-demand" onclick="setNav('demand')">📦 Demand</div>
     <div class="s-item" id="nav-slide" onclick="setNav('slide')">🖼️ Slide</div>
   </div>
   <div class="s-div"></div>
@@ -549,7 +550,11 @@ function computeSite(rows, site) {
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=(isCIK?12:24));
   const totalCbmStore = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
   // DO/Trip Customer — no filter (all td=customer, all kat, all ta)
-  const drAll = srMain.filter(r => r.td === 'customer');
+  const drAll = srMain.filter(r => {
+    if(r.td !== 'customer') return false;
+    if(!isSub && isJAB && r.owner === 'FBI') return false;  // FBI no customer delivery
+    return true;
+  });
   const doTrAll = drAll.map(r=>parseFloat(r.do)||0);
   const lcByDate = {};
   drAll.forEach(r=>{ if(r.date&&r.lc){ if(!lcByDate[r.date]) lcByDate[r.date]={lc:new Set()}; lcByDate[r.date].lc.add(r.lc); }});
@@ -638,11 +643,12 @@ function render() {
   const summary = makeSummary(results);
   const d1 = new Date(start).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   const d2 = new Date(end).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
-  document.getElementById('topTitle').textContent = `${currentNav==='overview'?'Overview':'Detail Metrik'} — ${d1} s/d ${d2}`;
+  document.getElementById('topTitle').textContent = `${currentNav==='overview'?'Overview':currentNav==='demand'?'Demand':'Detail Metrik'} — ${d1} s/d ${d2}`;
   Object.values(charts).forEach(c=>{ try{c.destroy()}catch(e){} });
   charts = {};
   if(currentNav === 'overview') renderOverview(results, summary, start, end);
   else if(currentNav === 'slide') renderSlide(results, summary, start, end);
+  else if(currentNav === 'demand') renderDemand(results, summary, start, end);
   else renderDetail(results, summary, start, end);
 }
 </script>
@@ -2428,9 +2434,141 @@ function applyCmp() {
   renderComparison();
 }
 
+// ── DEMAND PANEL ────────────────────────────────────────────────
+function renderDemand(results, summary, start, end) {
+  var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var SAT_SITES = new Set(['JABABEKA','CIKUPA']); // Satelite only di HCI Jab & HCI Cikupa
+
+  // Determine sites to show
+  var SITES_LIST;
+  if(currentSite==='ALL'||currentSite==='NDC_RDC') SITES_LIST = SITES;
+  else if(currentSite==='NDC') SITES_LIST = SITES_NDC;
+  else if(currentSite==='RDC') SITES_LIST = SITES_RDC;
+  else SITES_LIST = [currentSite];
+
+  var sub = SUB_SITES[currentSite];
+
+  // Get all months up to feMonth
+  var {start:fs, end:fe} = getRange();
+  var feMonth = fe.slice(0,7);
+  var allMonths = [...new Set(ALL_ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort().filter(mo=>mo<=feMonth);
+
+  // Compute demand per site per month
+  function computeDemand(rows, effectiveSite) {
+    var isJAB = effectiveSite==='JABABEKA';
+    var isSAT = SAT_SITES.has(effectiveSite);
+    var doC=0, doS=0, doH=0, doSat=0;
+    var cbmC=0, cbmS=0, cbmH=0, cbmSat=0;
+    rows.forEach(function(r) {
+      var td = (r.td||'').toLowerCase();
+      var do_ = parseFloat(r.do)||0;
+      var cbm = parseFloat(r.cbm)||0;
+      if(td==='customer')       { doC+=do_; cbmC+=cbm; }
+      else if(td==='store')     { doS+=do_; cbmS+=cbm; }
+      else if(td==='hub')       { doH+=do_; cbmH+=cbm; }
+      else if(td==='satelite' && isSAT) { doSat+=do_; cbmSat+=cbm; }
+    });
+    return { doC, doS, doH, doSat: isSAT?doSat:null, cbmC, cbmS, cbmH, cbmSat: isSAT?cbmSat:null };
+  }
+
+  // Compute per month per site
+  var allData = {};
+  allMonths.forEach(function(mo) {
+    var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+    var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
+    var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
+
+    SITES_LIST.forEach(function(site) {
+      var effectiveSite = SUB_SITES[site] ? SUB_SITES[site].baseSite : site;
+      var rows = filterRows(ROWS, moD1, moD2, site);
+      allData[mo+'|'+site] = computeDemand(rows, effectiveSite);
+    });
+  });
+
+  // Format helpers
+  function fmtN(v) { return v!=null ? Math.round(v).toLocaleString('id-ID') : '—'; }
+  function fmtC(v) { return v!=null ? (+v.toFixed(1)).toLocaleString('id-ID') : '—'; }
+  function momBadgeN(cur, prev) {
+    if(cur==null||prev==null) return '';
+    var d=cur-prev; if(Math.abs(d)<1) return '';
+    var color=d>0?'#0f9d58':'#d93025';
+    return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(Math.round(d)).toLocaleString('id-ID')+'</span>';
+  }
+
+  // Build DO table
+  function buildTable(type) {
+    var isCBM = type==='cbm';
+    var thead = '<tr>'
+      +'<th style="text-align:left;min-width:70px">Bulan</th>'
+      +'<th style="text-align:left;min-width:90px">Site</th>'
+      +'<th class="num" style="min-width:90px">Customer</th>'
+      +'<th class="num" style="min-width:80px">Store</th>'
+      +'<th class="num" style="min-width:70px">Hub</th>'
+      +'<th class="num" style="min-width:80px">Satelite*</th>'
+      +'<th class="num" style="min-width:80px;background:#f8fafb">Total</th>'
+      +'</tr>';
+
+    var tbody = '';
+    allMonths.forEach(function(mo, moIdx) {
+      var prevMo = moIdx>0 ? allMonths[moIdx-1] : null;
+      SITES_LIST.forEach(function(site) {
+        var d = allData[mo+'|'+site]; if(!d) return;
+        var prev = prevMo ? allData[prevMo+'|'+site] : null;
+        var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+        var fmt = isCBM ? fmtC : fmtN;
+
+        var vC   = isCBM ? d.cbmC   : d.doC;
+        var vS   = isCBM ? d.cbmS   : d.doS;
+        var vH   = isCBM ? d.cbmH   : d.doH;
+        var vSat = isCBM ? d.cbmSat : d.doSat;
+        var vTot = (vC||0)+(vS||0)+(vH||0)+(vSat||0);
+
+        var pC   = prev ? (isCBM?prev.cbmC:prev.doC) : null;
+        var pS   = prev ? (isCBM?prev.cbmS:prev.doS) : null;
+        var pH   = prev ? (isCBM?prev.cbmH:prev.doH) : null;
+        var pSat = prev ? (isCBM?prev.cbmSat:prev.doSat) : null;
+        var pTot = prev ? ((pC||0)+(pS||0)+(pH||0)+(pSat||0)) : null;
+
+        tbody += '<tr>'
+          +'<td style="color:var(--t2);font-size:11px;white-space:nowrap">'+mn+'</td>'
+          +'<td style="font-weight:600;font-size:11px">'+(SL[site]||site)+'</td>'
+          +'<td class="num" style="font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmt(vC)+momBadgeN(vC,pC)+'</td>'
+          +'<td class="num" style="font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmt(vS)+momBadgeN(vS,pS)+'</td>'
+          +'<td class="num" style="font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmt(vH)+momBadgeN(vH,pH)+'</td>'
+          +'<td class="num" style="font-size:11px;font-family:\'JetBrains Mono\',monospace;color:var(--t3)">'+(vSat!=null ? fmt(vSat)+momBadgeN(vSat,pSat) : '—')+'</td>'
+          +'<td class="num" style="font-size:11px;font-family:\'JetBrains Mono\',monospace;font-weight:700;background:#f8fafb">'+fmt(vTot)+momBadgeN(vTot,pTot)+'</td>'
+          +'</tr>';
+      });
+    });
+    return '<div style="overflow-x:auto"><table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div>';
+  }
+
+  var noteHtml = '<div style="padding:8px 16px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
+    +'* Satelite hanya tersedia untuk HCI Jababeka & HCI Cikupa</div>';
+
+  document.getElementById('content').innerHTML =
+    '<div style="max-width:1200px;margin:0 auto">'
+
+    // DO table
+    +'<div class="panel" style="margin-bottom:14px">'
+    +'<div class="ph"><h3>Demand — DO</h3><span class="tag">per type delivery</span></div>'
+    +buildTable('do')
+    +noteHtml
+    +'</div>'
+
+    // CBM table
+    +'<div class="panel" style="margin-bottom:14px">'
+    +'<div class="ph"><h3>Demand — CBM</h3><span class="tag">per type delivery</span></div>'
+    +buildTable('cbm')
+    +noteHtml
+    +'</div>'
+
+    +'</div>';
+}
+
 function setNav(n) {
   currentNav=n;
-  ['overview','detail','slide'].forEach(x=>{document.getElementById('nav-'+x)?.classList.toggle('active',x===n);});
+  ['overview','detail','demand','slide'].forEach(x=>{document.getElementById('nav-'+x)?.classList.toggle('active',x===n);});
   render();
 }
 
