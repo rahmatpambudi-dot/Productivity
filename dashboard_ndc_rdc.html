@@ -1130,6 +1130,9 @@ function renderDetail(results, summary, start, end) {
       <div class="ph"><h3>Trend Bulanan per Site</h3><span class="tag">color = vs target</span></div>
       <div class="tw" id="monthlyTrendTable" style="padding:0 2px 4px"></div>
     </div>
+    <div id="costAnalysisPanel" style="margin-top:14px"></div>
+    <div id="utilisasiPanel" style="margin-top:14px"></div>
+    <div id="tripTypePanel" style="margin-top:14px"></div>
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Perbandingan Periode</h3><span class="tag">MoM / custom</span></div>
       <div style="padding:12px 16px">
@@ -1152,9 +1155,6 @@ function renderDetail(results, summary, start, end) {
         <div id="cmpResult"><p style="color:var(--t3);font-size:12px">Pilih kedua periode lalu klik Bandingkan.</p></div>
       </div>
     </div>
-    <div id="costAnalysisPanel" style="margin-top:14px"></div>
-    <div id="utilisasiPanel" style="margin-top:14px"></div>
-    <div id="tripTypePanel" style="margin-top:14px"></div>
   `;
 
   const labs=results.map(r=>r.label);
