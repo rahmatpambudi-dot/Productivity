@@ -2642,7 +2642,10 @@ function renderSlide(results, summary, start, end) {
               ${['📌 Slide 1 — Cover','📊 Slide 2 — Trend Bulanan per Site','🚛 Slide 3 — Utilisasi MPP & Armada','🔢 Slide 4 — Trip per Type Delivery','💰 Slide 5 — Cost Analysis'].map(s=>'<div style="padding:9px 14px;background:var(--gbg);border:1px solid var(--gl);border-radius:8px;font-size:12px;color:var(--green);font-weight:500">'+s+'</div>').join('')}
             </div>
           </div>
-          <button onclick="generatePPT()" style="background:var(--green);color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">⬇️ Download PPT</button>
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <button onclick="generatePPT()" style="background:var(--green);color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">⬇️ Download PPT</button>
+            <button onclick="openPresentation()" style="background:#1e40af;color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:Inter,sans-serif">▶️ Present</button>
+          </div>
           <div id="pptStatus" style="margin-top:12px;font-size:12px;color:var(--t3)"></div>
         </div>
       </div>
@@ -2866,6 +2869,215 @@ function generatePPT() {
   }).catch(function(err){
     document.getElementById('pptStatus').textContent='❌ Error: '+err.message;
   });
+}
+
+function openPresentation() {
+  var {start:s, end:e} = getRange();
+  var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  var siteLabel = currentSite==='ALL'?'Semua Site':currentSite==='NDC_RDC'?'NDC & RDC':currentSite==='NDC'?'NDC':currentSite==='RDC'?'RDC':(SL[currentSite]||currentSite);
+
+  // Only months within filter range
+  var fsMonth = s.slice(0,7), feMonth = e.slice(0,7);
+  var allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort().filter(mo=>mo>=fsMonth&&mo<=feMonth);
+
+  // Sites to present — Jababeka: Corporate + sub-BU; others: corporate only
+  var SITE_ORDER = currentSite==='ALL'||currentSite==='NDC_RDC' ? SITES :
+                   currentSite==='NDC' ? SITES_NDC :
+                   currentSite==='RDC' ? SITES_RDC :
+                   SUB_SITES[currentSite] ? [SUB_SITES[currentSite].baseSite] : [currentSite];
+
+  var JAB_BUS = ['JABABEKA','JAB_HCI','JAB_AHI','JAB_FBI','JAB_KLS'];
+
+  // Build slide list
+  var slides = [];
+  // Cover slide
+  slides.push({type:'cover', siteLabel, periode: s+' s/d '+e});
+
+  SITE_ORDER.forEach(function(site) {
+    if(site === 'JABABEKA') {
+      // Corporate first, then sub-BU
+      JAB_BUS.forEach(function(bu) {
+        slides.push({type:'metrics', site: bu, label: bu==='JABABEKA'?'Jababeka — Corporate':(SL[bu]||bu)});
+      });
+    } else {
+      slides.push({type:'metrics', site, label: SL[site]||site});
+    }
+  });
+
+  // Helper: compute result for a site+month
+  var _cache = {};
+  function getRes(site, mo) {
+    var k = site+'|'+mo;
+    if(_cache[k]) return _cache[k];
+    var {start:d1,end:d2} = getMonthRange(mo);
+    var rows = filterRows(ROWS, d1, d2, site);
+    _cache[k] = computeSite(rows, site)||{};
+    return _cache[k];
+  }
+
+  // Helper: get util for site+month
+  var _ucache = {};
+  function getUtil(site, mo) {
+    var k = site+'|'+mo;
+    if(_ucache[k]) return _ucache[k];
+    var {start:d1,end:d2} = getMonthRange(mo);
+    var r = filterUtilRows(d1, d2, site);
+    _ucache[k] = r.rows.length ? computeUtil(r.rows, r.allRows, site) : null;
+    return _ucache[k];
+  }
+
+  // Format helpers
+  function pct(v) { return v!=null ? (v*100).toFixed(1)+'%' : '—'; }
+  function num(v,d) { return v!=null ? (+v.toFixed(d||1)).toLocaleString('id-ID') : '—'; }
+  function fmtTAT(h) { if(h==null) return '—'; var hh=Math.floor(h),mm=Math.round((h-hh)*60); return hh+':'+(mm<10?'0':'')+mm; }
+
+  // Build HTML for each slide
+  function buildCover(sl) {
+    var d1=new Date(s).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+    var d2=new Date(e).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'});
+    return `<div class="prs-cover">
+      <div class="prs-logo">TOP — Transport Operations Performance</div>
+      <h1>${siteLabel}</h1>
+      <div class="prs-periode">${d1} s/d ${d2}</div>
+      <div class="prs-fm">${fullMonthMode?'Mode: Full Month':'Mode: Range Date'}</div>
+    </div>`;
+  }
+
+  function buildMetrics(sl) {
+    var rows = allMonths.map(function(mo, i) {
+      var d = getRes(sl.site, mo);
+      var prev = i>0 ? getRes(sl.site, allMonths[i-1]) : null;
+      var u = getUtil(sl.site, mo);
+      var mn = moNames[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+
+      function badge(cur, prev, isLow) {
+        if(cur==null||prev==null) return '';
+        var d=cur-prev; if(Math.abs(d)<0.001) return '';
+        var up = isLow ? d<0 : d>0;
+        return `<span class="bdg ${up?'up':'dn'}">${d>0?'▲':'▼'}${Math.abs(d*100).toFixed(1)}%</span>`;
+      }
+      function badgeN(cur,prev,isLow) {
+        if(cur==null||prev==null) return '';
+        var d=cur-prev; if(Math.abs(d)<0.05) return '';
+        var up = isLow ? d<0 : d>0;
+        return `<span class="bdg ${up?'up':'dn'}">${d>0?'▲':'▼'}${Math.abs(d).toFixed(1)}</span>`;
+      }
+
+      return `<tr>
+        <td>${mn}</td>
+        <td>${num(d.ritase,2)}${badgeN(d.ritase,prev?.ritase,false)}</td>
+        <td class="${d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):''}">${pct(d.olf)}${badge(d.olf,prev?.olf,false)}</td>
+        <td>${num(d.dpStore,1)}${badgeN(d.dpStore,prev?.dpStore,false)}</td>
+        <td>${num(d.dpMix,1)}${badgeN(d.dpMix,prev?.dpMix,false)}</td>
+        <td>${num(d.dpReg,1)}${badgeN(d.dpReg,prev?.dpReg,false)}</td>
+        <td>${num(d.doTrip,1)}${badgeN(d.doTrip,prev?.doTrip,false)}</td>
+        <td>${fmtTAT(d.tatDirect)}${d.tatDirect&&prev?.tatDirect?badgeN(d.tatDirect,prev.tatDirect,true):''}</td>
+        <td>${fmtTAT(d.tatStore)}${d.tatStore&&prev?.tatStore?badgeN(d.tatStore,prev.tatStore,true):''}</td>
+        <td class="${u?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):''}">${u?pct(u.drvUtil/100):'—'}</td>
+        <td class="${u?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):''}">${u?pct(u.armUtilPct/100):'—'}</td>
+        <td>${u?num(u.ritaseArmada,2):'—'}</td>
+        <td>${u?num(u.ritaseMpp,2):'—'}</td>
+      </tr>`;
+    }).join('');
+
+    return `<div class="prs-metrics">
+      <div class="prs-site-label">${sl.label}</div>
+      <div class="prs-tbl-wrap"><table class="prs-tbl">
+        <thead><tr>
+          <th>Bulan</th><th>Ritase</th><th>OLF</th>
+          <th>DP Store</th><th>DP Mix</th><th>DP Reg</th><th>DO/Trip</th>
+          <th>TAT Direct</th><th>TAT Store</th>
+          <th>UTL Driver</th><th>UTL Armada</th><th>Rit. Armada</th><th>Rit. MPP</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+  }
+
+  // Build full HTML
+  var slidesHTML = slides.map(function(sl, i) {
+    return `<div class="prs-slide" id="slide-${i}">${sl.type==='cover'?buildCover(sl):buildMetrics(sl)}</div>`;
+  }).join('');
+
+  var html = `<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8">
+  <title>TOP Presentation — ${siteLabel}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:#111;font-family:'Inter',system-ui,sans-serif;overflow:hidden}
+    .prs-slide{width:100vw;height:100vh;display:none;flex-direction:column;justify-content:center;align-items:center;padding:40px;background:#fff;position:relative}
+    .prs-slide.active{display:flex}
+    .prs-cover{text-align:center}
+    .prs-logo{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:2px;margin-bottom:24px}
+    .prs-cover h1{font-size:48px;font-weight:800;color:#0f172a;margin-bottom:16px}
+    .prs-periode{font-size:20px;color:#475569;font-weight:500}
+    .prs-fm{margin-top:10px;font-size:12px;color:#94a3b8}
+    .prs-metrics{width:100%;max-width:1400px}
+    .prs-site-label{font-size:22px;font-weight:800;color:#0f172a;margin-bottom:16px;border-left:4px solid #16a34a;padding-left:12px}
+    .prs-tbl-wrap{overflow-x:auto}
+    .prs-tbl{width:100%;border-collapse:collapse;font-size:12px}
+    .prs-tbl th{background:#1e2a3a;color:#fff;padding:8px 10px;text-align:center;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+    .prs-tbl th:first-child{text-align:left}
+    .prs-tbl td{padding:7px 10px;text-align:center;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+    .prs-tbl td:first-child{text-align:left;font-weight:600;color:#334155}
+    .prs-tbl tr:nth-child(even) td{background:#f8fafc}
+    .prs-tbl td.g{color:#166534;font-weight:700;background:#dcfce7!important}
+    .prs-tbl td.y{color:#854d0e;font-weight:700;background:#fef9c3!important}
+    .prs-tbl td.r{color:#991b1b;font-weight:700;background:#fee2e2!important}
+    .bdg{display:inline-block;font-size:9px;font-weight:700;margin-left:3px;vertical-align:middle}
+    .bdg.up{color:#16a34a}.bdg.dn{color:#dc2626}
+    .prs-nav{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;align-items:center;background:rgba(0,0,0,.7);padding:10px 20px;border-radius:99px;z-index:100}
+    .prs-btn{background:#fff;color:#0f172a;border:none;padding:8px 18px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;transition:.15s}
+    .prs-btn:hover{background:#e2e8f0}
+    .prs-counter{color:#fff;font-size:12px;font-weight:600;min-width:60px;text-align:center}
+    .prs-esc{position:fixed;top:16px;right:16px;background:rgba(0,0,0,.5);color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:11px;cursor:pointer;z-index:100}
+    .prs-slide-dots{display:flex;gap:4px}
+    .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);cursor:pointer;transition:.15s}
+    .dot.active{background:#fff}
+  </style>
+  </head><body>
+  ${slidesHTML}
+  <div class="prs-nav">
+    <button class="prs-btn" onclick="prev()">◀ Prev</button>
+    <div class="prs-slide-dots" id="dots"></div>
+    <span class="prs-counter" id="counter">1 / ${slides.length}</span>
+    <button class="prs-btn" onclick="next()">Next ▶</button>
+  </div>
+  <button class="prs-esc" onclick="window.close()">✕ Tutup</button>
+  <script>
+    var cur=0, total=${slides.length};
+    var slideEls=document.querySelectorAll('.prs-slide');
+    var dotsEl=document.getElementById('dots');
+    // Build dots
+    for(var i=0;i<total;i++){
+      var d=document.createElement('div');
+      d.className='dot'+(i===0?' active':'');
+      d.setAttribute('data-i',i);
+      d.onclick=function(){goTo(+this.getAttribute('data-i'));};
+      dotsEl.appendChild(d);
+    }
+    function goTo(n){
+      slideEls[cur].classList.remove('active');
+      dotsEl.children[cur].classList.remove('active');
+      cur=Math.max(0,Math.min(total-1,n));
+      slideEls[cur].classList.add('active');
+      dotsEl.children[cur].classList.add('active');
+      document.getElementById('counter').textContent=(cur+1)+' / '+total;
+    }
+    function next(){goTo(cur+1);}
+    function prev(){goTo(cur-1);}
+    document.addEventListener('keydown',function(e){
+      if(e.key==='ArrowRight'||e.key==='ArrowDown') next();
+      if(e.key==='ArrowLeft'||e.key==='ArrowUp') prev();
+      if(e.key==='Escape') window.close();
+    });
+    goTo(0);
+  <\/script>
+  </body></html>`;
+
+  var w = window.open('','_blank');
+  if(!w) { alert('Pop-up diblock browser. Izinkan pop-up untuk dashboard ini.'); return; }
+  w.document.write(html);
+  w.document.close();
 }
 
 </script>
