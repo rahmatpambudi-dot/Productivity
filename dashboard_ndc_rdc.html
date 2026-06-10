@@ -3007,26 +3007,154 @@ function openPresentation() {
     var buList = isJAB ? JAB_BUS : [{key: site, label: 'Corporate'}];
     var mnCur  = moNames[parseInt(curMo.slice(5,7))-1]+' '+curMo.slice(0,4);
     var mnPrev = prevMo ? moNames[parseInt(prevMo.slice(5,7))-1]+' '+prevMo.slice(0,4) : null;
-
-    // 2 rows per BU: prevMo (plain) + curMo (with badge)
-    var bodyRows = '';
-    buList.forEach(function(bu, i) {
-      if(i > 0) bodyRows += '<tr><td colspan="14" style="padding:2px 0;border:none;background:#f1f5f9"></td></tr>';
-      var lbl = (i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
-      if(prevMo) bodyRows += buildRow(bu.key, lbl+' <span style="font-size:9px;color:#94a3b8">'+mnPrev+'</span>', prevMo, null, false);
-      bodyRows += buildRow(bu.key, lbl+' <span style="font-size:9px;font-weight:700;color:#0f172a">'+mnCur+'</span>', curMo, prevMo, i===0);
-    });
-
-    var tbl = '<table class="prs-tbl">'+thead+'<tbody>'+bodyRows+'</tbody></table>';
     var siteName = site==='JABABEKA'?'Jababeka':site==='CIKUPA'?'Cikupa':site==='SDA'?'Sidoarjo':site==='TALLO'?'Tallo':'Tamora';
     var momLabel = mnPrev ? mnPrev+' → '+mnCur : mnCur;
 
-    return '<div class="prs-metrics">'
-      +'<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:10px">'
+    // Helper: 2 rows per BU
+    function makeRows(cols, getCur, getPrev) {
+      var rows = '';
+      buList.forEach(function(bu, i) {
+        if(i>0) rows += '<tr><td colspan="20" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+        var lbl = (i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
+        if(prevMo) {
+          var dp = getPrev ? getPrev(bu.key) : null;
+          rows += '<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'+cols(bu.key, prevMo, null, dp)+'</tr>';
+        }
+        var dc = getCur(bu.key);
+        var dp2 = getPrev ? getPrev(bu.key) : null;
+        rows += '<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'+cols(bu.key, curMo, prevMo, dc, dp2)+'</tr>';
+      });
+      return rows;
+    }
+
+    // ── Section 1: Metrik ──
+    function metrikCols(buKey, mo, pmo) {
+      var d=getRes(buKey,mo), p=pmo?getRes(buKey,pmo):null, u=getUtil(buKey,mo), up=pmo?getUtil(buKey,pmo):null;
+      return '<td>'+num(d.ritase,2)+badge(d.ritase,p?.ritase,false,true,2)+'</td>'
+        +'<td class="'+(d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+pct(d.olf)+badge(d.olf,p?.olf,false,false)+'</td>'
+        +'<td>'+num(d.dpMix,1)+badge(d.dpMix,p?.dpMix,false,true,1)+'</td>'
+        +'<td>'+num(d.dpReg,1)+badge(d.dpReg,p?.dpReg,false,true,1)+'</td>'
+        +'<td>'+num(d.doTrip,1)+badge(d.doTrip,p?.doTrip,false,true,1)+'</td>'
+        +'<td>'+fmtTAT(d.tatDirect)+badge(d.tatDirect,p?.tatDirect,true,true,1)+'</td>'
+        +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?.tatStore,true,true,1)+'</td>'
+        +'<td class="'+(u?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u?pct(u.drvUtil/100):'—')+(u&&up?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
+        +'<td class="'+(u?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u?pct(u.armUtilPct/100):'—')+(u&&up?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
+        +'<td>'+(u?num(u.ritaseArmada,2):'—')+'</td>'
+        +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>';
+    }
+    var metrikThead = '<thead><tr><th style="text-align:left">BU</th>'
+      +'<th>Ritase</th><th>OLF</th><th>DP Mix</th><th>DP Reg</th><th>DO/Trip</th>'
+      +'<th>TAT Direct</th><th>TAT Store</th>'
+      +'<th>UTL Driver</th><th>UTL Armada</th><th>Rit.Arm</th><th>Rit.MPP</th>'
+      +'</tr></thead>';
+    var metrikBody = '';
+    buList.forEach(function(bu,i) {
+      if(i>0) metrikBody+='<tr><td colspan="12" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
+      if(prevMo) metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'+metrikCols(bu.key,prevMo,null)+'</tr>';
+      metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'+metrikCols(bu.key,curMo,prevMo)+'</tr>';
+    });
+
+    // ── Section 2: Trip per Type ──
+    function getTripByType(buKey, mo) {
+      var {start:d1,end:d2}=getMonthRange(mo);
+      var rows=filterRows(ROWS,d1,d2,buKey);
+      var sets={customer:new Set(),store:new Set(),hub:new Set(),satelite:new Set(),other:new Set(),total:new Set()};
+      rows.forEach(function(r){
+        if(!r.lc) return;
+        var td=(r.td||'').toLowerCase().trim();
+        sets.total.add(r.lc);
+        if(td==='customer') sets.customer.add(r.lc);
+        else if(td==='store') sets.store.add(r.lc);
+        else if(td==='hub') sets.hub.add(r.lc);
+        else if(td==='satelite') sets.satelite.add(r.lc);
+        else sets.other.add(r.lc);
+      });
+      return {c:sets.customer.size,s:sets.store.size,h:sets.hub.size,sat:sets.satelite.size,oth:sets.other.size,tot:sets.total.size};
+    }
+    function bdgN(cur,prev,isLow){
+      if(cur==null||prev==null) return '';
+      var d=cur-prev; if(d===0) return '';
+      var up=isLow?d<0:d>0;
+      return '<span class="bdg '+(up?'up':'dn')+'">'+(d>0?'▲':'▼')+Math.abs(d)+'</span>';
+    }
+    var tripThead='<thead><tr><th style="text-align:left">BU</th>'
+      +'<th style="color:#1a73e8">Customer</th><th style="color:#34a85a">Store</th>'
+      +'<th style="color:#9334e6">Hub</th><th style="color:#e37400">Satelite</th>'
+      +'<th>Other</th><th style="background:#f0f4f9">Total</th>'
+      +'</tr></thead>';
+    var tripBody='';
+    buList.forEach(function(bu,i){
+      if(i>0) tripBody+='<tr><td colspan="7" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
+      var tc=getTripByType(bu.key,curMo), tp=prevMo?getTripByType(bu.key,prevMo):null;
+      if(prevMo&&tp) tripBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
+        +'<td>'+tp.c+'</td><td>'+tp.s+'</td><td>'+tp.h+'</td><td>'+tp.sat+'</td><td>'+tp.oth+'</td><td style="font-weight:700;background:#f8fafc">'+tp.tot+'</td></tr>';
+      tripBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
+        +'<td>'+tc.c+(tp?bdgN(tc.c,tp.c,false):'')+'</td>'
+        +'<td>'+tc.s+(tp?bdgN(tc.s,tp.s,false):'')+'</td>'
+        +'<td>'+tc.h+(tp?bdgN(tc.h,tp.h,false):'')+'</td>'
+        +'<td>'+tc.sat+(tp?bdgN(tc.sat,tp.sat,false):'')+'</td>'
+        +'<td>'+tc.oth+(tp?bdgN(tc.oth,tp.oth,false):'')+'</td>'
+        +'<td style="font-weight:700;background:#f8fafc">'+tc.tot+(tp?bdgN(tc.tot,tp.tot,false):'')+'</td></tr>';
+    });
+
+    // ── Section 3: Cost Analysis ──
+    function getCost(buKey, mo) {
+      var {start:d1,end:d2}=getMonthRange(mo);
+      var rows=filterRows(ROWS,d1,d2,buKey);
+      return computeCost(rows);
+    }
+    function fmtM(v){ return v!=null?(v/1000000).toFixed(1)+' jt':'—'; }
+    function fmtK(v){ return v!=null?Math.round(v/1000).toLocaleString('id-ID')+' rb':'—'; }
+    var costThead='<thead><tr><th style="text-align:left">BU</th>'
+      +'<th style="color:#1d4ed8">Total Cost</th><th style="color:#0369a1">UJP</th>'
+      +'<th>Trip</th><th>Cost/Trip</th><th>Cost/DO</th><th>Cost/CBM</th>'
+      +'</tr></thead>';
+    var costBody='';
+    buList.forEach(function(bu,i){
+      if(i>0) costBody+='<tr><td colspan="7" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
+      var cc=getCost(bu.key,curMo), cp=prevMo?getCost(bu.key,prevMo):null;
+      if(prevMo&&cp) costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
+        +'<td>'+fmtM(cp.cost)+'</td><td>'+fmtM(cp.ujp)+'</td><td>'+cp.trip+'</td>'
+        +'<td>'+fmtK(cp.costTrip)+'</td><td>'+fmtK(cp.costDo)+'</td><td>'+fmtK(cp.costCbm)+'</td></tr>';
+      costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
+        +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,false):'')+'</td>'
+        +'<td>'+fmtM(cc?.ujp)+'</td><td>'+( cc?cc.trip:'—')+'</td>'
+        +'<td>'+fmtK(cc?.costTrip)+(cp?bdgN(cc?.costTrip,cp?.costTrip,true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costDo)+(cp?bdgN(cc?.costDo,cp?.costDo,true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costCbm)+'</td></tr>';
+    });
+
+    return '<div class="prs-slide-inner">'
+      // Header
+      +'<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">'
       +'<div class="prs-site-label">'+siteName+'</div>'
       +'<div class="prs-mom-label">'+momLabel+'</div>'
       +'</div>'
-      +'<div class="prs-tbl-wrap">'+tbl+'</div>'
+      // 2x2 grid
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:8px">'
+      // Top-left: Metrik
+      +'<div class="prs-section">'
+      +'<div class="prs-sec-title">📊 Produktivitas</div>'
+      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+metrikThead+'<tbody>'+metrikBody+'</tbody></table></div>'
+      +'</div>'
+      // Top-right: Cost
+      +'<div class="prs-section">'
+      +'<div class="prs-sec-title">💰 Cost Analysis</div>'
+      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+costThead+'<tbody>'+costBody+'</tbody></table></div>'
+      +'</div>'
+      // Bottom-left: Trip
+      +'<div class="prs-section">'
+      +'<div class="prs-sec-title">🚛 Trip per Type</div>'
+      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+tripThead+'<tbody>'+tripBody+'</tbody></table></div>'
+      +'</div>'
+      // Bottom-right: placeholder UTL (already in metrik section)
+      +'<div class="prs-section" style="display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px">'
+      +'UTL & Ritase Armada sudah termasuk di bagian Produktivitas'
+      +'</div>'
+      +'</div>'
       +'</div>';
   }
 
@@ -3056,7 +3184,7 @@ function openPresentation() {
     +'<style>'
     +'*{box-sizing:border-box;margin:0;padding:0}'
     +'body{background:#111;font-family:Inter,system-ui,sans-serif;overflow:hidden}'
-    +'.prs-slide{width:100vw;height:100vh;display:none;flex-direction:column;justify-content:center;align-items:center;padding:40px 48px;background:#fff}'
+    +'.prs-slide{width:100vw;height:100vh;display:none;flex-direction:column;justify-content:center;align-items:center;padding:20px 32px;background:#f8fafc}'
     +'.prs-slide.active{display:flex}'
     +'.prs-cover{text-align:center}'
     +'.prs-logo{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:2px;margin-bottom:20px}'
@@ -3064,13 +3192,16 @@ function openPresentation() {
     +'.prs-periode{font-size:20px;color:#475569;font-weight:500}'
     +'.prs-fm{margin-top:8px;font-size:12px;color:#94a3b8}'
     +'.prs-metrics{width:100%;max-width:1500px}'
+    +'.prs-slide-inner{width:100%;max-width:1600px}'
+    +'.prs-section{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;overflow:hidden}'
+    +'.prs-sec-title{font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #f1f5f9}'
     +'.prs-site-label{font-size:24px;font-weight:800;color:#0f172a;border-left:5px solid #16a34a;padding-left:12px}'
     +'.prs-mom-label{font-size:13px;color:#64748b;font-weight:600}'
     +'.prs-tbl-wrap{overflow-x:auto}'
-    +'.prs-tbl{width:100%;border-collapse:collapse;font-size:12px}'
-    +'.prs-tbl th{background:#1e2a3a;color:#fff;padding:8px 10px;text-align:right;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}'
+    +'.prs-tbl{width:100%;border-collapse:collapse;font-size:10px}'
+    +'.prs-tbl th{background:#1e2a3a;color:#fff;padding:5px 7px;text-align:right;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}'
     +'.prs-tbl th:first-child{text-align:left}'
-    +'.prs-tbl td{padding:8px 10px;text-align:right;border-bottom:1px solid #e2e8f0;white-space:nowrap}'
+    +'.prs-tbl td{padding:5px 7px;text-align:right;border-bottom:1px solid #e2e8f0;white-space:nowrap}'
     +'.bu-label{text-align:left!important;color:#334155}'
     +'.corp-row td{background:#f0fdf4!important;border-top:2px solid #16a34a}'
     +'.prs-tbl td.g{color:#166534;font-weight:700;background:#dcfce7!important}'
