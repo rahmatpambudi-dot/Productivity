@@ -3235,7 +3235,7 @@ function openPresentation() {
     var tripThead='<thead><tr><th style="text-align:left">BU</th>'
       +'<th style="color:#1a73e8">Customer</th><th style="color:#34a85a">Store</th>'
       +'<th style="color:#9334e6">Hub</th><th style="color:#e37400">Satelite</th>'
-      +'<th>Other</th><th style="background:#f0f4f9">Total</th>'
+      +'<th>Other</th><th>Total</th>'
       +'</tr></thead>';
     var tripBody='';
     buList.forEach(function(bu,i){
@@ -3250,7 +3250,7 @@ function openPresentation() {
         +'<td>'+tc.h+(tp?bdgN(tc.h,tp.h,false):'')+'</td>'
         +'<td>'+tc.sat+(tp?bdgN(tc.sat,tp.sat,false):'')+'</td>'
         +'<td>'+tc.oth+(tp?bdgN(tc.oth,tp.oth,false):'')+'</td>'
-        +'<td style="font-weight:700;background:#f8fafc">'+tc.tot+(tp?bdgN(tc.tot,tp.tot,false):'')+'</td></tr>';
+        +'<td style="font-weight:700">'+tc.tot+(tp?bdgN(tc.tot,tp.tot,false):'')+'</td></tr>';
     });
 
     // Demand: CBM Store & DO Customer per BU
