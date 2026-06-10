@@ -2516,7 +2516,7 @@ function applyCmp() {
   renderComparison();
 }
 
-// ── DEMAND PANEL ─────────────────────────────────────────────────
+// ── DEMAND PANEL ────────────────────────────────────────────────
 function buildDemandPanel(container) {
   if(!container) return;
   var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -3279,13 +3279,13 @@ function openPresentation() {
       }
       var dc2=getDemand(curMo), dp3=prevMo?getDemand(prevMo):null;
       if(prevMo&&dp3) demandBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
-        +'<td>'+(dp3.cbmStore/1000).toFixed(1)+'k</td>'
-        +'<td>'+Math.round(dp3.doCust/1000)+'k</td>'
-        +'<td>'+(dp3.cbmCust/1000).toFixed(1)+'k</td></tr>';
+        +'<td>'+Math.round(dp3.cbmStore).toLocaleString('id-ID')+'</td>'
+        +'<td>'+Math.round(dp3.doCust).toLocaleString('id-ID')+'</td>'
+        +'<td>'+Math.round(dp3.cbmCust).toLocaleString('id-ID')+'</td></tr>';
       demandBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
-        +'<td>'+(dc2.cbmStore/1000).toFixed(1)+'k'+(dp3?bdgN(dc2.cbmStore,dp3.cbmStore,false):'')+'</td>'
-        +'<td>'+Math.round(dc2.doCust/1000)+'k'+(dp3?bdgN(dc2.doCust,dp3.doCust,false):'')+'</td>'
-        +'<td>'+(dc2.cbmCust/1000).toFixed(1)+'k'+(dp3?bdgN(dc2.cbmCust,dp3.cbmCust,false):'')+'</td></tr>';
+        +'<td>'+Math.round(dc2.cbmStore).toLocaleString('id-ID')+(dp3?bdgN(dc2.cbmStore,dp3.cbmStore,false):'')+'</td>'
+        +'<td>'+Math.round(dc2.doCust).toLocaleString('id-ID')+(dp3?bdgN(dc2.doCust,dp3.doCust,false):'')+'</td>'
+        +'<td>'+Math.round(dc2.cbmCust).toLocaleString('id-ID')+(dp3?bdgN(dc2.cbmCust,dp3.cbmCust,false):'')+'</td></tr>';
     });
 
     // ── Section 3: Cost Analysis ──
