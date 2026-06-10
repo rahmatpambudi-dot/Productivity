@@ -3138,7 +3138,7 @@ function openPresentation() {
         if(costDoCustChg>5 && doCustChg<0) pts.push({icon:'🔴',color:'#991b1b',
           text:'<b>'+lbl+'</b>: Cost/DO Cust naik '+costDoCustChg.toFixed(1)+'% saat demand turun — ineffisiensi cost'});
         else if(costDoCustChg<-3 && doCustChg>0) pts.push({icon:'✅',color:'#166534',
-          text:'<b>'+lbl+'</b>: Demand naik, Cost/DO Cust turun '+Math.abs(costDoCustChg).toFixed(1)+'% — scale economy'});
+          text:'<b>'+lbl+'</b>: Demand naik, Cost/DO Cust turun '+Math.abs(costDoCustChg).toFixed(1)+'% — efisiensi biaya pengiriman customer membaik'});
       }
 
       // 6. UTL Armada
