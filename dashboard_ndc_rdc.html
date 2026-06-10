@@ -2977,6 +2977,34 @@ function openPresentation() {
     _ucache[k]=r.rows.length?computeUtil(r.rows,r.allRows,site):null; return _ucache[k];
   }
 
+  var _ccache = {};
+  function getCost(site, mo) {
+    var k=site+'|'+mo; if(_ccache[k]!==undefined) return _ccache[k];
+    var {start:d1,end:d2}=getMonthRange(mo);
+    var rows=filterRows(ROWS,d1,d2,site);
+    _ccache[k]=computeCost(rows); return _ccache[k];
+  }
+
+  var _tcache = {};
+  function getTripByType(site, mo) {
+    var k=site+'|'+mo; if(_tcache[k]!==undefined) return _tcache[k];
+    var {start:d1,end:d2}=getMonthRange(mo);
+    var rows=filterRows(ROWS,d1,d2,site);
+    var sets={customer:new Set(),store:new Set(),hub:new Set(),satelite:new Set(),other:new Set(),total:new Set()};
+    rows.forEach(function(r){
+      if(!r.lc) return;
+      var td=(r.td||'').toLowerCase().trim();
+      sets.total.add(r.lc);
+      if(td==='customer') sets.customer.add(r.lc);
+      else if(td==='store') sets.store.add(r.lc);
+      else if(td==='hub') sets.hub.add(r.lc);
+      else if(td==='satelite') sets.satelite.add(r.lc);
+      else sets.other.add(r.lc);
+    });
+    _tcache[k]={c:sets.customer.size,s:sets.store.size,h:sets.hub.size,sat:sets.satelite.size,oth:sets.other.size,tot:sets.total.size};
+    return _tcache[k];
+  }
+
   // Format helpers
   function pct(v)   { return v!=null?(v*100).toFixed(1)+'%':'—'; }
   function num(v,d) { return v!=null?(+v.toFixed(d||1)).toLocaleString('id-ID'):'—'; }
@@ -3175,22 +3203,6 @@ function openPresentation() {
     });
 
     // ── Section 2: Trip per Type ──
-    function getTripByType(buKey, mo) {
-      var {start:d1,end:d2}=getMonthRange(mo);
-      var rows=filterRows(ROWS,d1,d2,buKey);
-      var sets={customer:new Set(),store:new Set(),hub:new Set(),satelite:new Set(),other:new Set(),total:new Set()};
-      rows.forEach(function(r){
-        if(!r.lc) return;
-        var td=(r.td||'').toLowerCase().trim();
-        sets.total.add(r.lc);
-        if(td==='customer') sets.customer.add(r.lc);
-        else if(td==='store') sets.store.add(r.lc);
-        else if(td==='hub') sets.hub.add(r.lc);
-        else if(td==='satelite') sets.satelite.add(r.lc);
-        else sets.other.add(r.lc);
-      });
-      return {c:sets.customer.size,s:sets.store.size,h:sets.hub.size,sat:sets.satelite.size,oth:sets.other.size,tot:sets.total.size};
-    }
     function bdgN(cur,prev,isLow,fmt){
       if(cur==null||prev==null) return '';
       var d=cur-prev; if(d===0) return '';
@@ -3223,11 +3235,6 @@ function openPresentation() {
     });
 
     // ── Section 3: Cost Analysis ──
-    function getCost(buKey, mo) {
-      var {start:d1,end:d2}=getMonthRange(mo);
-      var rows=filterRows(ROWS,d1,d2,buKey);
-      return computeCost(rows);
-    }
     function fmtM(v){ return v!=null?(v/1000000).toFixed(1)+' jt':'—'; }
     function fmtK(v){ return v!=null?Math.round(v/1000).toLocaleString('id-ID')+' rb':'—'; }
     var costThead='<thead><tr><th style="text-align:left">BU</th>'
