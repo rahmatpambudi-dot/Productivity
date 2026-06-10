@@ -2962,14 +2962,14 @@ function openPresentation() {
   ];
 
   // Helper: compute result
-  var _cache = {};
+  // Reset caches — pastikan tidak ada stale data dari sesi sebelumnya
+  var _cache = {}, _ucache = {}, _ccache = {}, _tcache = {};
   function getRes(site, mo) {
     var k=site+'|'+mo; if(_cache[k]) return _cache[k];
     var {start:d1,end:d2}=getMonthRange(mo);
     var rows=filterRows(ROWS,d1,d2,site);
     _cache[k]=computeSite(rows,site)||{}; return _cache[k];
   }
-  var _ucache = {};
   function getUtil(site, mo) {
     var k=site+'|'+mo; if(_ucache[k]!==undefined) return _ucache[k];
     var {start:d1,end:d2}=getMonthRange(mo);
@@ -2977,7 +2977,6 @@ function openPresentation() {
     _ucache[k]=r.rows.length?computeUtil(r.rows,r.allRows,site):null; return _ucache[k];
   }
 
-  var _ccache = {};
   function getCost(site, mo) {
     var k=site+'|'+mo; if(_ccache[k]!==undefined) return _ccache[k];
     var {start:d1,end:d2}=getMonthRange(mo);
@@ -2985,7 +2984,6 @@ function openPresentation() {
     _ccache[k]=computeCost(rows); return _ccache[k];
   }
 
-  var _tcache = {};
   function getTripByType(site, mo) {
     var k=site+'|'+mo; if(_tcache[k]!==undefined) return _tcache[k];
     var {start:d1,end:d2}=getMonthRange(mo);
