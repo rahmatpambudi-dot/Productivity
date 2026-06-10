@@ -3008,16 +3008,21 @@ function openPresentation() {
     var mnCur  = moNames[parseInt(curMo.slice(5,7))-1]+' '+curMo.slice(0,4);
     var mnPrev = prevMo ? moNames[parseInt(prevMo.slice(5,7))-1]+' '+prevMo.slice(0,4) : null;
 
-    // Current month section
-    var curRows = buList.map(function(bu,i){ return buildRow(bu.key, bu.label, curMo, prevMo, i===0); }).join('');
+    // 2 rows per BU: prevMo (plain) + curMo (with badge)
+    var bodyRows = '';
+    buList.forEach(function(bu, i) {
+      if(i > 0) bodyRows += '<tr><td colspan="14" style="padding:2px 0;border:none;background:#f1f5f9"></td></tr>';
+      var lbl = (i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
+      if(prevMo) bodyRows += buildRow(bu.key, lbl+' <span style="font-size:9px;color:#94a3b8">'+mnPrev+'</span>', prevMo, null, false);
+      bodyRows += buildRow(bu.key, lbl+' <span style="font-size:9px;font-weight:700;color:#0f172a">'+mnCur+'</span>', curMo, prevMo, i===0);
+    });
 
-    var tbl = '<table class="prs-tbl">'+thead+'<tbody>'+curRows+'</tbody></table>';
-
+    var tbl = '<table class="prs-tbl">'+thead+'<tbody>'+bodyRows+'</tbody></table>';
     var siteName = site==='JABABEKA'?'Jababeka':site==='CIKUPA'?'Cikupa':site==='SDA'?'Sidoarjo':site==='TALLO'?'Tallo':'Tamora';
     var momLabel = mnPrev ? mnPrev+' → '+mnCur : mnCur;
 
     return '<div class="prs-metrics">'
-      +'<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:14px">'
+      +'<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:10px">'
       +'<div class="prs-site-label">'+siteName+'</div>'
       +'<div class="prs-mom-label">'+momLabel+'</div>'
       +'</div>'
