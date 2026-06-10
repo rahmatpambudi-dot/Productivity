@@ -544,7 +544,10 @@ function computeSite(rows, site) {
     byDate[r.date].trips.add(r.lc);
     if(r.nopol) byDate[r.date].nopols.add(r.nopol);
   });
-  const ritVals = Object.values(byDate).map(v=>{ return v.nopols.size>0 ? v.trips.size/v.nopols.size : null; }).filter(x=>x!=null);
+  // Ritase = total LC unik / total nopol-hari aktif (total to total)
+  const ritTotalLC     = new Set(ritRows.map(r=>r.lc).filter(Boolean)).size;
+  const ritTotalNopol  = Object.values(byDate).reduce(function(s,v){return s+v.nopols.size;},0);
+  const ritaseVal      = ritTotalNopol > 0 ? ritTotalLC / ritTotalNopol : null;
 
   // srMain: corporate Jababeka include semua BU (HCI+AHI+FBI+KLS)
   const srMain = (isJAB && !isSub && !isKLS) ? sr : (isJAB && isKLS) ? sr.filter(r => r.sheet === 'KLS JABABEKA') : sr;
@@ -616,7 +619,7 @@ function computeSite(rows, site) {
 
   return {
     site, label: SL[site]||site,
-    ritase: avg(ritVals), olf: (isKLS||isFBI) ? null : (oM>0?oL/oM:null),
+    ritase: ritaseVal, olf: (isKLS||isFBI) ? null : (oM>0?oL/oM:null),
     dpStore:   dpStLC>0  ? dpStSum/dpStLC   : null,
     dpMix:     dpMxLC>0  ? dpMxSum/dpMxLC   : null,
     dpNonReg:  dpNRLC>0  ? dpNRSum/dpNRLC   : null,
