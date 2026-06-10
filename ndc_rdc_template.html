@@ -520,9 +520,22 @@ function computeSite(rows, site) {
   const ritRows = sr.filter(r => {
     if(r.td === 'satelite') return false;
     if(isCIK && (r.ja||'').toUpperCase() === 'MIN VAN OPS') return false;
-    // For FBI/KLS, filter by nopol list
     if(isFBI) return FBI_NOPOL_SET.has((r.nopol||'').toUpperCase());
     if(isKLS) return KLS_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    // JAB_HCI: nopol di HCI sheet, exclude FBI & KLS
+    if(site === 'JAB_HCI') {
+      if(FBI_NOPOL_SET.has((r.nopol||'').toUpperCase())) return false;
+      if(KLS_NOPOL_SET.has((r.nopol||'').toUpperCase())) return false;
+      return r.sheet === 'HCI JABABEKA';
+    }
+    // JAB_AHI: nopol di AHI sheet, exclude FBI & KLS
+    if(site === 'JAB_AHI') {
+      if(FBI_NOPOL_SET.has((r.nopol||'').toUpperCase())) return false;
+      if(KLS_NOPOL_SET.has((r.nopol||'').toUpperCase())) return false;
+      return r.sheet === 'AHI JABABEKA';
+    }
+    // Corporate JABABEKA: semua BU (HCI+AHI+FBI+KLS), cross-BU OK
+    if(isJAB && !isSub) return true;
     return true;
   });
   const byDate = {};
