@@ -1840,30 +1840,32 @@ function momCost(cur, prev) {
 
 function computeCost(rows) {
   if(!rows.length) return null;
-  var ujp=0, cost=0, pf=0, sewa=0, doSum=0, cbm=0;
+  var ujp=0, cost=0, pf=0, sewa=0, cbm=0;
   var lcSet = new Set();
+  var byTd = {customer:{cost:0,do:0,cbm:0}, store:{cost:0,do:0,cbm:0}, hub:{cost:0,do:0,cbm:0}, satelite:{cost:0,do:0,cbm:0}};
   rows.forEach(function(r) {
     if(r.ujp)  ujp  += r.ujp;
     if(r.cost) cost += r.cost;
     if(r.pf)   pf   += r.pf;
     if(r.sewa) sewa += r.sewa;
-    if(r.do)   doSum += parseFloat(r.do)||0;
     if(r.cbm)  cbm  += parseFloat(r.cbm)||0;
     if(r.lc)   lcSet.add(r.lc);
+    var td = (r.td||'').toLowerCase().trim();
+    if(byTd[td]) {
+      byTd[td].cost += r.cost||0;
+      byTd[td].do   += parseFloat(r.do)||0;
+      byTd[td].cbm  += parseFloat(r.cbm)||0;
+    }
   });
   var trip = lcSet.size;
   return {
-    ujp:      ujp,
-    cost:     cost,
-    pf:       pf,
-    sewa:     sewa,
-    trip:     trip,
-    doSum:    doSum,
-    cbm:      cbm,
-    costTrip: trip>0   ? cost/trip  : null,
-    costDo:   doSum>0  ? cost/doSum : null,
-    costCbm:  cbm>0    ? cost/cbm   : null,
-    ujpTrip:  trip>0   ? ujp/trip   : null,
+    ujp, cost, pf, sewa, trip, cbm,
+    costTrip:    trip>0               ? cost/trip                   : null,
+    costDoCust:  byTd.customer.do>0   ? byTd.customer.cost/byTd.customer.do   : null,
+    costDoStore: byTd.store.do>0      ? byTd.store.cost/byTd.store.do         : null,
+    costDoHub:   byTd.hub.do>0        ? byTd.hub.cost/byTd.hub.do             : null,
+    costCbm:     cbm>0                ? cost/cbm                   : null,
+    ujpTrip:     trip>0               ? ujp/trip                   : null,
   };
 }
 
@@ -1904,8 +1906,9 @@ function buildCostTable(container) {
     +'<th style="text-align:right;color:#0f766e">Sewa Armada</th>'
     +'<th style="text-align:right;color:#374151">Trip</th>'
     +'<th style="text-align:right;color:#374151">Cost/Trip</th>'
-    +'<th style="text-align:right;color:#374151">Cost/DO</th>'
-    +'<th style="text-align:right;color:#374151">Cost/CBM</th>'
+    +'<th style="text-align:right;color:#374151">Cost/DO Cust</th>'
+    +'<th style="text-align:right;color:#374151">Cost/DO Store</th>'
+    +'<th style="text-align:right;color:#374151">Cost/DO Hub</th>'
     +'</tr>';
 
   var moTbody='';
@@ -1925,8 +1928,9 @@ function buildCostTable(container) {
         +'<td style="text-align:right;font-size:11px;color:#0f766e;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.sewa)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+d.trip.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costTrip)+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDo)+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costCbm)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDoCust)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDoStore)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDoHub)+'</td>'
         +'</tr>';
     });
   });
@@ -2039,8 +2043,9 @@ function buildCostTable(container) {
       +'<th style="text-align:right;color:#374151">Trip</th>'
       +'<th style="text-align:right;color:#374151">DO</th>'
       +'<th style="text-align:right;color:#374151">Cost/Trip</th>'
-      +'<th style="text-align:right;color:#374151">Cost/DO</th>'
-      +'<th style="text-align:right;color:#374151">Cost/CBM</th>'
+      +'<th style="text-align:right;color:#374151">Cost/DO Cust</th>'
+      +'<th style="text-align:right;color:#374151">Cost/DO Store</th>'
+      +'<th style="text-align:right;color:#374151">Cost/DO Hub</th>'
       +'<th style="text-align:right;color:#374151">% of Total</th>'
       +'</tr>';
 
@@ -2058,8 +2063,9 @@ function buildCostTable(container) {
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+e.trip.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+Math.round(e.doSum).toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costTrip)+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDo)+'</td>'
-        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costCbm)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDoCust)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDoStore)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDoHub)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-weight:700;color:#64748b;font-family:\'JetBrains Mono\',monospace">'+pct+'%</td>'
         +'</tr>';
     });
@@ -2457,7 +2463,7 @@ window.renderDetail=function(results,summary,start,end){
       costEl.innerHTML =
         '<div class="panel">'
         + '<div class="ph"><h3>Cost Analysis</h3>'
-        + '<span class="tag">Total Cost · UJP · Prof Fee · Sewa · Cost/Trip · Cost/DO · Cost/CBM</span></div>'
+        + '<span class="tag">Total Cost · UJP · Cost/Trip · Cost/DO Cust · Cost/DO Store · Cost/DO Hub</span></div>'
         + '<div id="costTableContainer"></div></div>';
       buildCostTable(document.getElementById('costTableContainer'));
     }
@@ -3109,22 +3115,23 @@ function openPresentation() {
     function fmtK(v){ return v!=null?Math.round(v/1000).toLocaleString('id-ID')+' rb':'—'; }
     var costThead='<thead><tr><th style="text-align:left">BU</th>'
       +'<th style="color:#1d4ed8">Total Cost</th><th style="color:#0369a1">UJP</th>'
-      +'<th>Trip</th><th>Cost/Trip</th><th>Cost/DO</th><th>Cost/CBM</th>'
+      +'<th>Trip</th><th>Cost/Trip</th><th>Cost/DO Cust</th><th>Cost/DO Store</th><th>Cost/DO Hub</th>'
       +'</tr></thead>';
     var costBody='';
     buList.forEach(function(bu,i){
-      if(i>0) costBody+='<tr><td colspan="7" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      if(i>0) costBody+='<tr><td colspan="8" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       var cc=getCost(bu.key,curMo), cp=prevMo?getCost(bu.key,prevMo):null;
       if(prevMo&&cp) costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
         +'<td>'+fmtM(cp.cost)+'</td><td>'+fmtM(cp.ujp)+'</td><td>'+cp.trip+'</td>'
-        +'<td>'+fmtK(cp.costTrip)+'</td><td>'+fmtK(cp.costDo)+'</td><td>'+fmtK(cp.costCbm)+'</td></tr>';
+        +'<td>'+fmtK(cp.costTrip)+'</td><td>'+fmtK(cp.costDoCust)+'</td><td>'+fmtK(cp.costDoStore)+'</td><td>'+fmtK(cp.costDoHub)+'</td></tr>';
       costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
         +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,false):'')+'</td>'
-        +'<td>'+fmtM(cc?.ujp)+'</td><td>'+( cc?cc.trip:'—')+'</td>'
+        +'<td>'+fmtM(cc?.ujp)+'</td><td>'+(cc?cc.trip:'—')+'</td>'
         +'<td>'+fmtK(cc?.costTrip)+(cp?bdgN(cc?.costTrip,cp?.costTrip,true):'')+'</td>'
-        +'<td>'+fmtK(cc?.costDo)+(cp?bdgN(cc?.costDo,cp?.costDo,true):'')+'</td>'
-        +'<td>'+fmtK(cc?.costCbm)+'</td></tr>';
+        +'<td>'+fmtK(cc?.costDoCust)+(cp?bdgN(cc?.costDoCust,cp?.costDoCust,true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costDoStore)+(cp?bdgN(cc?.costDoStore,cp?.costDoStore,true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costDoHub)+(cp?bdgN(cc?.costDoHub,cp?.costDoHub,true):'')+'</td></tr>';
     });
 
     return '<div class="prs-slide-inner">'
