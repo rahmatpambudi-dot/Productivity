@@ -1662,9 +1662,17 @@ function computeUtil(rows, allRows, site) {
   var avgAvail  = avg(armAvailList);
   var avgUtil   = avg(armUtilList);
 
-  // Ritase Armada & MPP: avg dari per-hari values di rows
-  var ritArmadaVals = rows.map(function(r){ return r.ritase_armada; }).filter(function(v){ return v!=null && v>0; });
-  var ritMppVals    = rows.map(function(r){ return r.ritase_mpp;    }).filter(function(v){ return v!=null && v>0; });
+  // Ritase Armada & MPP: aggregate per tanggal dari semua rows (hindari double count)
+  var ritSrc = allRows && allRows.length ? allRows : rows;
+  var ritByDate = {};
+  ritSrc.forEach(function(r) {
+    if(!r.date) return;
+    if(!ritByDate[r.date]) ritByDate[r.date] = {armada:[], mpp:[]};
+    if(r.ritase_armada != null && r.ritase_armada > 0) ritByDate[r.date].armada.push(r.ritase_armada);
+    if(r.ritase_mpp    != null && r.ritase_mpp    > 0) ritByDate[r.date].mpp.push(r.ritase_mpp);
+  });
+  var ritArmadaVals = Object.values(ritByDate).map(function(v){ return v.armada.length ? v.armada.reduce(function(s,x){return s+x;},0)/v.armada.length : null; }).filter(function(v){ return v!=null; });
+  var ritMppVals    = Object.values(ritByDate).map(function(v){ return v.mpp.length   ? v.mpp.reduce(function(s,x){return s+x;},0)/v.mpp.length     : null; }).filter(function(v){ return v!=null; });
 
   return {
     drvUtil:      drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
