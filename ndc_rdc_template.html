@@ -1617,6 +1617,8 @@ function filterUtilRows(start, end, site) {
         arm_assets: getAssets(hci) + getAssets(ahi) || null,
         arm_avail:  sumFNullable('arm_avail'),
         arm_util:   sumFNullable('arm_util'),
+        ritase_armada: (function(){ var vals=dayRows.map(function(r){return r.ritase_armada;}).filter(function(v){return v!=null&&v>0;}); return vals.length?vals.reduce(function(s,v){return s+v;},0)/vals.length:null; })(),
+        ritase_mpp:    (function(){ var vals=dayRows.map(function(r){return r.ritase_mpp;}).filter(function(v){return v!=null&&v>0;}); return vals.length?vals.reduce(function(s,v){return s+v;},0)/vals.length:null; })(),
       });
     });
     return {rows: merged, allRows: merged};
