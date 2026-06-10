@@ -3206,16 +3206,17 @@ function openPresentation() {
         +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?.tatStore,true,true,1)+'</td>'
         +'<td class="'+(u?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u?pct(u.drvUtil/100):'—')+(u&&up?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
         +'<td class="'+(u?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u?pct(u.armUtilPct/100):'—')+(u&&up?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
+        +'<td>'+(u?num(u.ritaseArmada,2):'—')+'</td>'
         +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>';
     }
     var metrikThead = '<thead><tr><th style="text-align:left">BU</th>'
-      +'<th>Rit.Armada</th><th>OLF</th><th>DP Mix</th><th>DP Reg</th><th>DO/Trip</th>'
+      +'<th>OLF</th><th>DP Mix</th><th>DP Reg</th><th>DO/Trip</th>'
       +'<th>TAT Direct</th><th>TAT Store</th>'
-      +'<th>UTL Driver</th><th>UTL Armada</th><th>Rit.MPP</th>'
+      +'<th>UTL Driver</th><th>UTL Armada</th><th>Rit.Armada</th><th>Rit.MPP</th>'
       +'</tr></thead>';
     var metrikBody = '';
     buList.forEach(function(bu,i) {
-      if(i>0) metrikBody+='<tr><td colspan="11" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      if(i>0) metrikBody+='<tr><td colspan="12" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       if(prevMo) metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'+metrikCols(bu.key,prevMo,null)+'</tr>';
       metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'+metrikCols(bu.key,curMo,prevMo)+'</tr>';
