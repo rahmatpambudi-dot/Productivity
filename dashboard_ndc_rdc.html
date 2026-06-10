@@ -606,8 +606,8 @@ function computeSite(rows, site) {
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=(isCIK?12:24));
   const totalCbmStore = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
 
-  // DO/Trip Mix = total DO all td / countUnique(LC) all td — total to total
-  const allTripRows = srMain.filter(r => r.td && r.td !== '');
+  // DO/Trip Mix = total DO customer / countUnique(LC customer) — total to total
+  const allTripRows = srMain.filter(r => r.td === 'customer');
   const allDoSum    = ssum(allTripRows.map(r=>parseFloat(r.do)||0));
   const allLcCount  = new Set(allTripRows.map(r=>r.lc).filter(Boolean)).size;
   const doTripAll   = allLcCount>0 ? allDoSum/allLcCount : null;
