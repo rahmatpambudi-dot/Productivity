@@ -560,9 +560,23 @@ function computeSite(rows, site) {
   });
   const oL = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
   const oM = ssum(olfR.map(r=>parseFloat(r.cap)||0));
-  const dpSt = olfR.map(r=>parseFloat(r.dp)||0);
-  const dpMx = srMain.filter(r => r.td==='customer' && (isSub || (!(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')))).map(r=>parseFloat(r.dp)||0);
-  const dpNR = srMain.filter(r => r.td==='customer' && r.kat==='NON REGULAR' && (isSub || (!(isJAB&&r.owner==='FBI') && !(isSDA&&r.owner==='FBI')))).map(r=>parseFloat(r.dp)||0);
+
+  // DP Store — sum(DP) / countUnique(LC) total to total
+  const olfLcSet = new Set(olfR.map(r=>r.lc).filter(Boolean));
+  const dpStSum  = ssum(olfR.map(r=>parseFloat(r.dp)||0));
+  const dpStLC   = olfLcSet.size;
+
+  // DP Mix — all customer rows, total to total
+  const dpMxRows = srMain.filter(r => r.td==='customer');
+  const dpMxSum  = ssum(dpMxRows.map(r=>parseFloat(r.dp)||0));
+  const dpMxLC   = new Set(dpMxRows.map(r=>r.lc).filter(Boolean)).size;
+
+  // DP Non Reg — customer NON REGULAR, total to total
+  const dpNRRows = srMain.filter(r => r.td==='customer' && r.kat==='NON REGULAR');
+  const dpNRSum  = ssum(dpNRRows.map(r=>parseFloat(r.dp)||0));
+  const dpNRLC   = new Set(dpNRRows.map(r=>r.lc).filter(Boolean)).size;
+
+  // DP Reg / DO Trip Regular — customer REGULAR, total to total
   const drR = srMain.filter(r => {
     if(r.td !== 'customer') return false;
     if(r.ta === 'PICKUP') return false;
@@ -572,11 +586,11 @@ function computeSite(rows, site) {
     if(isCIK && !(r.sat||'').includes('NON SATELIT')) return false;
     return true;
   });
-  const dpRg = drR.map(r=>parseFloat(r.dp)||0);
-  const doTr = drR.map(r=>parseFloat(r.do)||0);
-  const doDpK = ssum(drR.map(r=>parseFloat(r.do)||0));
-  const doDpN = ssum(drR.map(r=>parseFloat(r.dp)||0));
+  const doDpK    = ssum(drR.map(r=>parseFloat(r.do)||0));
+  const doDpN    = ssum(drR.map(r=>parseFloat(r.dp)||0));
+  const drRLC    = new Set(drR.map(r=>r.lc).filter(Boolean)).size;
   const cbmTotal = ssum(drR.map(r=>parseFloat(r.cbm)||0));
+
   const tatD = srMain.filter(r => {
     if(r.td !== 'customer' || r.kat !== 'REGULAR') return false;
     if(isCIK) return (r.sat||'').includes('NON SATELIT');
@@ -588,28 +602,29 @@ function computeSite(rows, site) {
     return r.sa.includes('DALAM KOTA');
   }).map(r=>parseTAT(r.tat)).filter(t=>t!=null&&t>=0&&t<=(isCIK?12:24));
   const totalCbmStore = ssum(olfR.map(r=>parseFloat(r.cbm)||0));
-  // DO/Trip Customer — no filter (all td=customer, all kat, all ta)
-  const drAll = srMain.filter(r => {
-    if(r.td !== 'customer') return false;
-    if(!isSub && isJAB && r.owner === 'FBI') return false;  // FBI no customer delivery
-    return true;
-  });
-  const doTrAll = drAll.map(r=>parseFloat(r.do)||0);
-  const lcByDate = {};
-  drAll.forEach(r=>{ if(r.date&&r.lc){ if(!lcByDate[r.date]) lcByDate[r.date]={lc:new Set()}; lcByDate[r.date].lc.add(r.lc); }});
-  const doAllSum = ssum(doTrAll);
-  const tripAllCount = Object.values(lcByDate).reduce(function(s,v){return s+v.lc.size;},0);
-  const doTripAll = tripAllCount>0 ? doAllSum/tripAllCount : null;
-  // totalDoCust & totalDpCust — all customer (no filter)
+
+  // DO/Trip Mix = total DO all td / countUnique(LC) all td — total to total
+  const allTripRows = srMain.filter(r => r.td && r.td !== '');
+  const allDoSum    = ssum(allTripRows.map(r=>parseFloat(r.do)||0));
+  const allLcCount  = new Set(allTripRows.map(r=>r.lc).filter(Boolean)).size;
+  const doTripAll   = allLcCount>0 ? allDoSum/allLcCount : null;
+
+  // totalDoCust & totalDpCust
+  const drAll      = srMain.filter(r => r.td==='customer');
   const totalDoCust = ssum(drAll.map(r=>parseFloat(r.do)||0));
   const totalDpCust = ssum(drAll.map(r=>parseFloat(r.dp)||0));
+
   return {
     site, label: SL[site]||site,
     ritase: avg(ritVals), olf: (isKLS||isFBI) ? null : (oM>0?oL/oM:null),
-    dpStore: avg(dpSt), dpMix: avg(dpMx), dpNonReg: avg(dpNR), dpReg: avg(dpRg),
-    doTrip: avg(doTr), doDp: doDpN>0?doDpK/doDpN:null,
-    cbmDo: doDpK>0?cbmTotal/doDpK:null,
-    cbmDp: doDpN>0?cbmTotal/doDpN:null,
+    dpStore:   dpStLC>0  ? dpStSum/dpStLC   : null,
+    dpMix:     dpMxLC>0  ? dpMxSum/dpMxLC   : null,
+    dpNonReg:  dpNRLC>0  ? dpNRSum/dpNRLC   : null,
+    dpReg:     drRLC>0   ? doDpN/drRLC      : null,
+    doTrip:    drRLC>0   ? doDpK/drRLC      : null,
+    doDp:      doDpN>0   ? doDpK/doDpN      : null,
+    cbmDo:     doDpK>0   ? cbmTotal/doDpK   : null,
+    cbmDp:     doDpN>0   ? cbmTotal/doDpN   : null,
     tatDirect: avg(tatD), tatStore: avg(tatS),
     totalCbmStore, totalDoCust, totalDpCust,
     doTripAll,
