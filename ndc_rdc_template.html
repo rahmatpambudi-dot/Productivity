@@ -3335,21 +3335,21 @@ function openPresentation() {
       +'<div class="prs-sec-title">💰 Cost Analysis</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+costThead+'<tbody>'+costBody+'</tbody></table></div>'
       +'</div>'
-      // Bottom-left: Trip + Demand
-      +'<div class="prs-section" style="display:flex;flex-direction:column;gap:8px">'
-      +'<div>'
+      // Bottom-left: Trip only
+      +'<div class="prs-section">'
       +'<div class="prs-sec-title">🚛 Trip per Type</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+tripThead+'<tbody>'+tripBody+'</tbody></table></div>'
       +'</div>'
-      +'<div>'
+      // Bottom-right: Insight + Demand side by side
+      +'<div class="prs-section" style="display:flex;gap:12px">'
+      +'<div style="flex:1.2;min-width:0">'
+      +'<div class="prs-sec-title">💡 Insight & Highlight</div>'
+      +buildInsight(site, curMo, prevMo)
+      +'</div>'
+      +'<div style="flex:0.8;min-width:0">'
       +'<div class="prs-sec-title">📦 Demand</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+demandThead+'<tbody>'+demandBody+'</tbody></table></div>'
       +'</div>'
-      +'</div>'
-      // Bottom-right: Auto Insight
-      +'<div class="prs-section">'
-      +'<div class="prs-sec-title">💡 Insight & Highlight</div>'
-      +buildInsight(site, curMo, prevMo)
       +'</div>'
       +'</div>'
       +'</div>';
