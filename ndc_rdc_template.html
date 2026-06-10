@@ -57,6 +57,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .date-in:focus{border-color:var(--green);}
 .btn-apply{background:var(--green);color:#fff;border:none;padding:5px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;}
 .btn-apply:hover{background:var(--gm);}
+.btn-fm{background:var(--bg);color:var(--t2);border:1.5px solid var(--border);padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s;letter-spacing:.4px;}
+.btn-fm:hover{border-color:var(--green);color:var(--green);}
+.btn-fm.active{background:var(--green);color:#fff;border-color:var(--green);}
 .s-filter{background:var(--gbg);border:1px solid var(--gl);color:var(--green);border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;font-family:'Inter',sans-serif;cursor:pointer;outline:none;}
 .upd-info{font-size:11px;color:var(--t3);}
 .upd-info span{color:var(--t2);font-weight:500;}
@@ -293,6 +296,7 @@ body.export-mode #exitExport { display:block; }
       <span class="ctrl-lbl">—</span>
       <input type="date" class="date-in" id="endDate" value="2026-04-30">
       <button class="btn-apply" onclick="applyFilter()">Terapkan</button>
+      <button class="btn-fm" id="btnFM" onclick="toggleFM()" title="Full Month — semua bulan pakai hari penuh">FM</button>
       <select class="s-filter" id="siteSelect" onchange="onSiteChange()">
         <option value="ALL">Semua Site</option>
         <option value="NDC_RDC">NDC &amp; RDC</option>
@@ -344,6 +348,13 @@ let ROWS = [];
 let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
 let currentNav  = 'overview';
 let currentSite = 'ALL';
+let fullMonthMode = false;
+
+function toggleFM() {
+  fullMonthMode = !fullMonthMode;
+  document.getElementById('btnFM').classList.toggle('active', fullMonthMode);
+  render();
+}
 let charts = {};
 const SL = {
   JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora',
@@ -439,6 +450,21 @@ function getRange() {
   const s = document.getElementById('startDate').value;
   const e = document.getElementById('endDate').value;
   return { start: s, end: e };
+}
+
+// Returns {start, end} for a given month string 'YYYY-MM'
+// In FM mode: full month. In range mode: clamp to filter day range.
+function getMonthRange(mo) {
+  var {start: fs, end: fe} = getRange();
+  var year = parseInt(mo.slice(0,4)), month = parseInt(mo.slice(5,7));
+  var lastDay = new Date(year, month, 0).getDate();
+  if(fullMonthMode) {
+    return { start: mo+'-01', end: mo+'-'+String(lastDay).padStart(2,'0') };
+  } else {
+    var d1 = Math.min(parseInt(fs.slice(8,10)), lastDay);
+    var d2 = Math.min(parseInt(fe.slice(8,10)), lastDay);
+    return { start: mo+'-'+String(d1).padStart(2,'0'), end: mo+'-'+String(d2).padStart(2,'0') };
+  }
 }
 
 function filterRows(rows, start, end, site) {
@@ -1019,9 +1045,7 @@ function buildMonthlyTrendTable(container) {
   const BADGE_KEYS = new Set(['tatDirect','tatStore','totalCbmStore','totalDoCust','totalDpCust']);
   var allResults={};
   allMonths.forEach(function(mo) {
-    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var {start:moD1,end:moD2}=getMonthRange(mo);
     SITES_LIST.forEach(function(site){
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var moResult = null;
@@ -1236,9 +1260,7 @@ function buildTrendline(results, summary, s, e) {
   var filterD1=parseInt(s.slice(8,10)), filterD2=parseInt(e.slice(8,10));
   var trendLabels=allMonths.map(function(mo){var arr=mo.split('-');return moNames2[parseInt(arr[1])-1]+' '+arr[0];});
   var trendData=allMonths.map(function(mo){
-    var daysInMonth=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var d1=mo+'-'+String(filterD1).padStart(2,'0');
-    var d2=mo+'-'+String(Math.min(filterD2,daysInMonth)).padStart(2,'0');
+    var {start:d1,end:d2}=getMonthRange(mo);
     var moRows=filterRows(ROWS,d1,d2,currentSite);
     return currentSite==='ALL'?makeSummary(computeAll(moRows)):(computeSite(moRows,currentSite)||{});
   });
@@ -1659,9 +1681,7 @@ function buildMonthlyUtilTable(container) {
   // Compute per month per site
   var allData = {};
   allMonths.forEach(function(mo) {
-    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var {start:moD1,end:moD2}=getMonthRange(mo);
     SITES_LIST.forEach(function(site) {
       var groupSites = site==='NDC_RDC' ? SITES : site==='NDC' ? SITES_NDC : site==='RDC' ? SITES_RDC : null;
       if(groupSites) {
@@ -1817,9 +1837,7 @@ function buildCostTable(container) {
   // ── MONTHLY TABLE ──
   var moData = {};
   allMonths.forEach(function(mo) {
-    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var {start:moD1,end:moD2}=getMonthRange(mo);
     SITES_LIST.forEach(function(site) {
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var sub=SUB_SITES[site];
@@ -2054,9 +2072,7 @@ function buildCostBySegment(container) {
   // ── MONTHLY breakdown per td ──
   var moData = {}; // mo|site|td → computeCost result
   allMonths.forEach(function(mo) {
-    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var {start:moD1,end:moD2}=getMonthRange(mo);
     SITES_LIST.forEach(function(site) {
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var sub=SUB_SITES[site]; var effectiveSite=sub?sub.baseSite:site;
@@ -2152,9 +2168,7 @@ function buildCostBySegment(container) {
   // ── MONTHLY by segment ──
   var moData = {}; // key: mo|site|td → computeCost result
   allMonths.forEach(function(mo) {
-    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var {start:moD1,end:moD2}=getMonthRange(mo);
     SITES_LIST.forEach(function(site) {
       var moFiltered=filterRows(ROWS,moD1,moD2,site);
       var sub=SUB_SITES[site];
@@ -2245,9 +2259,7 @@ function buildMonthlyTripTypeTable(container) {
   // ── 2. Compute COUNTUNIQUE r.lc per month per site per td ──
   var allData = {}; // key: mo+'|'+site → { td: Set<lc>, _total: Set<lc> }
   allMonths.forEach(function(mo) {
-    var daysInMo=new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var moD1=mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2=mo+'-'+String(Math.min(parseInt(fe.slice(8,10)),daysInMo)).padStart(2,'0');
+    var {start:moD1,end:moD2}=getMonthRange(mo);
     SITES_LIST.forEach(function(site) {
       var moFiltered = filterRows(ROWS, moD1, moD2, site);
       var sub = SUB_SITES[site];
@@ -2489,9 +2501,7 @@ function buildDemandPanel(container) {
   // Compute per month per site
   var allData = {};
   allMonths.forEach(function(mo) {
-    var daysInMo = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
-    var moD1 = mo+'-'+String(parseInt(fs.slice(8,10))).padStart(2,'0');
-    var moD2 = mo+'-'+String(Math.min(parseInt(fe.slice(8,10)), daysInMo)).padStart(2,'0');
+    var {start:moD1,end:moD2}=getMonthRange(mo);
 
     SITES_LIST.forEach(function(site) {
       var memberSites = GROUP_MAP[site]; // non-null if group key
