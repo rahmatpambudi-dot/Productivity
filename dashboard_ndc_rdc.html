@@ -3112,7 +3112,7 @@ function openPresentation() {
           if(doStoreChg>3 && olfChg>1) pts.push({icon:'✅',color:'#166534',
             text:'<b>'+lbl+'</b>: Demand Store naik, OLF naik '+olfChg.toFixed(1)+'%pts → '+(dc.olf*100).toFixed(1)+'%'});
           else if(doStoreChg>3 && olfChg<-1) pts.push({icon:'⚠️',color:'#b45309',
-            text:'<b>'+lbl+'</b>: Demand Store naik tapi OLF turun '+Math.abs(olfChg).toFixed(1)+'%pts — perlu peningkatan fill rate'});
+            text:'<b>'+lbl+'</b>: Demand Store naik tapi OLF turun '+Math.abs(olfChg).toFixed(1)+'%pts — perlu optimasi muatan armada'});
         }
       }
 
