@@ -3023,6 +3023,105 @@ function openPresentation() {
     +'</tr></thead>';
 
   // Build slide content per site
+  // ── Auto Insight ──
+  function buildInsight(site, curMo, prevMo) {
+    if(!prevMo) return '<div style="color:#94a3b8;font-size:11px;padding:8px">Tidak ada data bulan sebelumnya.</div>';
+
+    var buList2 = site==='JABABEKA' ? JAB_BUS : [{key:site,label:'Corporate'}];
+    var insights = [];
+
+    function chg(cur, prev, pct) {
+      if(cur==null||prev==null||prev===0) return null;
+      return pct ? (cur-prev)/prev*100 : cur-prev;
+    }
+
+    buList2.forEach(function(bu) {
+      var lbl = bu.label;
+      var dc = getRes(bu.key, curMo), dp = getRes(bu.key, prevMo);
+      var cc = getCost(bu.key, curMo), cp = getCost(bu.key, prevMo);
+      var uc = getUtil(bu.key, curMo), up2 = getUtil(bu.key, prevMo);
+      var tc = getTripByType(bu.key, curMo), tp2 = getTripByType(bu.key, prevMo);
+
+      // Demand
+      var doCustChg = chg(tc.c, tp2.c, true);
+      var doStoreChg = chg(tc.s, tp2.s, true);
+
+      // Cost efficiency
+      var costDoCustChg = chg(cc?.costDoCust, cp?.costDoCust, true);
+      var costTripChg = chg(cc?.costTrip, cp?.costTrip, true);
+
+      // Produktivitas
+      var olfChg = dc.olf!=null && dp.olf!=null ? (dc.olf - dp.olf)*100 : null;
+      var ritChg = chg(dc.ritase, dp.ritase, true);
+      var doTripChg = chg(dc.doTripAll, dp.doTripAll, true);
+
+      // UTL
+      var drvUtlChg = uc&&up2 ? uc.drvUtil - up2.drvUtil : null;
+      var armUtlChg = uc&&up2 ? uc.armUtilPct - up2.armUtilPct : null;
+
+      // ── Generate insight points ──
+      var pts = [];
+
+      // 1. Demand trend
+      if(doCustChg!=null) {
+        if(doCustChg > 5) pts.push({icon:'📈',color:'#166534',text:'<b>'+lbl+'</b>: Demand Customer naik <b>'+doCustChg.toFixed(1)+'%</b> MoM ('+tc.c+' trip)'});
+        else if(doCustChg < -5) pts.push({icon:'📉',color:'#991b1b',text:'<b>'+lbl+'</b>: Demand Customer turun <b>'+Math.abs(doCustChg).toFixed(1)+'%</b> MoM ('+tc.c+' trip)'});
+      }
+      if(doStoreChg!=null && Math.abs(doStoreChg) > 5) {
+        var dir = doStoreChg>0 ? 'naik' : 'turun';
+        var col = doStoreChg>0 ? '#166534' : '#991b1b';
+        pts.push({icon:doStoreChg>0?'📈':'📉',color:col,text:'<b>'+lbl+'</b>: Demand Store '+dir+' <b>'+Math.abs(doStoreChg).toFixed(1)+'%</b> ('+tc.s+' trip)'});
+      }
+
+      // 2. Korelasi Demand vs Ritase
+      if(doCustChg!=null && ritChg!=null) {
+        if(doCustChg > 3 && ritChg < -2) pts.push({icon:'⚠️',color:'#b45309',text:'<b>'+lbl+'</b>: Demand naik tapi Ritase turun — potensi bottleneck armada'});
+        else if(doCustChg > 3 && ritChg > 2) pts.push({icon:'✅',color:'#166534',text:'<b>'+lbl+'</b>: Demand & Ritase sama-sama naik — efisiensi armada membaik'});
+      }
+
+      // 3. OLF
+      if(olfChg!=null && dc.olf!=null) {
+        if(dc.olf < 0.85) pts.push({icon:'🔴',color:'#991b1b',text:'<b>'+lbl+'</b>: OLF <b>'+( dc.olf*100).toFixed(1)+'%</b> — di bawah threshold 85%'+(olfChg<-1?' (turun '+Math.abs(olfChg).toFixed(1)+'%pts)':'')});
+        else if(olfChg < -3) pts.push({icon:'⚠️',color:'#b45309',text:'<b>'+lbl+'</b>: OLF turun <b>'+Math.abs(olfChg).toFixed(1)+'%pts</b> MoM → '+( dc.olf*100).toFixed(1)+'%'});
+        else if(olfChg > 3) pts.push({icon:'🟢',color:'#166534',text:'<b>'+lbl+'</b>: OLF naik <b>'+olfChg.toFixed(1)+'%pts</b> MoM → '+(dc.olf*100).toFixed(1)+'%'});
+      }
+
+      // 4. Cost efficiency vs Demand
+      if(costDoCustChg!=null && doCustChg!=null) {
+        if(costDoCustChg > 5 && doCustChg < 0) pts.push({icon:'🔴',color:'#991b1b',text:'<b>'+lbl+'</b>: Cost/DO Cust naik '+costDoCustChg.toFixed(1)+'% saat Demand turun — ineffisiensi cost'});
+        else if(costDoCustChg < -3) pts.push({icon:'✅',color:'#166534',text:'<b>'+lbl+'</b>: Cost/DO Cust efisien, turun '+Math.abs(costDoCustChg).toFixed(1)+'% MoM'});
+      }
+
+      // 5. UTL
+      if(drvUtlChg!=null && uc) {
+        if(uc.drvUtil < 85) pts.push({icon:'🔴',color:'#991b1b',text:'<b>'+lbl+'</b>: UTL Driver <b>'+(uc.drvUtil).toFixed(1)+'%</b> — di bawah 85%'});
+        else if(drvUtlChg < -5) pts.push({icon:'⚠️',color:'#b45309',text:'<b>'+lbl+'</b>: UTL Driver turun '+Math.abs(drvUtlChg).toFixed(1)+'%pts MoM'});
+      }
+      if(armUtlChg!=null && uc) {
+        if(uc.armUtilPct < 85) pts.push({icon:'🔴',color:'#991b1b',text:'<b>'+lbl+'</b>: UTL Armada <b>'+(uc.armUtilPct).toFixed(1)+'%</b> — di bawah 85%'});
+        else if(armUtlChg < -5) pts.push({icon:'⚠️',color:'#b45309',text:'<b>'+lbl+'</b>: UTL Armada turun '+Math.abs(armUtlChg).toFixed(1)+'%pts MoM'});
+      }
+
+      insights = insights.concat(pts);
+    });
+
+    if(!insights.length) {
+      insights.push({icon:'✅',color:'#166534',text:'Semua metrik dalam kondisi normal — tidak ada anomali signifikan MoM'});
+    }
+
+    // Cap at 8 insights
+    insights = insights.slice(0,8);
+
+    return '<div style="display:flex;flex-direction:column;gap:5px;padding:2px 0">'
+      +insights.map(function(ins){
+        return '<div style="display:flex;gap:6px;align-items:flex-start;font-size:10px;line-height:1.4;color:'+ins.color+'">'
+          +'<span style="font-size:11px;flex-shrink:0">'+ins.icon+'</span>'
+          +'<span>'+ins.text+'</span>'
+          +'</div>';
+      }).join('')
+      +'</div>';
+  }
+
   function buildSiteSlide(site) {
     var isJAB = site === 'JABABEKA';
     var buList = isJAB ? JAB_BUS : [{key: site, label: 'Corporate'}];
@@ -3180,9 +3279,10 @@ function openPresentation() {
       +'<div class="prs-sec-title">🚛 Trip per Type</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+tripThead+'<tbody>'+tripBody+'</tbody></table></div>'
       +'</div>'
-      // Bottom-right: placeholder UTL (already in metrik section)
-      +'<div class="prs-section" style="display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:12px">'
-      +'UTL & Ritase Armada sudah termasuk di bagian Produktivitas'
+      // Bottom-right: Auto Insight
+      +'<div class="prs-section">'
+      +'<div class="prs-sec-title">💡 Insight & Highlight</div>'
+      +buildInsight(site, curMo, prevMo)
       +'</div>'
       +'</div>'
       +'</div>';
