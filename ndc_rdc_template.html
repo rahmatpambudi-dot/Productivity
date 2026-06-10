@@ -3197,17 +3197,21 @@ function openPresentation() {
     // ── Section 1: Metrik ──
     function metrikCols(buKey, mo, pmo) {
       var d=getRes(buKey,mo), p=pmo?getRes(buKey,pmo):null, u=getUtil(buKey,mo), up=pmo?getUtil(buKey,pmo):null;
-      return '<td class="'+(d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+pct(d.olf)+badge(d.olf,p?.olf,false,false)+'</td>'
-        +'<td>'+num(d.dpMix,1)+badge(d.dpMix,p?.dpMix,false,true,1)+'</td>'
-        +'<td>'+num(d.dpReg,1)+badge(d.dpReg,p?.dpReg,false,true,1)+'</td>'
-        +'<td>'+num(d.doTripAll,1)+badge(d.doTripAll,p?.doTripAll,false,true,1)+'</td>'
-        +'<td>'+fmtTAT(d.tatDirect)+badge(d.tatDirect,p?.tatDirect,true,true,1)+'</td>'
-        +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?.tatStore,true,true,1)+'</td>'
+      var isFBIbu = buKey==='JAB_FBI';
+      var dpMixVal  = isFBIbu ? d.dpStore  : d.dpMix;
+      var dpMixPrev = isFBIbu ? (p?p.dpStore:null) : (p?p.dpMix:null);
+      var dpMixFmt  = dpMixVal!=null ? num(dpMixVal,1)+(isFBIbu?'<sup style="font-size:8px;color:#94a3b8">*</sup>':'') : '—';
+      return '<td class="'+(d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+pct(d.olf)+badge(d.olf,p?p.olf:null,false,false)+'</td>'
+        +'<td>'+dpMixFmt+badge(dpMixVal,dpMixPrev,false,true,1)+'</td>'
+        +'<td>'+num(d.dpReg,1)+badge(d.dpReg,p?p.dpReg:null,false,true,1)+'</td>'
+        +'<td>'+num(d.doTripAll,1)+badge(d.doTripAll,p?p.doTripAll:null,false,true,1)+'</td>'
+        +'<td>'+fmtTAT(d.tatDirect)+badge(d.tatDirect,p?p.tatDirect:null,true,true,1)+'</td>'
+        +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?p.tatStore:null,true,true,1)+'</td>'
         +'<td class="'+(u?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u?pct(u.drvUtil/100):'—')+(u&&up?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
         +'<td class="'+(u?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u?pct(u.armUtilPct/100):'—')+(u&&up?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
         +'<td>'+(u?num(u.ritaseArmada,2):'—')+'</td>'
         +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>';
-    }
+    }    }
     var metrikThead = '<thead><tr><th style="text-align:left">BU</th>'
       +'<th>OLF</th><th>DP Mix</th><th>DP Reg</th><th>DO/Trip Mix</th>'
       +'<th>TAT Direct</th><th>TAT Store</th>'
@@ -3330,6 +3334,7 @@ function openPresentation() {
       +'<div class="prs-section">'
       +'<div class="prs-sec-title">📊 Produktivitas</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+metrikThead+'<tbody>'+metrikBody+'</tbody></table></div>'
+      +(buList.some(function(b){return b.key==="JAB_FBI";})?'<div style="font-size:9px;color:#94a3b8;padding:2px 4px"><sup>*</sup> FBI: DP to Store</div>':'')
       +'</div>'
       // Top-right: Cost
       +'<div class="prs-section">'
