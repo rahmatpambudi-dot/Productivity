@@ -3197,8 +3197,7 @@ function openPresentation() {
     // ── Section 1: Metrik ──
     function metrikCols(buKey, mo, pmo) {
       var d=getRes(buKey,mo), p=pmo?getRes(buKey,pmo):null, u=getUtil(buKey,mo), up=pmo?getUtil(buKey,pmo):null;
-      return '<td>'+num(d.ritase,2)+badge(d.ritase,p?.ritase,false,true,2)+'</td>'
-        +'<td class="'+(d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+pct(d.olf)+badge(d.olf,p?.olf,false,false)+'</td>'
+      return '<td class="'+(d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+pct(d.olf)+badge(d.olf,p?.olf,false,false)+'</td>'
         +'<td>'+num(d.dpMix,1)+badge(d.dpMix,p?.dpMix,false,true,1)+'</td>'
         +'<td>'+num(d.dpReg,1)+badge(d.dpReg,p?.dpReg,false,true,1)+'</td>'
         +'<td>'+num(d.doTrip,1)+badge(d.doTrip,p?.doTrip,false,true,1)+'</td>'
@@ -3222,7 +3221,7 @@ function openPresentation() {
       metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'+metrikCols(bu.key,curMo,prevMo)+'</tr>';
     });
 
-    // ── Section 2: Trip per Type ──
+    // ── Section 2: Trip per Type + Demand ──
     function bdgN(cur,prev,isLow,fmt){
       if(cur==null||prev==null) return '';
       var d=cur-prev; if(d===0) return '';
@@ -3252,6 +3251,41 @@ function openPresentation() {
         +'<td>'+tc.sat+(tp?bdgN(tc.sat,tp.sat,false):'')+'</td>'
         +'<td>'+tc.oth+(tp?bdgN(tc.oth,tp.oth,false):'')+'</td>'
         +'<td style="font-weight:700;background:#f8fafc">'+tc.tot+(tp?bdgN(tc.tot,tp.tot,false):'')+'</td></tr>';
+    });
+
+    // Demand: CBM Store & DO Customer per BU
+    var demandThead='<thead><tr><th style="text-align:left">BU</th>'
+      +'<th style="color:#34a85a">CBM Store</th>'
+      +'<th style="color:#1a73e8">DO Customer</th>'
+      +'<th style="color:#1a73e8">CBM Customer</th>'
+      +'</tr></thead>';
+    var demandBody='';
+    buList.forEach(function(bu,i){
+      if(i>0) demandBody+='<tr><td colspan="4" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
+      var dc=getRes(bu.key,curMo), dp2=prevMo?getRes(bu.key,prevMo):null;
+      // Get CBM store & DO/CBM customer from raw rows
+      function getDemand(mo) {
+        var {start:d1,end:d2}=getMonthRange(mo);
+        var rows=filterRows(ROWS,d1,d2,bu.key);
+        var cbmStore=0, doCust=0, cbmCust=0;
+        rows.forEach(function(r){
+          var td=(r.td||'').toLowerCase();
+          var cbm=parseFloat(r.cbm)||0, do_=parseFloat(r.do)||0;
+          if(td==='store') cbmStore+=cbm;
+          if(td==='customer'){ doCust+=do_; cbmCust+=cbm; }
+        });
+        return {cbmStore, doCust, cbmCust};
+      }
+      var dc2=getDemand(curMo), dp3=prevMo?getDemand(prevMo):null;
+      if(prevMo&&dp3) demandBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
+        +'<td>'+(dp3.cbmStore/1000).toFixed(1)+'k</td>'
+        +'<td>'+Math.round(dp3.doCust/1000)+'k</td>'
+        +'<td>'+(dp3.cbmCust/1000).toFixed(1)+'k</td></tr>';
+      demandBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
+        +'<td>'+(dc2.cbmStore/1000).toFixed(1)+'k'+(dp3?bdgN(dc2.cbmStore,dp3.cbmStore,false):'')+'</td>'
+        +'<td>'+Math.round(dc2.doCust/1000)+'k'+(dp3?bdgN(dc2.doCust,dp3.doCust,false):'')+'</td>'
+        +'<td>'+(dc2.cbmCust/1000).toFixed(1)+'k'+(dp3?bdgN(dc2.cbmCust,dp3.cbmCust,false):'')+'</td></tr>';
     });
 
     // ── Section 3: Cost Analysis ──
@@ -3301,10 +3335,16 @@ function openPresentation() {
       +'<div class="prs-sec-title">💰 Cost Analysis</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+costThead+'<tbody>'+costBody+'</tbody></table></div>'
       +'</div>'
-      // Bottom-left: Trip
-      +'<div class="prs-section">'
+      // Bottom-left: Trip + Demand
+      +'<div class="prs-section" style="display:flex;flex-direction:column;gap:8px">'
+      +'<div>'
       +'<div class="prs-sec-title">🚛 Trip per Type</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+tripThead+'<tbody>'+tripBody+'</tbody></table></div>'
+      +'</div>'
+      +'<div>'
+      +'<div class="prs-sec-title">📦 Demand</div>'
+      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+demandThead+'<tbody>'+demandBody+'</tbody></table></div>'
+      +'</div>'
       +'</div>'
       // Bottom-right: Auto Insight
       +'<div class="prs-section">'
