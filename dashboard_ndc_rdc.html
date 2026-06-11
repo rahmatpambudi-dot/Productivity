@@ -1840,7 +1840,7 @@ function momCost(cur, prev) {
 
 function computeCost(rows) {
   if(!rows.length) return null;
-  var ujp=0, cost=0, pf=0, sewa=0, cbm=0;
+  var ujp=0, cost=0, pf=0, sewa=0, cbm=0, doSum=0;
   var lcSet = new Set();
   var byTd = {customer:{cost:0,do:0,cbm:0}, store:{cost:0,do:0,cbm:0}, hub:{cost:0,do:0,cbm:0}, satelite:{cost:0,do:0,cbm:0}};
   rows.forEach(function(r) {
@@ -1850,6 +1850,7 @@ function computeCost(rows) {
     if(r.sewa) sewa += r.sewa;
     if(r.cbm)  cbm  += parseFloat(r.cbm)||0;
     if(r.lc)   lcSet.add(r.lc);
+    if(r.do)   doSum += parseFloat(r.do)||0;
     var td = (r.td||'').toLowerCase().trim();
     if(byTd[td]) {
       byTd[td].cost += r.cost||0;
@@ -1865,6 +1866,7 @@ function computeCost(rows) {
     costDoStore: byTd.store.do>0      ? byTd.store.cost/byTd.store.do         : null,
     costDoHub:   byTd.hub.do>0        ? byTd.hub.cost/byTd.hub.do             : null,
     costCbm:     cbm>0                ? cost/cbm                   : null,
+    doSum:       doSum,
     costCbmCust:  byTd.customer.cbm>0  ? byTd.customer.cost/byTd.customer.cbm  : null,
     costCbmStore: byTd.store.cbm>0     ? byTd.store.cost/byTd.store.cbm        : null,
     costCbmHub:   byTd.hub.cbm>0       ? byTd.hub.cost/byTd.hub.cbm            : null,
