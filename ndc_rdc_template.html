@@ -3361,6 +3361,22 @@ function openPresentation() {
       +'</div>';
   }
 
+  // Pre-compute ALL data upfront before any HTML rendering
+  var allSites = [];
+  SITE_ORDER.forEach(function(site) {
+    var isJAB = site === 'JABABEKA';
+    var buList0 = isJAB ? JAB_BUS : [{key:site,label:'Corporate'}];
+    buList0.forEach(function(bu) {
+      [curMo, prevMo].forEach(function(mo) {
+        if(!mo) return;
+        getRes(bu.key, mo);
+        getUtil(bu.key, mo);
+        getCost(bu.key, mo);
+        getTripByType(bu.key, mo);
+      });
+    });
+  });
+
   // Build slides list: cover + 1 per site
   var slides = [{type:'cover'}];
   SITE_ORDER.forEach(function(site){ slides.push({type:'site', site}); });
@@ -3440,10 +3456,21 @@ function openPresentation() {
     +'<\/script>'
     +'</body></html>';
 
-  var w=window.open('','_blank');
-  if(!w){alert('Pop-up diblock browser. Izinkan pop-up dulu ya.');return;}
-  w.document.write(html);
-  w.document.close();
+  // Show loading state on Present button
+  var btn = document.querySelector('button[onclick="openPresentation()"]');
+  if(btn) { btn.textContent='⏳ Loading...'; btn.disabled=true; }
+
+  setTimeout(function() {
+    var w=window.open('','_blank');
+    if(!w){
+      if(btn){ btn.textContent='▶️ Present'; btn.disabled=false; }
+      alert('Pop-up diblock browser. Izinkan pop-up dulu ya.');
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+    if(btn){ btn.textContent='▶️ Present'; btn.disabled=false; }
+  }, 50);
 }
 
 
