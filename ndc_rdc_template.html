@@ -91,8 +91,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .dt{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
 .dt thead th{padding:8px 11px;text-align:right;font-weight:600;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);white-space:nowrap;background:var(--bg);}
 .dt thead th:first-child{text-align:left;}
-.cost-tbl thead th{padding:4px 5px;font-size:8.5px;letter-spacing:.2px;white-space:nowrap;}
-.cost-tbl td{padding:4px 5px;font-size:10px;white-space:nowrap;}
 .dt tbody td{padding:7px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;font-variant-numeric:tabular-nums;}
 .dt tbody tr:last-child td{border-bottom:none;}
 .dt tbody tr.sum{background:var(--gbg);font-weight:600;}
@@ -2094,7 +2092,7 @@ function buildCostTable(container) {
     var wrap = document.getElementById('costJalurTableWrap');
     if(wrap) wrap.innerHTML =
       '<div style="padding:6px 16px 6px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">PER JALUR (periode terpilih)</div>'
-      +'<div style="overflow-x:auto"><table class="mtt cost-tbl"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
+      +'<div style="overflow-x:auto"><table class="mtt"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
   };
 
   window.setCostSeg = function(seg, btn) {
@@ -3393,24 +3391,24 @@ function openPresentation() {
     +'<style>'
     +'*{box-sizing:border-box;margin:0;padding:0}'
     +'body{background:#111;font-family:Inter,system-ui,sans-serif;overflow:hidden}'
-    +'.prs-slide{width:100vw;height:100vh;display:none;flex-direction:column;justify-content:center;align-items:center;padding:16px 24px;background:#f8fafc}'
+    +'.prs-slide{width:100vw;height:100vh;display:none;flex-direction:column;justify-content:center;align-items:center;padding:20px 32px;background:#f8fafc}'
     +'.prs-slide.active{display:flex}'
     +'.prs-cover{text-align:center}'
     +'.prs-logo{font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:2px;margin-bottom:20px}'
     +'.prs-cover h1{font-size:52px;font-weight:800;color:#0f172a;margin-bottom:14px}'
     +'.prs-periode{font-size:20px;color:#475569;font-weight:500}'
     +'.prs-fm{margin-top:8px;font-size:12px;color:#94a3b8}'
-    +'.prs-metrics{width:100%;max-width:98vw}'
-    +'.prs-slide-inner{width:100%;max-width:98vw}'
+    +'.prs-metrics{width:100%;max-width:1500px}'
+    +'.prs-slide-inner{width:100%;max-width:1600px}'
     +'.prs-section{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:8px;overflow:hidden}'
     +'.prs-sec-title{font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid #f1f5f9}'
     +'.prs-site-label{font-size:24px;font-weight:800;color:#0f172a;border-left:5px solid #16a34a;padding-left:12px}'
     +'.prs-mom-label{font-size:13px;color:#64748b;font-weight:600}'
-    +'.prs-tbl-wrap{overflow-x:visible}'
-    +'.prs-tbl{width:100%;border-collapse:collapse;font-size:9.5px}'
-    +'.prs-tbl th{background:#1e2a3a;color:#fff;padding:4px 5px;text-align:right;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}'
+    +'.prs-tbl-wrap{overflow-x:auto}'
+    +'.prs-tbl{width:100%;border-collapse:collapse;font-size:10px}'
+    +'.prs-tbl th{background:#1e2a3a;color:#fff;padding:5px 7px;text-align:right;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}'
     +'.prs-tbl th:first-child{text-align:left}'
-    +'.prs-tbl td{padding:4px 5px;text-align:right;border-bottom:1px solid #e2e8f0;white-space:nowrap}'
+    +'.prs-tbl td{padding:5px 7px;text-align:right;border-bottom:1px solid #e2e8f0;white-space:nowrap}'
     +'.bu-label{text-align:left!important;color:#334155}'
     +'.corp-row td{background:#f0fdf4!important;border-top:2px solid #16a34a}'
     +'.prs-tbl td.g{color:#166534;font-weight:700;background:#dcfce7!important}'
