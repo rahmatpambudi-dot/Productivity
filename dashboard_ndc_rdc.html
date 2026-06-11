@@ -429,15 +429,17 @@ async function loadData() {
     const json = await res.json();
     ROWS = json.rows || [];
     RAW_LOADED = true;
-    // Pre-index ROWS by site+month for fast lookup in Present
-    window.ROW_INDEX = {};
-    ROWS.forEach(function(r) {
-      if(!r.date || !r.site) return;
-      var mo = r.date.slice(0,7);
-      var key = r.site+'|'+mo;
-      if(!ROW_INDEX[key]) ROW_INDEX[key] = [];
-      ROW_INDEX[key].push(r);
-    });
+    // Pre-index ROWS by site+month async - non-blocking
+    setTimeout(function() {
+      window.ROW_INDEX = {};
+      ROWS.forEach(function(r) {
+        if(!r.date || !r.site) return;
+        var mo = r.date.slice(0,7);
+        var key = r.site+'|'+mo;
+        if(!ROW_INDEX[key]) ROW_INDEX[key] = [];
+        ROW_INDEX[key].push(r);
+      });
+    }, 2000); // build after dashboard renders
     // Also try to load utilisasi data
     try {
       const uRes = await fetch('data_utilisasi.json?t=' + Date.now());
