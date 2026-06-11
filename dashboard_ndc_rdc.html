@@ -91,6 +91,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .dt{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
 .dt thead th{padding:8px 11px;text-align:right;font-weight:600;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid var(--border);white-space:nowrap;background:var(--bg);}
 .dt thead th:first-child{text-align:left;}
+.cost-tbl thead th{padding:6px 7px;font-size:9px;letter-spacing:.3px;}
+.cost-tbl td{padding:5px 7px;font-size:10px;}
 .dt tbody td{padding:7px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;font-variant-numeric:tabular-nums;}
 .dt tbody tr:last-child td{border-bottom:none;}
 .dt tbody tr.sum{background:var(--gbg);font-weight:600;}
@@ -2092,7 +2094,7 @@ function buildCostTable(container) {
     var wrap = document.getElementById('costJalurTableWrap');
     if(wrap) wrap.innerHTML =
       '<div style="padding:6px 16px 6px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">PER JALUR (periode terpilih)</div>'
-      +'<div style="overflow-x:auto"><table class="mtt"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
+      +'<div style="overflow-x:auto"><table class="mtt cost-tbl"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
   };
 
   window.setCostSeg = function(seg, btn) {
