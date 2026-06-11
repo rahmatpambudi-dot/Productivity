@@ -429,17 +429,6 @@ async function loadData() {
     const json = await res.json();
     ROWS = json.rows || [];
     RAW_LOADED = true;
-    // Pre-index ROWS by site+month async - non-blocking
-    setTimeout(function() {
-      window.ROW_INDEX = {};
-      ROWS.forEach(function(r) {
-        if(!r.date || !r.site) return;
-        var mo = r.date.slice(0,7);
-        var key = r.site+'|'+mo;
-        if(!ROW_INDEX[key]) ROW_INDEX[key] = [];
-        ROW_INDEX[key].push(r);
-      });
-    }, 2000); // build after dashboard renders
     // Also try to load utilisasi data
     try {
       const uRes = await fetch('data_utilisasi.json?t=' + Date.now());
@@ -2975,51 +2964,10 @@ function openPresentation() {
   // Helper: compute result
   // Reset caches — pastikan tidak ada stale data dari sesi sebelumnya
   var _cache = {}, _ucache = {}, _ccache = {}, _tcache = {};
-
-  // Fast filterRows using pre-built index — O(1) site+month lookup vs O(n) scan
-  function filterRowsFast(d1, d2, site) {
-    var sub = SUB_SITES[site];
-    var mo1 = d1.slice(0,7), mo2 = d2.slice(0,7);
-    var result = [];
-    // Collect months in range
-    var months = [];
-    var cur = mo1;
-    while(cur <= mo2) {
-      months.push(cur);
-      var y=parseInt(cur.slice(0,4)), m=parseInt(cur.slice(5,7));
-      m++; if(m>12){m=1;y++;}
-      cur = y+'-'+(m<10?'0':'')+m;
-    }
-    months.forEach(function(mo) {
-      var keys = [];
-      if(sub) {
-        // sub-BU: filter by baseSite
-        keys = [sub.baseSite+'|'+mo];
-      } else if(site==='ALL'||site==='NDC_RDC') {
-        SITES.forEach(function(s){ keys.push(s+'|'+mo); });
-      } else if(site==='NDC') {
-        SITES_NDC.forEach(function(s){ keys.push(s+'|'+mo); });
-      } else if(site==='RDC') {
-        SITES_RDC.forEach(function(s){ keys.push(s+'|'+mo); });
-      } else {
-        keys = [site+'|'+mo];
-      }
-      keys.forEach(function(key) {
-        var rows = window.ROW_INDEX[key] || [];
-        rows.forEach(function(r) {
-          if(r.date < d1 || r.date > d2) return;
-          if(sub && !sub.owners.some(function(o){ return (r.owner||'').toUpperCase()===o.toUpperCase(); })) return;
-          result.push(r);
-        });
-      });
-    });
-    return result;
-  }
-
   function getRes(site, mo) {
     var k=site+'|'+mo; if(_cache[k]) return _cache[k];
     var {start:d1,end:d2}=getMonthRange(mo);
-    var rows=filterRowsFast(d1,d2,site);
+    var rows=filterRows(ROWS,d1,d2,site);
     _cache[k]=computeSite(rows,site)||{}; return _cache[k];
   }
   function getUtil(site, mo) {
@@ -3032,14 +2980,14 @@ function openPresentation() {
   function getCost(site, mo) {
     var k=site+'|'+mo; if(_ccache[k]!==undefined) return _ccache[k];
     var {start:d1,end:d2}=getMonthRange(mo);
-    var rows=filterRowsFast(d1,d2,site);
+    var rows=filterRows(ROWS,d1,d2,site);
     _ccache[k]=computeCost(rows); return _ccache[k];
   }
 
   function getTripByType(site, mo) {
     var k=site+'|'+mo; if(_tcache[k]!==undefined) return _tcache[k];
     var {start:d1,end:d2}=getMonthRange(mo);
-    var rows=filterRowsFast(d1,d2,site);
+    var rows=filterRows(ROWS,d1,d2,site);
     var sets={customer:new Set(),store:new Set(),hub:new Set(),satelite:new Set(),other:new Set(),total:new Set()};
     rows.forEach(function(r){
       if(!r.lc) return;
@@ -3413,22 +3361,6 @@ function openPresentation() {
       +'</div>';
   }
 
-  // Pre-compute ALL data upfront before any HTML rendering
-  var allSites = [];
-  SITE_ORDER.forEach(function(site) {
-    var isJAB = site === 'JABABEKA';
-    var buList0 = isJAB ? JAB_BUS : [{key:site,label:'Corporate'}];
-    buList0.forEach(function(bu) {
-      [curMo, prevMo].forEach(function(mo) {
-        if(!mo) return;
-        getRes(bu.key, mo);
-        getUtil(bu.key, mo);
-        getCost(bu.key, mo);
-        getTripByType(bu.key, mo);
-      });
-    });
-  });
-
   // Build slides list: cover + 1 per site
   var slides = [{type:'cover'}];
   SITE_ORDER.forEach(function(site){ slides.push({type:'site', site}); });
@@ -3508,21 +3440,10 @@ function openPresentation() {
     +'<\/script>'
     +'</body></html>';
 
-  // Show loading state on Present button
-  var btn = document.querySelector('button[onclick="openPresentation()"]');
-  if(btn) { btn.textContent='⏳ Loading...'; btn.disabled=true; }
-
-  setTimeout(function() {
-    var w=window.open('','_blank');
-    if(!w){
-      if(btn){ btn.textContent='▶️ Present'; btn.disabled=false; }
-      alert('Pop-up diblock browser. Izinkan pop-up dulu ya.');
-      return;
-    }
-    w.document.write(html);
-    w.document.close();
-    if(btn){ btn.textContent='▶️ Present'; btn.disabled=false; }
-  }, 50);
+  var w=window.open('','_blank');
+  if(!w){alert('Pop-up diblock browser. Izinkan pop-up dulu ya.');return;}
+  w.document.write(html);
+  w.document.close();
 }
 
 
