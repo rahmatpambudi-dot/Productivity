@@ -460,32 +460,34 @@ let RAW_LOADED = false;
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>';
   try {
-    let usedMonthly = false;
+    // Step 1: Load monthly data first (7KB) — render Overview immediately
     try {
       const mRes = await fetch('data_monthly.json?t=' + Date.now());
       if(mRes.ok) {
         const mJson = await mRes.json();
         MONTHLY = mJson.monthly || [];
         document.getElementById('updTime').textContent = mJson.timestamp || '14 May 2026 18:30 WIB';
-        usedMonthly = true;
+        render(); // render Overview immediately with monthly data
+        document.getElementById('loadMsg') && (document.getElementById('loadMsg').textContent = 'Memuat detail data...');
       }
     } catch(e2) {}
+
+    // Step 2: Load full data in background
     const res = await fetch('data.json?t=' + Date.now());
     if (!res.ok) throw new Error('data.json not found. Pastikan GitHub Actions sudah dijalankan.');
     const json = await res.json();
     ROWS = json.rows || [];
     RAW_LOADED = true;
-    // Also try to load utilisasi data
+
+    // Step 3: Load utilisasi
     try {
       const uRes = await fetch('data_utilisasi.json?t=' + Date.now());
       if(uRes.ok) { const uJson = await uRes.json(); UTIL_ROWS = uJson.rows || []; }
     } catch(e3) { UTIL_ROWS = []; }
-    if(!usedMonthly) {
-      document.getElementById('updTime').textContent = json.timestamp || '14 May 2026 18:30 WIB';
-      MONTHLY = buildMonthlyFromRows(ROWS);
-    } else {
-      document.getElementById('updTime').textContent = json.timestamp || document.getElementById('updTime').textContent;
-    }
+
+    // Step 4: Update timestamp and re-render with full data
+    document.getElementById('updTime').textContent = json.timestamp || document.getElementById('updTime').textContent;
+    if(!MONTHLY || !MONTHLY.length) MONTHLY = buildMonthlyFromRows(ROWS);
     render();
   } catch(e) {
     document.getElementById('content').innerHTML = '<div class="loading"><p style="color:var(--red)">⚠ '+e.message+'</p></div>';
@@ -771,6 +773,13 @@ function setNav(n) {
 
 function render() {
   const {start,end} = getRange();
+
+  // Detail Metrik & Slide require full data — show loading message if not ready
+  if(!RAW_LOADED && (currentNav === 'detail' || currentNav === 'slide')) {
+    document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p>Memuat detail data... harap tunggu sebentar</p></div>';
+    return;
+  }
+
   const filtered = filterRows(ROWS, start, end, currentSite);
   const results = currentSite === 'ALL' ? computeAll(filtered) :
     currentSite === 'NDC_RDC' ? [makeSummary(computeAll(filtered))].map(r=>({...r, site:'NDC_RDC', label:'NDC & RDC'})) :
