@@ -509,17 +509,12 @@ async function loadData() {
       }
     } catch(e2) {}
 
-    // Step 2: Load site files for current filter
+    // Step 2: Load site files in parallel
     var sitesToLoad = getSiteFiles(currentSite);
-    var loadedRows = [];
-    for(var i = 0; i < sitesToLoad.length; i++) {
-      var s = sitesToLoad[i];
-      var el = document.getElementById('loadMsg');
-      if(el) el.textContent = 'Memuat ' + s + '...';
-      var rows = await loadSiteData(s);
-      loadedRows = loadedRows.concat(rows);
-    }
-    ROWS = loadedRows;
+    var el = document.getElementById('loadMsg');
+    if(el) el.textContent = 'Memuat data (' + sitesToLoad.length + ' site)...';
+    var siteResults = await Promise.all(sitesToLoad.map(loadSiteData));
+    ROWS = [].concat.apply([], siteResults);
     RAW_LOADED = true;
 
     // Step 3: Load utilisasi
@@ -798,10 +793,9 @@ function setSite(s) {
     RAW_LOADED = false;
     render(); // show loading for detail panels
     var allSites = getSiteFiles(s);
-    Promise.all(needed.map(loadSiteData)).then(function() {
-      var rows = [];
-      allSites.forEach(function(site){ rows = rows.concat(SITE_CACHE[site] || []); });
-      ROWS = rows;
+    var allSites = getSiteFiles(s);
+    Promise.all(allSites.map(loadSiteData)).then(function() {
+      ROWS = [].concat.apply([], allSites.map(function(site){ return SITE_CACHE[site] || []; }));
       RAW_LOADED = true;
       render();
     }).catch(function(e) {
