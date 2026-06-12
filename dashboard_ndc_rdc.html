@@ -253,6 +253,19 @@ body.export-mode #exitExport { display:block; }
   </div>
   <div class="s-div"></div>
   <div class="s-sec">
+    <div class="s-lbl" style="display:flex;justify-content:space-between;align-items:center">
+      Filter BU
+      <span style="font-size:9px;color:var(--t3);cursor:pointer" onclick="toggleSub('filter-bu-group')">▾</span>
+    </div>
+    <div id="filter-bu-group" style="display:none">
+      <div class="s-item" id="site-BU_HCI" onclick="setSite('BU_HCI')">🏢 HCI (semua site)</div>
+      <div class="s-item" id="site-BU_AHI" onclick="setSite('BU_AHI')">🏢 AHI (semua site)</div>
+      <div class="s-item" id="site-BU_FBI" onclick="setSite('BU_FBI')">🏢 FBI (semua site)</div>
+      <div class="s-item" id="site-BU_KLS" onclick="setSite('BU_KLS')">🏢 KLS (semua site)</div>
+    </div>
+  </div>
+  <div class="s-div"></div>
+  <div class="s-sec">
     <div class="s-lbl">Filter Site</div>
     <div class="s-item" id="site-ALL" onclick="setSite('ALL')"><span>Semua Site</span><span class="s-badge">5</span></div>
     <div class="s-item" id="site-NDC_RDC" onclick="setSite('NDC_RDC')"><span>NDC & RDC</span><span class="s-badge">5</span></div>
@@ -284,8 +297,25 @@ body.export-mode #exitExport { display:block; }
   </div>
   <div class="s-sec">
     <div class="s-lbl">RDC</div>
-    <div class="s-item" id="site-TALLO" onclick="setSite('TALLO')"><span class="s-dot rdc"></span>Tallo</div>
-    <div class="s-item" id="site-TAMORA" onclick="setSite('TAMORA')"><span class="s-dot rdc"></span>Tamora</div>
+    <div class="s-item" id="site-TALLO" onclick="setSite('TALLO')">
+      <span class="s-dot rdc"></span>Tallo
+      <span class="s-arrow" onclick="event.stopPropagation();toggleSub('tallo-sub')">▾</span>
+    </div>
+    <div class="s-sub-group" id="tallo-sub" style="display:none">
+      <div class="s-sub-item" id="site-TALLO_HCI" onclick="setSite('TALLO_HCI')"><span class="s-sub-dot"></span>HCI</div>
+      <div class="s-sub-item" id="site-TALLO_AHI" onclick="setSite('TALLO_AHI')"><span class="s-sub-dot"></span>AHI</div>
+      <div class="s-sub-item" id="site-TALLO_FBI" onclick="setSite('TALLO_FBI')"><span class="s-sub-dot"></span>FBI</div>
+    </div>
+    <div class="s-item" id="site-TAMORA" onclick="setSite('TAMORA')">
+      <span class="s-dot rdc"></span>Tamora
+      <span class="s-arrow" onclick="event.stopPropagation();toggleSub('tamora-sub')">▾</span>
+    </div>
+    <div class="s-sub-group" id="tamora-sub" style="display:none">
+      <div class="s-sub-item" id="site-TAMORA_HCI" onclick="setSite('TAMORA_HCI')"><span class="s-sub-dot"></span>HCI</div>
+      <div class="s-sub-item" id="site-TAMORA_AHI" onclick="setSite('TAMORA_AHI')"><span class="s-sub-dot"></span>AHI</div>
+      <div class="s-sub-item" id="site-TAMORA_FBI" onclick="setSite('TAMORA_FBI')"><span class="s-sub-dot"></span>FBI</div>
+      <div class="s-sub-item" id="site-TAMORA_KLS" onclick="setSite('TAMORA_KLS')"><span class="s-sub-dot"></span>KLS</div>
+    </div>
   </div>
 </aside>
 
@@ -317,7 +347,14 @@ body.export-mode #exitExport { display:block; }
         <option value="SDA_AHI">Sidoarjo — AHI</option>
         <option value="SDA_FBI">Sidoarjo — FBI</option>
         <option value="TALLO">Tallo</option>
+        <option value="TALLO_HCI">Tallo — HCI</option>
+        <option value="TALLO_AHI">Tallo — AHI</option>
+        <option value="TALLO_FBI">Tallo — FBI</option>
         <option value="TAMORA">Tamora</option>
+        <option value="TAMORA_HCI">Tamora — HCI</option>
+        <option value="TAMORA_AHI">Tamora — AHI</option>
+        <option value="TAMORA_FBI">Tamora — FBI</option>
+        <option value="TAMORA_KLS">Tamora — KLS</option>
       </select>
       <div class="upd-info">Update: <span id="updTime">14 May 2026 18:30 WIB</span></div>
       <button class="btn-ref" onclick="loadData()">
@@ -359,7 +396,7 @@ function toggleFM() {
 }
 let charts = {};
 const SL = {
-  JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora',
+  JABABEKA:'Jababeka', CIKUPA:'Cikupa', SDA:'Sidoarjo', TALLO:'Tallo', TAMORA:'Tamora', TALLO_HCI:'Tallo - HCI', TALLO_AHI:'Tallo - AHI', TALLO_FBI:'Tallo - FBI', TAMORA_HCI:'Tamora - HCI', TAMORA_AHI:'Tamora - AHI', TAMORA_FBI:'Tamora - FBI', TAMORA_KLS:'Tamora - KLS', BU_HCI:'HCI (All Sites)', BU_AHI:'AHI (All Sites)', BU_FBI:'FBI (All Sites)', BU_KLS:'KLS (All Sites)',
   NDC:'NDC', RDC:'RDC', NDC_RDC:'NDC & RDC',
   JAB_HCI:'JAB - HCI', JAB_AHI:'JAB - AHI', JAB_FBI:'JAB - FBI', JAB_KLS:'JAB - KLS',
   SDA_HCI:'SDA - HCI', SDA_AHI:'SDA - AHI', SDA_FBI:'SDA - FBI',
@@ -373,6 +410,13 @@ const SITE_GROUPS = {
   RDC: ['TALLO','TAMORA'],
 };
 const SUB_SITES = {
+  TALLO_HCI:  { baseSite:'TALLO',  owners:['HCI'] },
+  TALLO_AHI:  { baseSite:'TALLO',  owners:['AHI'] },
+  TALLO_FBI:  { baseSite:'TALLO',  owners:['FBI'] },
+  TAMORA_HCI: { baseSite:'TAMORA', owners:['HCI'] },
+  TAMORA_AHI: { baseSite:'TAMORA', owners:['AHI'] },
+  TAMORA_FBI: { baseSite:'TAMORA', owners:['FBI'] },
+  TAMORA_KLS: { baseSite:'TAMORA', owners:['KLS'] },
   JAB_HCI: { baseSite:'JABABEKA', owners:['HCI'] },
   JAB_AHI: { baseSite:'JABABEKA', owners:['AHI','NKA','TGI'] },
   JAB_FBI: { baseSite:'JABABEKA', owners:['FBI'] },
@@ -482,6 +526,10 @@ function filterRows(rows, start, end, site) {
     if (site === 'NDC') return SITES_NDC.includes(r.site);
     if (site === 'RDC') return SITES_RDC.includes(r.site);
     if (site === 'JABABEKA') return r.site === 'JABABEKA';
+    if (site === 'BU_HCI') return (r.owner||'').toUpperCase() === 'HCI';
+    if (site === 'BU_AHI') return ['AHI','NKA','TGI'].includes((r.owner||'').toUpperCase());
+    if (site === 'BU_FBI') return (r.owner||'').toUpperCase() === 'FBI';
+    if (site === 'BU_KLS') return (r.owner||'').toUpperCase() === 'KLS';
     return r.site === site;
   });
 }
@@ -523,6 +571,13 @@ function computeSite(rows, site) {
   const HCI_SDA_NOPOL_SET = new Set(['B9059BEN','B9057BEN','W8528PC','W8890NU','W8894NU','W8551PV','W8911PS','W8746PV','W8745PV','W8906PS','W8847QD','W8851QD','W8478QD','W8581QD','W8582QD','W8518QE','W8520QE','A8064ZV','W8150PC','A8524VB','W8194QA','W8195QA','W8910PS','W8081QB','W8082QB','W8108QB','W8265QC','W8264QC']);
   const AHI_SDA_NOPOL_SET = new Set(['B9056BEN','A8572ZE','W8819QB','W8850QD','W8656QE','W8907PS','W8908PS','W8479QD','W8555QC','W8744PV','A8653ZF','W8519QE','W8342QA','W8224QB','W8225QB','W8776NU','W8262QC']);
   const FBI_SDA_NOPOL_SET = new Set(['W8909PS','W8773NU','W8263QC']);
+  const HCI_TALLO_NOPOL_SET = new Set(['A8348VA','DD8283SY','A8997ZD','DD8634RG','DD8632RG','DD8987RG','DD8986RG','DD8705RM','DD8199SJ','DD8195AK','DD8328KJ','DD8194AK','DD8394KL','DD8389QW']);
+  const AHI_TALLO_NOPOL_SET = new Set(['DD8173RV','DD8165UE','DD8633RG','DD8797SZ','DD8772UF','DD8140AK']);
+  const FBI_TALLO_NOPOL_SET = new Set(['A8609ZF']);
+  const HCI_TAMORA_NOPOL_SET = new Set(['BK8136LM','BK8022LM','BK8031LM','BK8009MI','BK8815MG','BK8805MH','BK8806MH','BK8807MH','BK8803MH','BK8804MH','BK8047MQ','BK8073MQ','BK8075MQ','BK8696MS','BK8871MS']);
+  const AHI_TAMORA_NOPOL_SET = new Set(['BK8299MH','BK8172LM','BK8135LM','BK8146LM','BK8192MQ','BK8074MQ','BK8309MS','BK8646MS','BK8141LM','BK8647MS']);
+  const FBI_TAMORA_NOPOL_SET = new Set(['A8330VX','BK8099LM']);
+  const KLS_TAMORA_NOPOL_SET = new Set(['BK8191MQ','BK8633MS']);
 
   const ritRows = sr.filter(r => {
     if(r.td === 'satelite') return false;
@@ -532,6 +587,13 @@ function computeSite(rows, site) {
     if(site === 'SDA_HCI') return HCI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
     if(site === 'SDA_AHI') return AHI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
     if(site === 'SDA_FBI') return FBI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'TALLO_HCI') return HCI_TALLO_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'TALLO_AHI') return AHI_TALLO_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'TALLO_FBI') return FBI_TALLO_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'TAMORA_HCI') return HCI_TAMORA_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'TAMORA_AHI') return AHI_TAMORA_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'TAMORA_FBI') return FBI_TAMORA_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'TAMORA_KLS') return KLS_TAMORA_NOPOL_SET.has((r.nopol||'').toUpperCase());
     // JAB_HCI: nopol di HCI sheet, exclude FBI & KLS
     if(site === 'JAB_HCI') {
       if(FBI_NOPOL_SET.has((r.nopol||'').toUpperCase())) return false;
@@ -629,7 +691,7 @@ function computeSite(rows, site) {
 
   return {
     site, label: SL[site]||site,
-    ritase: ritaseVal, olf: (isKLS||isFBI||site==='SDA_FBI') ? null : (oM>0?oL/oM:null),
+    ritase: ritaseVal, olf: (isKLS||isFBI||['SDA_FBI','TALLO_FBI','TAMORA_FBI','TAMORA_KLS'].includes(site)) ? null : (oM>0?oL/oM:null),
     dpStore:   dpStLC>0  ? dpStSum/dpStLC   : null,
     dpMix:     dpMxLC>0  ? dpMxSum/dpMxLC   : null,
     dpNonReg:  dpNRLC>0  ? dpNRSum/dpNRLC   : null,
@@ -690,6 +752,11 @@ function updateSidebarActive() {
   document.querySelectorAll('.s-item, .s-sub-item').forEach(el => el.classList.remove('active'));
   const el = document.getElementById('site-'+currentSite);
   if(el) el.classList.add('active');
+}
+
+function toggleSub(id) {
+  var el = document.getElementById(id);
+  if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 function setNav(n) {
@@ -1520,6 +1587,13 @@ const UTIL_SITE_MAP = {
   'SDA_HCI':      'SDA',
   'SDA_AHI':      'SDA',
   'SDA_FBI':      'SDA',
+  'TALLO_HCI':    'TALLO',
+  'TALLO_AHI':    'TALLO',
+  'TALLO_FBI':    'TALLO',
+  'TAMORA_HCI':   'TAMORA',
+  'TAMORA_AHI':   'TAMORA',
+  'TAMORA_FBI':   'TAMORA',
+  'TAMORA_KLS':   'TAMORA',
   'HCI CIKUPA':   'CIKUPA',
   'CORP SIDOARJO':'SDA',
   'CORP TALLO':   'TALLO',
@@ -1535,8 +1609,15 @@ const UTIL_SUBSITE_MAP = {
   'SDA_HCI': ['SDA_HCI'], // synthetic rows dari trip data; arm_assets hardcoded = 28
   'SDA_AHI': ['SDA_AHI'], // synthetic rows dari trip data; arm_assets hardcoded = 17
   'SDA_FBI': ['SDA_FBI'], // synthetic rows dari trip data; arm_assets hardcoded = 3
-  'TALLO':   ['CORP TALLO'],
-  'TAMORA':  ['CORP TAMORA'],
+  'TALLO':      ['CORP TALLO'],
+  'TALLO_HCI':  ['TALLO_HCI'],
+  'TALLO_AHI':  ['TALLO_AHI'],
+  'TALLO_FBI':  ['TALLO_FBI'],
+  'TAMORA':     ['CORP TAMORA'],
+  'TAMORA_HCI': ['TAMORA_HCI'],
+  'TAMORA_AHI': ['TAMORA_AHI'],
+  'TAMORA_FBI': ['TAMORA_FBI'],
+  'TAMORA_KLS': ['TAMORA_KLS'],
   'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
   'NDC':     ['HCI JABABEKA','AHI JABABEKA','HCI CIKUPA','CORP SIDOARJO'],
   'RDC':     ['CORP TALLO','CORP TAMORA'],
@@ -1550,6 +1631,13 @@ const UTIL_HARDCODED_ASSETS = {
   'SDA_HCI': 28,
   'SDA_AHI': 17,
   'SDA_FBI': 3,
+  'TALLO_HCI': 14,
+  'TALLO_AHI': 6,
+  'TALLO_FBI': 1,
+  'TAMORA_HCI': 15,
+  'TAMORA_AHI': 10,
+  'TAMORA_FBI': 2,
+  'TAMORA_KLS': 2,
 };
 
 // ── National holidays Indonesia 2026 (exclude from utilisasi) ──
