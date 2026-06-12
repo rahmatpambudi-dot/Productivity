@@ -554,16 +554,19 @@ function tatStr(h){
 
 function computeSite(rows, site) {
   const sub = SUB_SITES[site];
+  const isBU = site && site.startsWith('BU_');
+  const sub = isBU ? null : SUB_SITES[site];
   const effectiveSite = sub ? sub.baseSite : site;
   const isJAB = effectiveSite === 'JABABEKA';
   const isCIK = effectiveSite === 'CIKUPA';
   const isSDA = effectiveSite === 'SDA';
   const isSub = !!sub;
-  const isKLS    = site === 'JAB_KLS';
-  const isFBI    = site === 'JAB_FBI' || site === 'SDA_FBI';
+  const isKLS    = site === 'JAB_KLS' || site === 'TAMORA_KLS';
+  const isFBI    = site === 'JAB_FBI' || site === 'SDA_FBI' || site === 'TALLO_FBI' || site === 'TAMORA_FBI';
   const isSDAHCI = site === 'SDA_HCI';
   const isSDAHCI_or_AHI = site === 'SDA_HCI' || site === 'SDA_AHI';
-  const sr = rows.filter(r => r.site === effectiveSite);
+  // For BU filter: rows already filtered by owner in filterRows, use all rows
+  const sr = isBU ? rows : rows.filter(r => r.site === effectiveSite);
 
   // Nopol lists for FBI/KLS ritase calculation
   const FBI_NOPOL_SET = new Set(['A8012ZV','A8607WX','A8386VX','A8976XA','B9015SCF','B9018SCF','A8157ZC','A8232ZC','B9747SCE','A8710ZE','A8711ZE','A8709ZE','A8541ZE','A8506ZD','A8088VC']);
@@ -621,8 +624,8 @@ function computeSite(rows, site) {
   const ritTotalNopol  = Object.values(byDate).reduce(function(s,v){return s+v.nopols.size;},0);
   const ritaseVal      = ritTotalNopol > 0 ? ritTotalLC / ritTotalNopol : null;
 
-  // srMain: corporate Jababeka include semua BU (HCI+AHI+FBI+KLS)
-  const srMain = (isJAB && !isSub && !isKLS) ? sr : (isJAB && isKLS) ? sr.filter(r => r.sheet === 'KLS JABABEKA') : sr;
+  // srMain: corporate Jababeka include semua BU; BU filter uses sr directly
+  const srMain = isBU ? sr : (isJAB && !isSub && !isKLS) ? sr : (isJAB && isKLS) ? sr.filter(r => r.sheet === 'KLS JABABEKA') : sr;
   const olfR = srMain.filter(r => {
     if(r.td !== 'store') return false;
     if(isJAB && r.sheet === 'KLS JABABEKA') return false; // KLS B2B, no OLF
