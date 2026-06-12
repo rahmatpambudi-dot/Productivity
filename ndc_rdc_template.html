@@ -590,7 +590,6 @@ function tatStr(h){
 }
 
 function computeSite(rows, site) {
-  const sub = SUB_SITES[site];
   const isBU = site && site.startsWith('BU_');
   const sub = isBU ? null : SUB_SITES[site];
   const effectiveSite = sub ? sub.baseSite : site;
@@ -2844,7 +2843,7 @@ function setNav(n) {
   render();
 }
 
-updateSidebarActive();
+if(typeof updateSidebarActive === 'function') updateSidebarActive();
 loadData();
 
 
