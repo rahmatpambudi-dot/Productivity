@@ -590,11 +590,50 @@ def build():
     tpl_path      = os.path.join(base, '..', 'ndc_rdc_template.html')
     out_path      = os.path.join(base, '..', 'dashboard_ndc_rdc.html')
 
-    # data.json — strip drvId & crewId (only needed for utilisasi calc, saves ~7MB)
-    slim_rows = [{k: v for k, v in r.items() if k not in ('drvId', 'crewId')} for r in all_rows]
+    # Encode string fields to integer codes to reduce file size
+    ENCODE_FIELDS = ['sheet','site','td','kat','ta','sa','owner','nopol','jalur','ja','sat','od']
+    
+    # Build encoding maps from all rows
+    enc_maps = {}
+    for f in ENCODE_FIELDS:
+        vals = sorted(set(str(r.get(f,'') or '') for r in all_rows))
+        enc_maps[f] = {v: i for i, v in enumerate(vals)}
+    dec_maps = {f: list(m.keys()) for f, m in enc_maps.items()}
+
+    def encode_row(r):
+        er = {}
+        for k, v in r.items():
+            if k in ('drvId','crewId'): continue  # strip
+            if k in enc_maps and v is not None:
+                er[k] = enc_maps[k].get(str(v) if v is not None else '', 0)
+            else:
+                er[k] = v
+        return er
+
+    # Split per site + encode
+    from collections import defaultdict
+    by_site = defaultdict(list)
+    for r in all_rows:
+        by_site[r.get('site','')].append(encode_row(r))
+
+    SITES_LIST = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA']
+    total_kb = 0
+    for site in SITES_LIST:
+        site_rows = by_site.get(site, [])
+        site_path = os.path.join(base, '..', f'data_{site}.json')
+        with open(site_path, 'w', encoding='utf-8') as f:
+            json.dump({'timestamp': timestamp, 'maps': dec_maps, 'rows': site_rows}, f, ensure_ascii=False, separators=(',',':'))
+        kb = os.path.getsize(site_path)/1024
+        total_kb += kb
+        print(f"data_{site}.json: {kb:.0f} KB ({len(site_rows)} rows)")
+
+    # Keep data.json as combined encoded (for backward compat / ALL site filter)
+    all_encoded = []
+    for site in SITES_LIST:
+        all_encoded.extend(by_site.get(site, []))
     with open(data_path, 'w', encoding='utf-8') as f:
-        json.dump({"timestamp": timestamp, "rows": slim_rows}, f, ensure_ascii=False, separators=(',',':'))
-    print(f"data.json: {os.path.getsize(data_path)/1024:.1f} KB")
+        json.dump({'timestamp': timestamp, 'maps': dec_maps, 'rows': all_encoded}, f, ensure_ascii=False, separators=(',',':'))
+    print(f"data.json (combined): {os.path.getsize(data_path)/1024:.0f} KB")
 
     # data_monthly.json
     monthly = aggregate_monthly(all_rows, timestamp)
