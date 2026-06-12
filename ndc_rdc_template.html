@@ -511,19 +511,27 @@ function computeSite(rows, site) {
   const isCIK = effectiveSite === 'CIKUPA';
   const isSDA = effectiveSite === 'SDA';
   const isSub = !!sub;
-  const isKLS = site === 'JAB_KLS';
-  const isFBI = site === 'JAB_FBI';
+  const isKLS    = site === 'JAB_KLS';
+  const isFBI    = site === 'JAB_FBI' || site === 'SDA_FBI';
+  const isSDAHCI = site === 'SDA_HCI';
+  const isSDAHCI_or_AHI = site === 'SDA_HCI' || site === 'SDA_AHI';
   const sr = rows.filter(r => r.site === effectiveSite);
 
   // Nopol lists for FBI/KLS ritase calculation
   const FBI_NOPOL_SET = new Set(['A8012ZV','A8607WX','A8386VX','A8976XA','B9015SCF','B9018SCF','A8157ZC','A8232ZC','B9747SCE','A8710ZE','A8711ZE','A8709ZE','A8541ZE','A8506ZD','A8088VC']);
   const KLS_NOPOL_SET = new Set(['A8437ZH','A8481ZH','A8801XZ','A8537ZF','A8721VB','A8717VB','A8757VB','A8759VB','A8912VB','A8910VB','A8020VC','A8542XB','A8237VD','B9044BRO','B9068BEN','A8876ZX','A8002XW','A8503ZX','A8048ZX','A8288YX','A8976XY','A8908XY','B9190SDB','B9642SCE','A8098ZH','A8504ZX','A8339ZS','A8432ZS','A8159ZC','B9320SCE','A8721ZV','A8553VB','A8961VB','A8983VB','A8017VC','A8373VC','A8304VC','A8476VC','A8486VC','A8505VC','A8520VC']);
+  const HCI_SDA_NOPOL_SET = new Set(['B9059BEN','B9057BEN','W8528PC','W8890NU','W8894NU','W8551PV','W8911PS','W8746PV','W8745PV','W8906PS','W8847QD','W8851QD','W8478QD','W8581QD','W8582QD','W8518QE','W8520QE','A8064ZV','W8150PC','A8524VB','W8194QA','W8195QA','W8910PS','W8081QB','W8082QB','W8108QB','W8265QC','W8264QC']);
+  const AHI_SDA_NOPOL_SET = new Set(['B9056BEN','A8572ZE','W8819QB','W8850QD','W8656QE','W8907PS','W8908PS','W8479QD','W8555QC','W8744PV','A8653ZF','W8519QE','W8342QA','W8224QB','W8225QB','W8776NU','W8262QC']);
+  const FBI_SDA_NOPOL_SET = new Set(['W8909PS','W8773NU','W8263QC']);
 
   const ritRows = sr.filter(r => {
     if(r.td === 'satelite') return false;
     if(isCIK && (r.ja||'').toUpperCase() === 'MIN VAN OPS') return false;
-    if(isFBI) return FBI_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'JAB_FBI') return FBI_NOPOL_SET.has((r.nopol||'').toUpperCase());
     if(isKLS) return KLS_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'SDA_HCI') return HCI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'SDA_AHI') return AHI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
+    if(site === 'SDA_FBI') return FBI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
     // JAB_HCI: nopol di HCI sheet, exclude FBI & KLS
     if(site === 'JAB_HCI') {
       if(FBI_NOPOL_SET.has((r.nopol||'').toUpperCase())) return false;
@@ -621,7 +629,7 @@ function computeSite(rows, site) {
 
   return {
     site, label: SL[site]||site,
-    ritase: ritaseVal, olf: (isKLS||isFBI) ? null : (oM>0?oL/oM:null),
+    ritase: ritaseVal, olf: (isKLS||isFBI||site==='SDA_FBI') ? null : (oM>0?oL/oM:null),
     dpStore:   dpStLC>0  ? dpStSum/dpStLC   : null,
     dpMix:     dpMxLC>0  ? dpMxSum/dpMxLC   : null,
     dpNonReg:  dpNRLC>0  ? dpNRSum/dpNRLC   : null,
@@ -1509,6 +1517,9 @@ const UTIL_SITE_MAP = {
   'AHI JABABEKA': 'JABABEKA',
   'JAB_FBI':      'JABABEKA',
   'JAB_KLS':      'JABABEKA',
+  'SDA_HCI':      'SDA',
+  'SDA_AHI':      'SDA',
+  'SDA_FBI':      'SDA',
   'HCI CIKUPA':   'CIKUPA',
   'CORP SIDOARJO':'SDA',
   'CORP TALLO':   'TALLO',
@@ -1521,9 +1532,9 @@ const UTIL_SUBSITE_MAP = {
   'JAB_KLS': ['JAB_KLS'], // synthetic rows dari trip data; arm_assets hardcoded = 41
   'CIKUPA':  ['HCI CIKUPA'],
   'SDA':     ['CORP SIDOARJO'],
-  'SDA_HCI': null, // data utilisasi tidak tersedia per BU
-  'SDA_AHI': null,
-  'SDA_FBI': null,
+  'SDA_HCI': ['SDA_HCI'], // synthetic rows dari trip data; arm_assets hardcoded = 28
+  'SDA_AHI': ['SDA_AHI'], // synthetic rows dari trip data; arm_assets hardcoded = 17
+  'SDA_FBI': ['SDA_FBI'], // synthetic rows dari trip data; arm_assets hardcoded = 3
   'TALLO':   ['CORP TALLO'],
   'TAMORA':  ['CORP TAMORA'],
   'JABABEKA':['HCI JABABEKA','AHI JABABEKA'],
@@ -1536,6 +1547,9 @@ const UTIL_SUBSITE_MAP = {
 const UTIL_HARDCODED_ASSETS = {
   'JAB_FBI': 15,
   'JAB_KLS': 41,
+  'SDA_HCI': 28,
+  'SDA_AHI': 17,
+  'SDA_FBI': 3,
 };
 
 // ── National holidays Indonesia 2026 (exclude from utilisasi) ──
