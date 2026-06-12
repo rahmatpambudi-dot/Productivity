@@ -2279,11 +2279,14 @@ function buildCostTable(container) {
   window.setCostBU = function(bu, btn) {
     window._costBU = bu;
     // Update pill styles
+    var BU_COLORS2 = {_all:'#0f172a',HCI:'#1d4ed8',AHI:'#15803d',FBI:'#c2410c',KLS:'#7e22ce'};
     document.querySelectorAll('#costBUFilter button').forEach(function(b) {
+      var bKey = b.getAttribute('data-bu') || '_all';
+      var col = BU_COLORS2[bKey] || '#0f172a';
       var isActive = b === btn;
-      b.style.background = isActive ? '#0f172a' : 'transparent';
-      b.style.color = isActive ? '#fff' : '#0f172a';
-      b.style.borderColor = '#0f172a';
+      b.style.background = isActive ? col : 'transparent';
+      b.style.color = isActive ? '#fff' : col;
+      b.style.borderColor = col;
     });
     // Re-filter jalur rows with new BU
     var {start:fs2, end:fe2} = getRange();
@@ -2320,11 +2323,13 @@ function buildCostTable(container) {
   };
 
   // BU filter pills
+  var BU_COLORS = {_all:'#0f172a',HCI:'#1d4ed8',AHI:'#15803d',FBI:'#c2410c',KLS:'#7e22ce'};
   var BU_LIST = [{key:'_all',lbl:'Semua'},{key:'HCI',lbl:'HCI'},{key:'AHI',lbl:'AHI'},{key:'FBI',lbl:'FBI'},{key:'KLS',lbl:'KLS'}];
   var buPillsHtml = '<div id="costBUFilter" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px 6px;border-top:1px solid #f1f5f9"><span style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-right:6px;align-self:center">FILTER BU</span>';
   BU_LIST.forEach(function(bu, i) {
+    var col = BU_COLORS[bu.key]||'#0f172a';
     var active = i===0;
-    buPillsHtml += '<button onclick="setCostBU(\''+bu.key+'\',this)" style="padding:4px 12px;border-radius:20px;border:1px solid #0f172a;background:'+(active?'#0f172a':'transparent')+';color:'+(active?'#fff':'#0f172a')+';font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">'+bu.lbl+'</button>';
+    buPillsHtml += '<button onclick="setCostBU(\''+bu.key+'\',this)" data-bu="'+bu.key+'" style="padding:4px 12px;border-radius:20px;border:1px solid '+col+';background:'+(active?col:'transparent')+';color:'+(active?'#fff':col)+';font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">'+bu.lbl+'</button>';
   });
   buPillsHtml += '</div>';
 
