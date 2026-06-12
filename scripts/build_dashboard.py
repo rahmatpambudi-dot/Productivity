@@ -590,9 +590,10 @@ def build():
     tpl_path      = os.path.join(base, '..', 'ndc_rdc_template.html')
     out_path      = os.path.join(base, '..', 'dashboard_ndc_rdc.html')
 
-    # data.json
+    # data.json — strip drvId & crewId (only needed for utilisasi calc, saves ~7MB)
+    slim_rows = [{k: v for k, v in r.items() if k not in ('drvId', 'crewId')} for r in all_rows]
     with open(data_path, 'w', encoding='utf-8') as f:
-        json.dump({"timestamp": timestamp, "rows": all_rows}, f, ensure_ascii=False, separators=(',',':'))
+        json.dump({"timestamp": timestamp, "rows": slim_rows}, f, ensure_ascii=False, separators=(',',':'))
     print(f"data.json: {os.path.getsize(data_path)/1024:.1f} KB")
 
     # data_monthly.json
