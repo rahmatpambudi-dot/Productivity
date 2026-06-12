@@ -321,11 +321,8 @@ def compute_ritase_by_site_date(all_rows):
 
 def compute_fbi_kls_util_by_date(all_rows):
     """
-    Compute daily MPP & Armada metrics for JAB_FBI and JAB_KLS from trip data.
-    - FBI nopol: fixed list, exclude Minggu (DOW=0) + HOLIDAYS_2026
-    - KLS nopol: fixed list, exclude Sabtu & Minggu + HOLIDAYS_2026 + cuti bersama
-    - DriverId filter: only rows where nopol in FBI/KLS list
-    Returns dict: { ('JAB_FBI'|'JAB_KLS', date): {drv_aktual, drv_plan, nopol_aktual} }
+    Compute daily MPP & Armada metrics for JAB_FBI, JAB_KLS, SDA_HCI, SDA_AHI, SDA_FBI
+    from trip data using fixed nopol lists.
     """
     import datetime
 
@@ -343,6 +340,21 @@ def compute_fbi_kls_util_by_date(all_rows):
         'A8721ZV','A8553VB','A8961VB','A8983VB','A8017VC','A8373VC',
         'A8304VC','A8476VC','A8486VC','A8505VC','A8520VC',
     }
+    HCI_SDA_NOPOL = {
+        'B9059BEN','B9057BEN','W8528PC','W8890NU','W8894NU','W8551PV',
+        'W8911PS','W8746PV','W8745PV','W8906PS','W8847QD','W8851QD',
+        'W8478QD','W8581QD','W8582QD','W8518QE','W8520QE','A8064ZV',
+        'W8150PC','A8524VB','W8194QA','W8195QA','W8910PS','W8081QB',
+        'W8082QB','W8108QB','W8265QC','W8264QC',
+    }
+    AHI_SDA_NOPOL = {
+        'B9056BEN','A8572ZE','W8819QB','W8850QD','W8656QE','W8907PS',
+        'W8908PS','W8479QD','W8555QC','W8744PV','A8653ZF','W8519QE',
+        'W8342QA','W8224QB','W8225QB','W8776NU','W8262QC',
+    }
+    FBI_SDA_NOPOL = {
+        'W8909PS','W8773NU','W8263QC',
+    }
 
     # Libur nasional 2026
     HOLIDAYS = {
@@ -351,11 +363,10 @@ def compute_fbi_kls_util_by_date(all_rows):
         '2026-05-01','2026-05-14','2026-05-27','2026-05-31',
         '2026-06-01','2026-06-16','2026-08-17','2026-08-25','2026-12-25',
     }
-    # Cuti bersama KLS (dari trip data: aktivitas sangat rendah)
     KLS_CUTI = {
-        '2026-03-20','2026-03-23','2026-03-24',           # cuti bersama Lebaran
-        '2026-06-02','2026-06-03','2026-06-04',           # cuti bersama Idul Adha
-        '2026-06-05','2026-06-08',                        # sisa cuti Idul Adha
+        '2026-03-20','2026-03-23','2026-03-24',
+        '2026-06-02','2026-06-03','2026-06-04',
+        '2026-06-05','2026-06-08',
     }
     KLS_EXCLUDE = HOLIDAYS | KLS_CUTI
 
@@ -366,28 +377,32 @@ def compute_fbi_kls_util_by_date(all_rows):
         if not date: continue
         if (r.get('td') or '').lower() == 'satelite': continue
 
-        nopol = (r.get('nopol') or '').strip().upper()
-        drvid = r.get('drvId', '')
+        nopol  = (r.get('nopol') or '').strip().upper()
+        drvid  = r.get('drvId', '')
         crewid = r.get('crewId', '')
 
-        if nopol in FBI_NOPOL:
-            bu = 'JAB_FBI'
-        elif nopol in KLS_NOPOL:
-            bu = 'JAB_KLS'
-        else:
-            continue
+        if nopol in FBI_NOPOL:         bu = 'JAB_FBI'
+        elif nopol in KLS_NOPOL:       bu = 'JAB_KLS'
+        elif nopol in HCI_SDA_NOPOL:   bu = 'SDA_HCI'
+        elif nopol in AHI_SDA_NOPOL:   bu = 'SDA_AHI'
+        elif nopol in FBI_SDA_NOPOL:   bu = 'SDA_FBI'
+        else: continue
 
         try:
-            dow = datetime.date.fromisoformat(date).weekday()  # Mon=0, Sun=6
+            dow = datetime.date.fromisoformat(date).weekday()
         except: continue
 
         # Day exclusions
-        if bu == 'JAB_FBI':
-            if dow == 6: continue           # exclude Minggu
-            if date in HOLIDAYS: continue   # exclude libur nasional
-        if bu == 'JAB_KLS':
-            if dow >= 5: continue           # exclude Sabtu & Minggu
+        if bu in ('JAB_FBI', 'SDA_FBI'):
+            if dow == 6: continue
+            if date in HOLIDAYS: continue
+        elif bu == 'JAB_KLS':
+            if dow >= 5: continue
             if date in KLS_EXCLUDE: continue
+        # HCI/AHI SDA: standard weekday (exclude Sunday + holidays)
+        elif bu in ('SDA_HCI', 'SDA_AHI'):
+            if dow == 6: continue
+            if date in HOLIDAYS: continue
 
         if nopol: buckets[(bu, date)]['nopol'].add(nopol)
         if drvid: buckets[(bu, date)]['drvid'].add(drvid)
@@ -402,7 +417,7 @@ def compute_fbi_kls_util_by_date(all_rows):
             'drv_aktual':   drv_cnt,
             'drv_plan':     drv_cnt,
             'nopol_aktual': nopol_cnt,
-            'crew_aktual':  crew_cnt if bu == 'JAB_KLS' else 0,  # FBI no Ast.Driver
+            'crew_aktual':  crew_cnt if bu not in ('JAB_FBI','SDA_FBI') else 0,
         }
     return result
 
@@ -564,6 +579,9 @@ def build():
     # Inject synthetic rows for JAB_FBI (assets=15) & JAB_KLS (assets=41)
     FBI_ASSETS = 15
     KLS_ASSETS = 41
+    HCI_SDA_ASSETS = 28
+    AHI_SDA_ASSETS = 17
+    FBI_SDA_ASSETS = 3
     FBI_NOPOL = {
         'A8012ZV','A8607WX','A8386VX','A8976XA','B9015SCF','B9018SCF',
         'A8157ZC','A8232ZC','B9747SCE','A8710ZE','A8711ZE','A8709ZE',
@@ -578,8 +596,31 @@ def build():
         'A8721ZV','A8553VB','A8961VB','A8983VB','A8017VC','A8373VC',
         'A8304VC','A8476VC','A8486VC','A8505VC','A8520VC',
     }
+    HCI_SDA_NOPOL = {
+        'B9059BEN','B9057BEN','W8528PC','W8890NU','W8894NU','W8551PV',
+        'W8911PS','W8746PV','W8745PV','W8906PS','W8847QD','W8851QD',
+        'W8478QD','W8581QD','W8582QD','W8518QE','W8520QE','A8064ZV',
+        'W8150PC','A8524VB','W8194QA','W8195QA','W8910PS','W8081QB',
+        'W8082QB','W8108QB','W8265QC','W8264QC',
+    }
+    AHI_SDA_NOPOL = {
+        'B9056BEN','A8572ZE','W8819QB','W8850QD','W8656QE','W8907PS',
+        'W8908PS','W8479QD','W8555QC','W8744PV','A8653ZF','W8519QE',
+        'W8342QA','W8224QB','W8225QB','W8776NU','W8262QC',
+    }
+    FBI_SDA_NOPOL = {
+        'W8909PS','W8773NU','W8263QC',
+    }
+    ALL_NOPOL_MAP = {
+        'JAB_FBI': FBI_NOPOL, 'JAB_KLS': KLS_NOPOL,
+        'SDA_HCI': HCI_SDA_NOPOL, 'SDA_AHI': AHI_SDA_NOPOL, 'SDA_FBI': FBI_SDA_NOPOL,
+    }
+    ASSETS_MAP = {
+        'JAB_FBI': FBI_ASSETS, 'JAB_KLS': KLS_ASSETS,
+        'SDA_HCI': HCI_SDA_ASSETS, 'SDA_AHI': AHI_SDA_ASSETS, 'SDA_FBI': FBI_SDA_ASSETS,
+    }
     fbi_kls_map = compute_fbi_kls_util_by_date(all_rows)
-    # Build per-BU ritase (same nopol filter + day exclusions as compute_fbi_kls_util_by_date)
+    # Build per-BU ritase
     HOLIDAYS_2026 = {
         '2026-01-01','2026-01-16','2026-02-17','2026-03-19',
         '2026-03-21','2026-03-22','2026-04-03','2026-04-05',
@@ -597,19 +638,18 @@ def build():
         if not date: continue
         if (r.get('td') or '').lower() == 'satelite': continue
         nopol = (r.get('nopol') or '').strip().upper()
-        if nopol in FBI_NOPOL:
-            bu = 'JAB_FBI'
-        elif nopol in KLS_NOPOL:
-            bu = 'JAB_KLS'
-        else:
-            continue
+        bu = None
+        for _bu, _nopols in ALL_NOPOL_MAP.items():
+            if nopol in _nopols:
+                bu = _bu; break
+        if not bu: continue
         try:
             dow = datetime.date.fromisoformat(date).weekday()
         except: continue
-        if bu == 'JAB_FBI':
+        if bu in ('JAB_FBI','SDA_FBI','SDA_HCI','SDA_AHI'):
             if dow == 6: continue
             if date in HOLIDAYS_2026: continue
-        if bu == 'JAB_KLS':
+        elif bu == 'JAB_KLS':
             if dow >= 5: continue
             if date in KLS_EXCLUDE: continue
         lc = r.get('lc',''); drvid = r.get('drvId',''); crewid = r.get('crewId','')
@@ -627,10 +667,10 @@ def build():
         }
 
     for (bu, date), v in fbi_kls_map.items():
-        assets     = FBI_ASSETS if bu == 'JAB_FBI' else KLS_ASSETS
-        nopol      = v['nopol_aktual']
-        crew       = v.get('crew_aktual', 0)
-        rit        = fbi_ritase.get((bu,date), {})
+        assets = ASSETS_MAP.get(bu, 0)
+        nopol_cnt = v['nopol_aktual']
+        crew      = v.get('crew_aktual', 0)
+        rit       = fbi_ritase.get((bu,date), {})
         util_rows.append({
             'site':          bu,
             'date':          date,
@@ -639,14 +679,14 @@ def build():
             'ast_plan':      crew if bu == 'JAB_KLS' else None,  # plan = aktual
             'ast_aktual':    crew if bu == 'JAB_KLS' else None,
             'arm_assets':    assets,
-            'arm_avail':     nopol,
-            'arm_util':      nopol,
+            'arm_avail':     nopol_cnt,
+            'arm_util':      nopol_cnt,
             'ritase_armada': rit.get('ritase_armada'),
             'ritase_mpp':    rit.get('ritase_mpp'),
         })
-    fbi_cnt = sum(1 for k in fbi_kls_map if k[0]=='JAB_FBI')
-    kls_cnt = sum(1 for k in fbi_kls_map if k[0]=='JAB_KLS')
-    print(f"  + {fbi_cnt} JAB_FBI rows, {kls_cnt} JAB_KLS rows injected")
+    bu_counts = {}
+    for k in fbi_kls_map: bu_counts[k[0]] = bu_counts.get(k[0],0)+1
+    print(f"  + synthetic util rows: {bu_counts}")
 
     with open(util_path, 'w', encoding='utf-8') as f:
         json.dump({"timestamp": timestamp, "rows": util_rows}, f, ensure_ascii=False, separators=(',',':'))
