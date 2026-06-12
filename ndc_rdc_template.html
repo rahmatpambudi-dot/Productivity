@@ -2153,6 +2153,7 @@ function buildCostTable(container) {
   pillsHtml += '<div id="costJalurTableWrap"></div>';
 
   // ── PER JALUR TABLE builder (callable with td filter) ──
+  window._costSitesList = SITES_LIST; // store for BU re-filter
   window._costJalurRows = {}; // store rows by site for re-filtering
   SITES_LIST.forEach(function(site) {
     var allFiltered = filterRows(ROWS, fs, fe, site);
@@ -2277,14 +2278,28 @@ function buildCostTable(container) {
 
   window.setCostBU = function(bu, btn) {
     window._costBU = bu;
+    // Update pill styles
     document.querySelectorAll('#costBUFilter button').forEach(function(b) {
-      var active = b === btn;
-      b.style.background = active ? '#0f172a' : 'transparent';
-      b.style.color = active ? '#fff' : '#0f172a';
+      var isActive = b === btn;
+      b.style.background = isActive ? '#0f172a' : 'transparent';
+      b.style.color = isActive ? '#fff' : '#0f172a';
+      b.style.borderColor = '#0f172a';
+    });
+    // Re-filter jalur rows with new BU
+    var {start:fs2, end:fe2} = getRange();
+    var SITES_LIST2 = window._costSitesList || SITES;
+    SITES_LIST2.forEach(function(site) {
+      var allFiltered = filterRows(ROWS, fs2, fe2, site);
+      var sub2 = SUB_SITES[site];
+      var effSite = sub2 ? sub2.baseSite : site;
+      var siteRows = allFiltered.filter(r=>r.site===effSite);
+      if(bu !== '_all') {
+        var buOwners = bu === 'AHI' ? ['AHI','NKA','TGI'] : [bu];
+        siteRows = siteRows.filter(r=>buOwners.includes((r.owner||'').toUpperCase()));
+      }
+      window._costJalurRows[site] = siteRows;
     });
     window.renderCostJalur(window._currentCostSeg || '_all');
-    // Re-render trend bulanan
-    buildCostTable(document.getElementById('costTableContainer'));
   };
 
   window.setCostSeg = function(seg, btn) {
