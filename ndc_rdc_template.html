@@ -1225,6 +1225,8 @@ function renderDetail(results, summary, start, end) {
     { key:'cbmDp',label:'CBM/DP',fmt:v=>pf(v,2)},
     { key:'tatDirect',label:'TAT Direct',fmt:v=>tatStr(v)},
     { key:'tatStore',label:'TAT Store',fmt:v=>tatStr(v)},
+    { key:'totalCbmStore',label:'Demand CBM Store',fmt:v=>v!=null?v.toFixed(1):'—'},
+    { key:'totalDoCust',label:'Demand DO Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
   ];
   const achMetrics = [
     { key:'olf',label:'OLF Store',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—',tgtFmt:'Target ≥85%'},
