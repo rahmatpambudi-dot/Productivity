@@ -457,26 +457,69 @@ function buildMonthlyFromRows(rows) {
 let MONTHLY = [];
 let RAW_LOADED = false;
 
+// Decode maps — populated after first data load
+let DEC_MAPS = null;
+
+function decodeRows(rows, maps) {
+  if(!maps) return rows;
+  var fields = Object.keys(maps);
+  return rows.map(function(r) {
+    var dr = Object.assign({}, r);
+    fields.forEach(function(f) {
+      if(r[f] !== undefined && r[f] !== null) dr[f] = maps[f][r[f]] !== undefined ? maps[f][r[f]] : '';
+    });
+    return dr;
+  });
+}
+
+function getSiteFiles(site) {
+  if(!site || site === 'ALL' || site === 'NDC_RDC' || site.startsWith('BU_')) return ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
+  if(site === 'NDC') return ['JABABEKA','CIKUPA','SDA'];
+  if(site === 'RDC') return ['TALLO','TAMORA'];
+  var sub = SUB_SITES ? SUB_SITES[site] : null;
+  var base = sub ? sub.baseSite : site;
+  var all = ['JABABEKA','CIKUPA','SDA','TALLO','TAMORA'];
+  return all.includes(base) ? [base] : all;
+}
+
+var SITE_CACHE = {};
+
+async function loadSiteData(site) {
+  if(SITE_CACHE[site]) return SITE_CACHE[site];
+  var res = await fetch('data_'+site+'.json?t='+Date.now());
+  if(!res.ok) throw new Error('data_'+site+'.json not found');
+  var json = await res.json();
+  if(!DEC_MAPS && json.maps) DEC_MAPS = json.maps;
+  var rows = decodeRows(json.rows || [], DEC_MAPS);
+  SITE_CACHE[site] = rows;
+  return rows;
+}
+
 async function loadData() {
   document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p id="loadMsg">Memuat data...</p></div>';
   try {
-    // Step 1: Load monthly data first (7KB) — render Overview immediately
+    // Step 1: Load monthly (7KB) — render Overview instantly
     try {
       const mRes = await fetch('data_monthly.json?t=' + Date.now());
       if(mRes.ok) {
         const mJson = await mRes.json();
         MONTHLY = mJson.monthly || [];
         document.getElementById('updTime').textContent = mJson.timestamp || '14 May 2026 18:30 WIB';
-        render(); // render Overview immediately with monthly data
-        document.getElementById('loadMsg') && (document.getElementById('loadMsg').textContent = 'Memuat detail data...');
+        render();
       }
     } catch(e2) {}
 
-    // Step 2: Load full data in background
-    const res = await fetch('data.json?t=' + Date.now());
-    if (!res.ok) throw new Error('data.json not found. Pastikan GitHub Actions sudah dijalankan.');
-    const json = await res.json();
-    ROWS = json.rows || [];
+    // Step 2: Load site files for current filter
+    var sitesToLoad = getSiteFiles(currentSite);
+    var loadedRows = [];
+    for(var i = 0; i < sitesToLoad.length; i++) {
+      var s = sitesToLoad[i];
+      var el = document.getElementById('loadMsg');
+      if(el) el.textContent = 'Memuat ' + s + '...';
+      var rows = await loadSiteData(s);
+      loadedRows = loadedRows.concat(rows);
+    }
+    ROWS = loadedRows;
     RAW_LOADED = true;
 
     // Step 3: Load utilisasi
@@ -485,9 +528,6 @@ async function loadData() {
       if(uRes.ok) { const uJson = await uRes.json(); UTIL_ROWS = uJson.rows || []; }
     } catch(e3) { UTIL_ROWS = []; }
 
-    // Step 4: Update timestamp and re-render with full data
-    document.getElementById('updTime').textContent = json.timestamp || document.getElementById('updTime').textContent;
-    if(!MONTHLY || !MONTHLY.length) MONTHLY = buildMonthlyFromRows(ROWS);
     render();
   } catch(e) {
     document.getElementById('content').innerHTML = '<div class="loading"><p style="color:var(--red)">⚠ '+e.message+'</p></div>';
@@ -750,7 +790,30 @@ function setSite(s) {
     if(chv) chv.classList.add('open');
   }
   updateSidebarActive();
-  render();
+
+  // Check if we need to load new site data
+  var needed = getSiteFiles(s).filter(function(site){ return !SITE_CACHE[site]; });
+  if(needed.length > 0) {
+    // Load missing sites then render
+    RAW_LOADED = false;
+    render(); // show loading for detail panels
+    var allSites = getSiteFiles(s);
+    Promise.all(needed.map(loadSiteData)).then(function() {
+      var rows = [];
+      allSites.forEach(function(site){ rows = rows.concat(SITE_CACHE[site] || []); });
+      ROWS = rows;
+      RAW_LOADED = true;
+      render();
+    }).catch(function(e) {
+      console.error('Failed to load site data:', e);
+    });
+  } else {
+    // All data cached — combine and render
+    var rows = [];
+    getSiteFiles(s).forEach(function(site){ rows = rows.concat(SITE_CACHE[site] || []); });
+    ROWS = rows;
+    render();
+  }
 }
 
 function updateSidebarActive() {
@@ -773,13 +836,6 @@ function setNav(n) {
 
 function render() {
   const {start,end} = getRange();
-
-  // Detail Metrik & Slide require full data — show loading message if not ready
-  if(!RAW_LOADED && (currentNav === 'detail' || currentNav === 'slide')) {
-    document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div><p>Memuat detail data... harap tunggu sebentar</p></div>';
-    return;
-  }
-
   const filtered = filterRows(ROWS, start, end, currentSite);
   const results = currentSite === 'ALL' ? computeAll(filtered) :
     currentSite === 'NDC_RDC' ? [makeSummary(computeAll(filtered))].map(r=>({...r, site:'NDC_RDC', label:'NDC & RDC'})) :
