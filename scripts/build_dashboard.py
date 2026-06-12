@@ -355,6 +355,32 @@ def compute_fbi_kls_util_by_date(all_rows):
     FBI_SDA_NOPOL = {
         'W8909PS','W8773NU','W8263QC',
     }
+    HCI_TAMORA_NOPOL = {
+        'BK8136LM','BK8022LM','BK8031LM','BK8009MI','BK8815MG',
+        'BK8805MH','BK8806MH','BK8807MH','BK8803MH','BK8804MH',
+        'BK8047MQ','BK8073MQ','BK8075MQ','BK8696MS','BK8871MS',
+    }
+    AHI_TAMORA_NOPOL = {
+        'BK8299MH','BK8172LM','BK8135LM','BK8146LM','BK8192MQ',
+        'BK8074MQ','BK8309MS','BK8646MS','BK8141LM','BK8647MS',
+    }
+    FBI_TAMORA_NOPOL = {
+        'A8330VX','BK8099LM',
+    }
+    KLS_TAMORA_NOPOL = {
+        'BK8191MQ','BK8633MS',
+    }
+    HCI_TALLO_NOPOL = {
+        'A8348VA','DD8283SY','A8997ZD','DD8634RG','DD8632RG',
+        'DD8987RG','DD8986RG','DD8705RM','DD8199SJ','DD8195AK',
+        'DD8328KJ','DD8194AK','DD8394KL','DD8389QW',
+    }
+    AHI_TALLO_NOPOL = {
+        'DD8173RV','DD8165UE','DD8633RG','DD8797SZ','DD8772UF','DD8140AK',
+    }
+    FBI_TALLO_NOPOL = {
+        'A8609ZF',
+    }
 
     # Libur nasional 2026
     HOLIDAYS = {
@@ -385,7 +411,14 @@ def compute_fbi_kls_util_by_date(all_rows):
         elif nopol in KLS_NOPOL:       bu = 'JAB_KLS'
         elif nopol in HCI_SDA_NOPOL:   bu = 'SDA_HCI'
         elif nopol in AHI_SDA_NOPOL:   bu = 'SDA_AHI'
-        elif nopol in FBI_SDA_NOPOL:   bu = 'SDA_FBI'
+        elif nopol in FBI_SDA_NOPOL:      bu = 'SDA_FBI'
+        elif nopol in HCI_TAMORA_NOPOL:    bu = 'TAMORA_HCI'
+        elif nopol in AHI_TAMORA_NOPOL:    bu = 'TAMORA_AHI'
+        elif nopol in FBI_TAMORA_NOPOL:    bu = 'TAMORA_FBI'
+        elif nopol in KLS_TAMORA_NOPOL:    bu = 'TAMORA_KLS'
+        elif nopol in HCI_TALLO_NOPOL:     bu = 'TALLO_HCI'
+        elif nopol in AHI_TALLO_NOPOL:     bu = 'TALLO_AHI'
+        elif nopol in FBI_TALLO_NOPOL:     bu = 'TALLO_FBI'
         else: continue
 
         try:
@@ -393,14 +426,16 @@ def compute_fbi_kls_util_by_date(all_rows):
         except: continue
 
         # Day exclusions
-        if bu in ('JAB_FBI', 'SDA_FBI'):
+        if bu in ('JAB_FBI','SDA_FBI','TAMORA_FBI','TALLO_FBI'):
             if dow == 6: continue
             if date in HOLIDAYS: continue
         elif bu == 'JAB_KLS':
             if dow >= 5: continue
             if date in KLS_EXCLUDE: continue
-        # HCI/AHI SDA: standard weekday (exclude Sunday + holidays)
-        elif bu in ('SDA_HCI', 'SDA_AHI'):
+        elif bu == 'TAMORA_KLS':
+            if dow >= 5: continue
+            if date in KLS_EXCLUDE: continue
+        elif bu in ('SDA_HCI','SDA_AHI','TAMORA_HCI','TAMORA_AHI','TALLO_HCI','TALLO_AHI'):
             if dow == 6: continue
             if date in HOLIDAYS: continue
 
@@ -417,7 +452,7 @@ def compute_fbi_kls_util_by_date(all_rows):
             'drv_aktual':   drv_cnt,
             'drv_plan':     drv_cnt,
             'nopol_aktual': nopol_cnt,
-            'crew_aktual':  crew_cnt if bu not in ('JAB_FBI','SDA_FBI') else 0,
+            'crew_aktual':  crew_cnt if bu not in ('JAB_FBI','SDA_FBI','TAMORA_FBI','TALLO_FBI') else 0,
         }
     return result
 
@@ -611,13 +646,63 @@ def build():
     FBI_SDA_NOPOL = {
         'W8909PS','W8773NU','W8263QC',
     }
+    HCI_TAMORA_NOPOL = {
+        'BK8136LM','BK8022LM','BK8031LM','BK8009MI','BK8815MG',
+        'BK8805MH','BK8806MH','BK8807MH','BK8803MH','BK8804MH',
+        'BK8047MQ','BK8073MQ','BK8075MQ','BK8696MS','BK8871MS',
+    }
+    AHI_TAMORA_NOPOL = {
+        'BK8299MH','BK8172LM','BK8135LM','BK8146LM','BK8192MQ',
+        'BK8074MQ','BK8309MS','BK8646MS','BK8141LM','BK8647MS',
+    }
+    FBI_TAMORA_NOPOL = {
+        'A8330VX','BK8099LM',
+    }
+    KLS_TAMORA_NOPOL = {
+        'BK8191MQ','BK8633MS',
+    }
+    HCI_TALLO_NOPOL = {
+        'A8348VA','DD8283SY','A8997ZD','DD8634RG','DD8632RG',
+        'DD8987RG','DD8986RG','DD8705RM','DD8199SJ','DD8195AK',
+        'DD8328KJ','DD8194AK','DD8394KL','DD8389QW',
+    }
+    AHI_TALLO_NOPOL = {
+        'DD8173RV','DD8165UE','DD8633RG','DD8797SZ','DD8772UF','DD8140AK',
+    }
+    FBI_TALLO_NOPOL = {
+        'A8609ZF',
+    }
+    HCI_TAMORA_NOPOL2 = {
+        'BK8136LM','BK8022LM','BK8031LM','BK8009MI','BK8815MG',
+        'BK8805MH','BK8806MH','BK8807MH','BK8803MH','BK8804MH',
+        'BK8047MQ','BK8073MQ','BK8075MQ','BK8696MS','BK8871MS',
+    }
+    AHI_TAMORA_NOPOL2 = {
+        'BK8299MH','BK8172LM','BK8135LM','BK8146LM','BK8192MQ',
+        'BK8074MQ','BK8309MS','BK8646MS','BK8141LM','BK8647MS',
+    }
+    FBI_TAMORA_NOPOL2 = {'A8330VX','BK8099LM'}
+    KLS_TAMORA_NOPOL2 = {'BK8191MQ','BK8633MS'}
+    HCI_TALLO_NOPOL2 = {
+        'A8348VA','DD8283SY','A8997ZD','DD8634RG','DD8632RG',
+        'DD8987RG','DD8986RG','DD8705RM','DD8199SJ','DD8195AK',
+        'DD8328KJ','DD8194AK','DD8394KL','DD8389QW',
+    }
+    AHI_TALLO_NOPOL2 = {'DD8173RV','DD8165UE','DD8633RG','DD8797SZ','DD8772UF','DD8140AK'}
+    FBI_TALLO_NOPOL2 = {'A8609ZF'}
     ALL_NOPOL_MAP = {
         'JAB_FBI': FBI_NOPOL, 'JAB_KLS': KLS_NOPOL,
         'SDA_HCI': HCI_SDA_NOPOL, 'SDA_AHI': AHI_SDA_NOPOL, 'SDA_FBI': FBI_SDA_NOPOL,
+        'TAMORA_HCI': HCI_TAMORA_NOPOL2, 'TAMORA_AHI': AHI_TAMORA_NOPOL2,
+        'TAMORA_FBI': FBI_TAMORA_NOPOL2, 'TAMORA_KLS': KLS_TAMORA_NOPOL2,
+        'TALLO_HCI': HCI_TALLO_NOPOL2, 'TALLO_AHI': AHI_TALLO_NOPOL2,
+        'TALLO_FBI': FBI_TALLO_NOPOL2,
     }
     ASSETS_MAP = {
         'JAB_FBI': FBI_ASSETS, 'JAB_KLS': KLS_ASSETS,
         'SDA_HCI': HCI_SDA_ASSETS, 'SDA_AHI': AHI_SDA_ASSETS, 'SDA_FBI': FBI_SDA_ASSETS,
+        'TAMORA_HCI': 15, 'TAMORA_AHI': 10, 'TAMORA_FBI': 2, 'TAMORA_KLS': 2,
+        'TALLO_HCI': 14, 'TALLO_AHI': 6, 'TALLO_FBI': 1,
     }
     fbi_kls_map = compute_fbi_kls_util_by_date(all_rows)
     # Build per-BU ritase
