@@ -443,6 +443,11 @@ function buildMonthlyFromRows(rows) {
   months.forEach(function(mo) {
     SITES.forEach(function(site) {
       var moRows = rows.filter(r=>r.site===site&&r.date&&r.date.slice(0,7)===mo);
+      // Apply BU filter
+      if(window._costBU && window._costBU !== '_all') {
+        var buOwners2 = window._costBU === 'AHI' ? ['AHI','NKA','TGI'] : [window._costBU];
+        moRows = moRows.filter(r=>buOwners2.includes((r.owner||'').toUpperCase()));
+      }
       if(!moRows.length) return;
       var res = computeSite(moRows, site)||{};
       result.push({site:site, label:SL[site], month:mo,
@@ -2153,7 +2158,13 @@ function buildCostTable(container) {
     var allFiltered = filterRows(ROWS, fs, fe, site);
     var sub = SUB_SITES[site];
     var effectiveSite = sub ? sub.baseSite : site;
-    window._costJalurRows[site] = allFiltered.filter(r=>r.site===effectiveSite);
+    var siteRows = allFiltered.filter(r=>r.site===effectiveSite);
+    // Apply BU filter if active
+    if(window._costBU && window._costBU !== '_all') {
+      var buOwners = window._costBU === 'AHI' ? ['AHI','NKA','TGI'] : [window._costBU];
+      siteRows = siteRows.filter(r=>buOwners.includes((r.owner||'').toUpperCase()));
+    }
+    window._costJalurRows[site] = siteRows;
   });
 
   // ── SA filter pills (Dalam Kota / Luar Kota) ──
@@ -2262,7 +2273,22 @@ function buildCostTable(container) {
       +'<div style="overflow-x:auto"><table class="mtt cost-tbl"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
   };
 
+  window._costBU = '_all'; // BU filter for cost: _all | HCI | AHI | FBI | KLS
+
+  window.setCostBU = function(bu, btn) {
+    window._costBU = bu;
+    document.querySelectorAll('#costBUFilter button').forEach(function(b) {
+      var active = b === btn;
+      b.style.background = active ? '#0f172a' : 'transparent';
+      b.style.color = active ? '#fff' : '#0f172a';
+    });
+    window.renderCostJalur(window._currentCostSeg || '_all');
+    // Re-render trend bulanan
+    buildCostTable(document.getElementById('costTableContainer'));
+  };
+
   window.setCostSeg = function(seg, btn) {
+    window._currentCostSeg = seg;
     // Update pill styles
     document.querySelectorAll('#costSegFilter button').forEach(function(b) {
       var s = b.getAttribute('data-seg');
@@ -2278,9 +2304,19 @@ function buildCostTable(container) {
     window.renderCostJalur(seg);
   };
 
+  // BU filter pills
+  var BU_LIST = [{key:'_all',lbl:'Semua'},{key:'HCI',lbl:'HCI'},{key:'AHI',lbl:'AHI'},{key:'FBI',lbl:'FBI'},{key:'KLS',lbl:'KLS'}];
+  var buPillsHtml = '<div id="costBUFilter" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px 6px;border-top:1px solid #f1f5f9"><span style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-right:6px;align-self:center">FILTER BU</span>';
+  BU_LIST.forEach(function(bu, i) {
+    var active = i===0;
+    buPillsHtml += '<button onclick="setCostBU(\''+bu.key+'\',this)" style="padding:4px 12px;border-radius:20px;border:1px solid #0f172a;background:'+(active?'#0f172a':'transparent')+';color:'+(active?'#fff':'#0f172a')+';font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">'+bu.lbl+'</button>';
+  });
+  buPillsHtml += '</div>';
+
   container.innerHTML =
     '<div style="padding:4px 0 10px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;padding:12px 16px 6px">TREND BULANAN</div>'
     +'<div style="overflow-x:auto"><table class="mtt"><thead>'+moThead+'</thead><tbody>'+moTbody+'</tbody></table></div>'
+    + buPillsHtml
     + pillsHtml
     + pillsSaHtml;
 
