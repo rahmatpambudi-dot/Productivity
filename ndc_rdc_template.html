@@ -2716,7 +2716,9 @@ function buildDemandPanel(container) {
 
   // Compute demand per site per month
   function computeDemand(rows, effectiveSite, site) {
-    var isSAT = SAT_SITES.has(effectiveSite) && site !== 'JAB_FBI' && site !== 'JAB_KLS';
+    var isSAT = SAT_SITES.has(effectiveSite) && site !== 'JAB_FBI' && site !== 'JAB_KLS'
+              || (site && site.startsWith('BU_')) // BU filter includes all sites incl JAB+CIK
+              || site === 'NDC' || site === 'NDC_RDC' || site === 'ALL';
     var doC=0, doS=0, doH=0, doSat=0;
     var cbmC=0, cbmS=0, cbmH=0, cbmSat=0;
     rows.forEach(function(r) {
