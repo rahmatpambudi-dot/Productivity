@@ -843,7 +843,8 @@ function render() {
   const summary = makeSummary(results);
   const d1 = new Date(start).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
   const d2 = new Date(end).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'});
-  document.getElementById('topTitle').textContent = `${currentNav==='overview'?'Overview':'Detail Metrik'} — ${d1} s/d ${d2}`;
+  var buBadge = (currentSite && currentSite.startsWith('BU_')) ? ' 🏢 Gabungan Semua Site' : '';
+  document.getElementById('topTitle').textContent = `${currentNav==='overview'?'Overview':'Detail Metrik'} — ${d1} s/d ${d2}${buBadge}`;
   Object.values(charts).forEach(c=>{ try{c.destroy()}catch(e){} });
   charts = {};
   if(currentNav === 'overview') renderOverview(results, summary, start, end);
