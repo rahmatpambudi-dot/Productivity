@@ -736,7 +736,7 @@ function computeSite(rows, site) {
 
   return {
     site, label: SL[site]||site,
-    ritase: ritaseVal, olf: (isKLS||['SDA_FBI','TALLO_FBI','TAMORA_FBI','TAMORA_KLS'].includes(site)) ? null : (oM>0?oL/oM:null),
+    ritase: ritaseVal, olf: (isKLS||site==='TAMORA_KLS') ? null : (oM>0?oL/oM:null),
     dpStore:   dpStLC>0  ? dpStSum/dpStLC   : null,
     dpMix:     dpMxLC>0  ? dpMxSum/dpMxLC   : null,
     dpNonReg:  dpNRLC>0  ? dpNRSum/dpNRLC   : null,
