@@ -2837,7 +2837,8 @@ function buildDemandPanel(container) {
     if(cur==null||prev==null) return '';
     var d=cur-prev; if(Math.abs(d)<1) return '';
     var color=d>0?'#0f9d58':'#d93025';
-    return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(Math.round(d)).toLocaleString('id-ID')+'</span>';
+    var pct = prev !== 0 ? (d/prev*100) : 0;
+    return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(Math.round(d)).toLocaleString('id-ID')+' ('+(d>0?'+':'-')+Math.abs(pct).toFixed(1)+'%)</span>';
   }
 
   // Build DO table
