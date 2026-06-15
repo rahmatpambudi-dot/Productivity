@@ -2158,8 +2158,13 @@ function buildCostTable(container) {
   SITES_LIST.forEach(function(site) {
     var allFiltered = filterRows(ROWS, fs, fe, site);
     var sub = SUB_SITES[site];
-    var effectiveSite = sub ? sub.baseSite : site;
-    var siteRows = allFiltered.filter(r=>r.site===effectiveSite);
+    var siteRows;
+    if(site==='NDC_RDC'||site==='NDC'||site==='RDC'||site.startsWith('BU_')) {
+      siteRows = allFiltered;
+    } else {
+      var effectiveSite = sub ? sub.baseSite : site;
+      siteRows = allFiltered.filter(r=>r.site===effectiveSite);
+    }
     // Apply BU filter if active
     if(window._costBU && window._costBU !== '_all') {
       var buOwners = window._costBU === 'AHI' ? ['AHI','NKA','TGI'] : [window._costBU];
@@ -2294,8 +2299,13 @@ function buildCostTable(container) {
     SITES_LIST2.forEach(function(site) {
       var allFiltered = filterRows(ROWS, fs2, fe2, site);
       var sub2 = SUB_SITES[site];
-      var effSite = sub2 ? sub2.baseSite : site;
-      var siteRows = allFiltered.filter(r=>r.site===effSite);
+      var siteRows;
+      if(site==='NDC_RDC'||site==='NDC'||site==='RDC'||site.startsWith('BU_')) {
+        siteRows = allFiltered;
+      } else {
+        var effSite = sub2 ? sub2.baseSite : site;
+        siteRows = allFiltered.filter(r=>r.site===effSite);
+      }
       if(bu !== '_all') {
         var buOwners = bu === 'AHI' ? ['AHI','NKA','TGI'] : [bu];
         siteRows = siteRows.filter(r=>buOwners.includes((r.owner||'').toUpperCase()));
