@@ -690,6 +690,8 @@ function computeSite(rows, site) {
   const dpMxRows = srMain.filter(r => r.td==='customer');
   const dpMxSum  = ssum(dpMxRows.map(r=>parseFloat(r.dp)||0));
   const dpMxLC   = new Set(dpMxRows.map(r=>r.lc).filter(Boolean)).size;
+  const cbmMx    = ssum(dpMxRows.map(r=>parseFloat(r.cbm)||0));
+  const doMx     = ssum(dpMxRows.map(r=>parseFloat(r.do)||0));
 
   // DP Non Reg — customer NON REGULAR, total to total
   const dpNRRows = srMain.filter(r => r.td==='customer' && r.kat==='NON REGULAR');
@@ -744,7 +746,10 @@ function computeSite(rows, site) {
     doTrip:    drRLC>0   ? doDpK/drRLC      : null,
     doDp:      doDpN>0   ? doDpK/doDpN      : null,
     cbmDo:     doDpK>0   ? cbmTotal/doDpK   : null,
+    cbmDoMix:  doMx>0    ? cbmMx/doMx       : null,
     cbmDp:     doDpN>0   ? cbmTotal/doDpN   : null,
+    cbmDpMix:  dpMxSum>0 ? cbmMx/dpMxSum    : null,
+    doTripMix: dpMxLC>0  ? doMx/dpMxLC      : null,
     tatDirect: avg(tatD), tatStore: avg(tatS),
     totalCbmStore, totalDoCust, totalDpCust,
     doTripAll,
@@ -754,7 +759,7 @@ function computeSite(rows, site) {
 
 function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(Boolean); }
 function makeSummary(results) {
-  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDp','tatDirect','tatStore','doTripAll'];
+  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDoMix','cbmDp','cbmDpMix','doTripMix','tatDirect','tatStore','doTripAll'];
   const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust'];
   return {
     site:'NDC & RDC', label:'NDC & RDC',
@@ -1286,8 +1291,11 @@ function renderDetail(results, summary, start, end) {
     { key:'dpReg',label:'DP Reg',fmt:v=>pf(v,1)},
     { key:'doTrip',label:'DO/Trip (Regular)',fmt:v=>pf(v,1)},
     { key:'doDp',label:'DO/DP Direct',fmt:v=>pf(v,2)},
-    { key:'cbmDo',label:'CBM/DO',fmt:v=>pf(v,2)},
-    { key:'cbmDp',label:'CBM/DP',fmt:v=>pf(v,2)},
+    { key:'cbmDo',label:'CBM/DO (Regular)',fmt:v=>pf(v,2)},
+    { key:'cbmDoMix',label:'CBM/DO (Mix)*',fmt:v=>pf(v,2)},
+    { key:'cbmDp',label:'CBM/DP (Regular)',fmt:v=>pf(v,2)},
+    { key:'cbmDpMix',label:'CBM/DP (Mix)*',fmt:v=>pf(v,2)},
+    { key:'doTripMix',label:'DO/Trip (Mix)*',fmt:v=>pf(v,1)},
     { key:'tatDirect',label:'TAT Direct',fmt:v=>tatStr(v)},
     { key:'tatStore',label:'TAT Store',fmt:v=>tatStr(v)},
     { key:'totalCbmStore',label:'Demand CBM Store',fmt:v=>v!=null?v.toFixed(1):'—'},
@@ -1344,6 +1352,7 @@ function renderDetail(results, summary, start, end) {
         <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
         <tbody>${metrics.map(m=>`<tr><td><strong>${m.label}</strong></td>${results.map(r=>`<td class="num">${m.fmt(r[m.key])}</td>`).join('')}<td class="num"><strong>${m.fmt(summary[m.key])}</strong></td></tr>`).join('')}
         </tbody></table></div>
+        <div style="font-size:11px;color:#888;padding:6px 4px 2px">* Mix = semua delivery Customer tanpa filter kategori</div>
       </div>
       <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
     </div>
