@@ -785,6 +785,9 @@ function handleSiteClick(site, grpId, e) {
 
 function setSite(s) {
   currentSite = s;
+  // Sync cost BU filter with sidebar BU selection
+  var buMap = {BU_HCI:'HCI', BU_AHI:'AHI', BU_FBI:'FBI', BU_KLS:'KLS'};
+  window._costBU = buMap[s] || '_all';
   document.getElementById('siteSelect').value = s;
   if(SUB_SITES[s]) {
     const baseSite = SUB_SITES[s].baseSite;
