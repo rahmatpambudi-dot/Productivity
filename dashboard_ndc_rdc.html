@@ -896,6 +896,7 @@ function renderOverview(results, summary, start, end) {
         <th class="num" style="min-width:90px">DP NON REG</th>
         <th class="num" style="min-width:70px">DP REG</th>
         <th class="num" style="min-width:75px">DO/TRIP</th>
+        <th class="num" style="min-width:85px">DO/TRIP MIX</th>
         <th class="num" style="min-width:65px">DO/DP</th>
         <th class="num" style="min-width:95px">TAT DIRECT</th>
         <th class="num" style="min-width:90px">TAT STORE</th>
@@ -935,7 +936,7 @@ function renderOverview(results, summary, start, end) {
       <td class="num">${olfBadge(r.olf)}</td>
       <td class="num">${pf(r.dpStore,1)}</td><td class="num">${pf(r.dpMix,1)}</td>
       <td class="num">${pf(r.dpNonReg,1)}</td><td class="num">${pf(r.dpReg,1)}</td>
-      <td class="num">${pf(r.doTrip,1)}</td><td class="num">${pf(r.doDp,2)}</td>
+      <td class="num">${pf(r.doTrip,1)}</td><td class="num">${pf(r.doTripMix,1)}</td><td class="num">${pf(r.doDp,2)}</td>
       <td class="num">${tatStr(r.tatDirect)}</td><td class="num">${tatStr(r.tatStore)}</td>
     </tr>`).join('');
 }
