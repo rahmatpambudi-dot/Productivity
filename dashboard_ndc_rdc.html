@@ -1905,7 +1905,7 @@ function buildMonthlyUtilTable(container) {
   var allMonths = [...new Set(UTIL_ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
+  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : currentSite.startsWith('BU_') ? SITES : [currentSite];
 
   // Compute per month per site
   var allData = {};
@@ -2068,7 +2068,7 @@ function buildCostTable(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
+  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : currentSite.startsWith('BU_') ? SITES : [currentSite];
 
   // ── MONTHLY TABLE ──
   var moData = {};
@@ -2403,13 +2403,16 @@ function buildCostTable(container) {
   // BU filter pills
   var BU_COLORS = {_all:'#0f172a',HCI:'#1d4ed8',AHI:'#15803d',FBI:'#c2410c',KLS:'#7e22ce'};
   var BU_LIST = [{key:'_all',lbl:'Semua'},{key:'HCI',lbl:'HCI'},{key:'AHI',lbl:'AHI'},{key:'FBI',lbl:'FBI'},{key:'KLS',lbl:'KLS'}];
-  var buPillsHtml = '<div id="costBUFilter" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px 6px;border-top:1px solid #f1f5f9"><span style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-right:6px;align-self:center">FILTER BU</span>';
-  BU_LIST.forEach(function(bu, i) {
-    var col = BU_COLORS[bu.key]||'#0f172a';
-    var active = i===0;
-    buPillsHtml += '<button onclick="setCostBU(\''+bu.key+'\',this)" data-bu="'+bu.key+'" style="padding:4px 12px;border-radius:20px;border:1px solid '+col+';background:'+(active?col:'transparent')+';color:'+(active?'#fff':col)+';font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">'+bu.lbl+'</button>';
-  });
-  buPillsHtml += '</div>';
+  var isSidebarBU = currentSite && currentSite.startsWith('BU_');
+  var buPillsHtml = isSidebarBU ? '' : '<div id="costBUFilter" style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px 6px;border-top:1px solid #f1f5f9"><span style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-right:6px;align-self:center">FILTER BU</span>';
+  if(!isSidebarBU) {
+    BU_LIST.forEach(function(bu, i) {
+      var col = BU_COLORS[bu.key]||'#0f172a';
+      var active = window._costBU === bu.key || (i===0 && (!window._costBU || window._costBU==='_all'));
+      buPillsHtml += '<button onclick="setCostBU(\''+bu.key+'\',this)" data-bu="'+bu.key+'" style="padding:4px 12px;border-radius:20px;border:1px solid '+col+';background:'+(active?col:'transparent')+';color:'+(active?'#fff':col)+';font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif">'+bu.lbl+'</button>';
+    });
+    buPillsHtml += '</div>';
+  }
 
   container.innerHTML =
     '<div id="costMoTableWrap">'
@@ -2431,7 +2434,7 @@ function buildCostBySegment(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
+  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : currentSite.startsWith('BU_') ? SITES : [currentSite];
 
   // Collect all td types
   var tdSet = new Set();
@@ -2516,7 +2519,7 @@ function buildCostBySegment(container) {
   var allMonths=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   var fsMonth=fs.slice(0,7); var feMonth=fe.slice(0,7);
   allMonths=allMonths.filter(function(mo){ return mo<=feMonth; });
-  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
+  var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : currentSite.startsWith('BU_') ? SITES : [currentSite];
 
   // TD normalization (same as trip type table)
   function normTd(td) {
@@ -2620,7 +2623,7 @@ function buildMonthlyTripTypeTable(container) {
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const {start: fs, end: fe} = getRange();
   const allMonths = [...new Set(ROWS.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
-  const SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : [currentSite];
+  const SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : currentSite.startsWith('BU_') ? SITES : [currentSite];
 
   // ── 1. Discover all unique r.td values present in data ──
   const tdSet = new Set();
