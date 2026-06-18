@@ -2295,7 +2295,8 @@ function buildCostTable(container) {
       +'<div style="overflow-x:auto"><table class="mtt cost-tbl"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
   };
 
-  window._costBU = '_all'; // BU filter for cost: _all | HCI | AHI | FBI | KLS
+  // Only init _costBU if not already set by sidebar BU selection
+  if(!window._costBU || !currentSite.startsWith('BU_')) window._costBU = '_all';
 
   window.setCostBU = function(bu, btn) {
     window._costBU = bu;
