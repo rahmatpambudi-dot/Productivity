@@ -2081,6 +2081,7 @@ function buildCostTable(container) {
         var effectiveSite=sub?sub.baseSite:site;
         sr=moFiltered.filter(r=>r.site===effectiveSite);
       }
+      if(window._costBU && window._costBU !== '_all') { var buOwnersMo = window._costBU === 'AHI' ? ['AHI','NKA','TGI'] : [window._costBU]; sr = sr.filter(function(r){return buOwnersMo.includes((r.owner||'').toUpperCase());}); }
       if(!sr.length) return;
       moData[mo+'|'+site]=computeCost(sr);
     });
@@ -2582,6 +2583,7 @@ function buildMonthlyTripTypeTable(container) {
         var effectiveSite = sub ? sub.baseSite : site;
         sr = moFiltered.filter(r => r.site === effectiveSite);
       }
+      if(window._costBU && window._costBU !== '_all') { var buOwnersTT = window._costBU === 'AHI' ? ['AHI','NKA','TGI'] : [window._costBU]; sr = sr.filter(function(r){return buOwnersTT.includes((r.owner||'').toUpperCase());}); }
       if (!sr.length) return;
       var entry = { _total: new Set() };
       sr.forEach(r => {
