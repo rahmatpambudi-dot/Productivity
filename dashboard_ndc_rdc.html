@@ -2326,6 +2326,58 @@ function buildCostTable(container) {
       window._costJalurRows[site] = siteRows;
     });
     window.renderCostJalur(window._currentCostSeg || '_all');
+    // Rebuild trend bulanan dengan BU filter baru
+    var moWrap = document.getElementById('costMoTableWrap');
+    if(moWrap) {
+      var moNames2=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+      var {start:fs3,end:fe3}=getRange();
+      var feMonth3=fe3.slice(0,7);
+      var allMonths3=[...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort().filter(mo=>mo<=feMonth3);
+      var SITES_LIST3=window._costSitesList||SITES;
+      var moData3={};
+      allMonths3.forEach(function(mo){
+        var {start:moD1,end:moD2}=getMonthRange(mo);
+        SITES_LIST3.forEach(function(site){
+          var moFiltered=filterRows(ROWS,moD1,moD2,site);
+          var sub3=SUB_SITES[site];
+          var sr3;
+          if(site==='NDC_RDC'||site==='NDC'||site==='RDC'){sr3=moFiltered;}
+          else{var effS=sub3?sub3.baseSite:site;sr3=moFiltered.filter(r=>r.site===effS);}
+          if(bu!=='_all'){var buOw3=bu==='AHI'?['AHI','NKA','TGI']:[bu];sr3=sr3.filter(r=>buOw3.includes((r.owner||'').toUpperCase()));}
+          if(!sr3.length)return;
+          moData3[mo+'|'+site]=computeCost(sr3);
+        });
+      });
+      var moTbody3='';
+      allMonths3.forEach(function(mo,moIdx){
+        var prevMo=moIdx>0?allMonths3[moIdx-1]:null;
+        SITES_LIST3.forEach(function(site){
+          var key=mo+'|'+site; var d=moData3[key]; if(!d)return;
+          var prev=prevMo?moData3[prevMo+'|'+site]:null;
+          var mn=moNames2[parseInt(mo.slice(5,7))-1]+' '+mo.slice(0,4);
+          moTbody3+='<tr>'
+            +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+mn+'</td>'
+            +'<td style="font-size:11px;font-weight:600">'+(SL[site]||site)+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-weight:700;color:#1d4ed8;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.cost)+momCost(d.cost,prev?prev.cost:null)+'</td>'
+            +'<td style="text-align:right;font-size:11px;color:#0369a1;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.ujp)+momCost(d.ujp,prev?prev.ujp:null)+'</td>'
+            +'<td style="text-align:right;font-size:11px;color:#7c3aed;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.pf)+'</td>'
+            +'<td style="text-align:right;font-size:11px;color:#0f766e;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.sewa)+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+d.trip.toLocaleString('id-ID')+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costTrip)+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDoCust)+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDoStore)+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDoHub)+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costCbmCust)+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costCbmStore)+'</td>'
+            +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costCbmHub)+'</td>'
+            +'</tr>';
+        });
+      });
+      moWrap.querySelector('tbody').innerHTML = moTbody3;
+    }
+    // Rebuild trip per type dengan BU filter baru
+    var tripWrap = document.getElementById('tripTypeTableContainer');
+    if(tripWrap) buildMonthlyTripTypeTable(tripWrap);
   };
 
   window.setCostSeg = function(seg, btn) {
@@ -2357,8 +2409,10 @@ function buildCostTable(container) {
   buPillsHtml += '</div>';
 
   container.innerHTML =
-    '<div style="padding:4px 0 10px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;padding:12px 16px 6px">TREND BULANAN</div>'
+    '<div id="costMoTableWrap">'
+    +'<div style="padding:4px 0 10px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase;padding:12px 16px 6px">TREND BULANAN</div>'
     +'<div style="overflow-x:auto"><table class="mtt"><thead>'+moThead+'</thead><tbody>'+moTbody+'</tbody></table></div>'
+    +'</div>'
     + buPillsHtml
     + pillsHtml
     + pillsSaHtml;
