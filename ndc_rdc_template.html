@@ -259,10 +259,10 @@ body.export-mode #exitExport { display:block; }
       <span style="font-size:9px;color:var(--t3);cursor:pointer" onclick="toggleSub('filter-bu-group')">▾</span>
     </div>
     <div id="filter-bu-group" style="display:none">
-      <div class="s-item" id="site-BU_HCI" onclick="setSite('BU_HCI')">🏢 HCI (semua site)</div>
-      <div class="s-item" id="site-BU_AHI" onclick="setSite('BU_AHI')">🏢 AHI (semua site)</div>
-      <div class="s-item" id="site-BU_FBI" onclick="setSite('BU_FBI')">🏢 FBI (semua site)</div>
-      <div class="s-item" id="site-BU_KLS" onclick="setSite('BU_KLS')">🏢 KLS (semua site)</div>
+      <div class="s-item" id="bu-HCI" onclick="toggleBU('HCI')">🏢 HCI (semua site)</div>
+      <div class="s-item" id="bu-AHI" onclick="toggleBU('AHI')">🏢 AHI (semua site)</div>
+      <div class="s-item" id="bu-FBI" onclick="toggleBU('FBI')">🏢 FBI (semua site)</div>
+      <div class="s-item" id="bu-KLS" onclick="toggleBU('KLS')">🏢 KLS (semua site)</div>
     </div>
   </div>
   <div class="s-div"></div>
@@ -388,6 +388,7 @@ let ROWS = [];
 let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
 let currentNav  = 'overview';
 let currentSite = 'ALL';
+let currentBU = '_all';
 let fullMonthMode = false;
 
 function toggleFM() {
@@ -556,9 +557,10 @@ function getMonthRange(mo) {
   }
 }
 
+var BU_OWNER_MAP = {HCI:['HCI'], AHI:['AHI','NKA','TGI'], FBI:['FBI'], KLS:['KLS']};
 function filterRows(rows, start, end, site) {
   const sub = SUB_SITES[site];
-  return rows.filter(r => {
+  let out = rows.filter(r => {
     if (!r.date) return false;
     if (r.date < start || r.date > end) return false;
     if (sub) {
@@ -575,6 +577,13 @@ function filterRows(rows, start, end, site) {
     if (site === 'BU_KLS') return (r.owner||'').toUpperCase() === 'KLS';
     return r.site === site;
   });
+  // Additional global BU filter (combine with site filter above), skipped for BU_* site keys
+  // and sub-BU site keys (e.g. JAB_HCI) since those already encode a specific BU.
+  if (currentBU && currentBU !== '_all' && !site.startsWith('BU_') && !sub) {
+    const owners = BU_OWNER_MAP[currentBU] || [currentBU];
+    out = out.filter(r => owners.includes((r.owner||'').toUpperCase()));
+  }
+  return out;
 }
 
 function avg(a) { a=a.filter(x=>x!=null&&!isNaN(x)); return a.length?a.reduce((s,x)=>s+x,0)/a.length:null; }
@@ -783,11 +792,15 @@ function handleSiteClick(site, grpId, e) {
   setSite(site);
 }
 
+function toggleBU(bu) {
+  currentBU = (currentBU === bu) ? '_all' : bu;
+  window._costBU = currentBU;
+  updateSidebarActive();
+  render();
+}
+
 function setSite(s) {
   currentSite = s;
-  // Sync cost BU filter with sidebar BU selection
-  var buMap = {BU_HCI:'HCI', BU_AHI:'AHI', BU_FBI:'FBI', BU_KLS:'KLS'};
-  window._costBU = buMap[s] || '_all';
   document.getElementById('siteSelect').value = s;
   if(SUB_SITES[s]) {
     const baseSite = SUB_SITES[s].baseSite;
@@ -827,6 +840,10 @@ function updateSidebarActive() {
   document.querySelectorAll('.s-item, .s-sub-item').forEach(el => el.classList.remove('active'));
   const el = document.getElementById('site-'+currentSite);
   if(el) el.classList.add('active');
+  if(currentBU && currentBU !== '_all') {
+    const buEl = document.getElementById('bu-'+currentBU);
+    if(buEl) buEl.classList.add('active');
+  }
 }
 
 function toggleSub(id) {
@@ -2295,8 +2312,8 @@ function buildCostTable(container) {
       +'<div style="overflow-x:auto"><table class="mtt cost-tbl"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
   };
 
-  // Only init _costBU if not already set by sidebar BU selection
-  if(!window._costBU || !currentSite.startsWith('BU_')) window._costBU = '_all';
+  // Sync _costBU with global sidebar BU toggle
+  window._costBU = currentBU || '_all';
 
   window.setCostBU = function(bu, btn) {
     window._costBU = bu;
@@ -3521,6 +3538,7 @@ function openPresentation() {
       return '<td class="'+(d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+pct(d.olf)+badge(d.olf,p?.olf,false,false)+'</td>'
         +'<td>'+dpMixFmt+badge(dpMixVal,dpMixPrev,false,true,1)+'</td>'
         +'<td>'+num(d.dpReg,1)+badge(d.dpReg,p?.dpReg,false,true,1)+'</td>'
+        +'<td>'+num(d.cbmDp,2)+badge(d.cbmDp,p?.cbmDp,false,true,2)+'</td>'
         +'<td>'+num(d.doTripAll,1)+badge(d.doTripAll,p?.doTripAll,false,true,1)+'</td>'
         +'<td>'+fmtTAT(d.tatDirect)+badge(d.tatDirect,p?.tatDirect,true,true,1)+'</td>'
         +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?.tatStore,true,true,1)+'</td>'
@@ -3530,14 +3548,14 @@ function openPresentation() {
         +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>';
     }
     var metrikThead = '<thead><tr><th style="text-align:left">BU</th>'
-      +'<th>OLF</th><th>DP Mix</th><th>DP Reg</th><th>DO/Trip Mix</th>'
+      +'<th>OLF</th><th>DP Mix</th><th>DP Reg</th><th>CBM/DP</th><th>DO/Trip Mix</th>'
       +'<th>TAT Direct</th><th>TAT Store</th>'
       +'<th>UTL Driver</th><th>UTL Armada</th><th>Rit.Armada</th><th>Rit.MPP</th>'
       +'</tr></thead>';
     var metrikLegend = buList.some(function(b){return b.key==='JAB_FBI';}) ? '<div style="font-size:9px;color:#94a3b8;padding:2px 4px"><sup>*</sup> FBI: DP to Store</div>' : '';
     var metrikBody = '';
     buList.forEach(function(bu,i) {
-      if(i>0) metrikBody+='<tr><td colspan="12" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      if(i>0) metrikBody+='<tr><td colspan="13" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       if(prevMo) metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'+metrikCols(bu.key,prevMo,null)+'</tr>';
       metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'+metrikCols(bu.key,curMo,prevMo)+'</tr>';
