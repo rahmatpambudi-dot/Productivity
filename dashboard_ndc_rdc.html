@@ -463,6 +463,8 @@ function buildMonthlyFromRows(rows) {
 
 let MONTHLY = [];
 let RAW_LOADED = false;
+let INSENTIF_OT_MAP = {};      // { lc: {ot, insentif} }
+let INSENTIF_OT_META = null;   // coverage metadata
 
 // Decode maps — populated after first data load
 let DEC_MAPS = null;
@@ -529,6 +531,16 @@ async function loadData() {
       const uRes = await fetch('data_utilisasi.json?t=' + Date.now());
       if(uRes.ok) { const uJson = await uRes.json(); UTIL_ROWS = uJson.rows || []; }
     } catch(e3) { UTIL_ROWS = []; }
+
+    // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
+    try {
+      const ioRes = await fetch('data_insentif_ot.json?t=' + Date.now());
+      if(ioRes.ok) {
+        const ioJson = await ioRes.json();
+        INSENTIF_OT_MAP = ioJson.by_lc || {};
+        INSENTIF_OT_META = ioJson.coverage || null;
+      }
+    } catch(e4) { INSENTIF_OT_MAP = {}; INSENTIF_OT_META = null; }
 
     render();
   } catch(e) {
@@ -2044,27 +2056,33 @@ function momCost(cur, prev) {
 
 function computeCost(rows) {
   if(!rows.length) return null;
-  var ujp=0, cost=0, pf=0, sewa=0, cbm=0, doSum=0;
+  var ujp=0, cost=0, pf=0, sewa=0, cbm=0, doSum=0, ot=0, insentif=0;
   var lcSet = new Set();
   var byTd = {customer:{cost:0,do:0,cbm:0}, store:{cost:0,do:0,cbm:0}, hub:{cost:0,do:0,cbm:0}, satelite:{cost:0,do:0,cbm:0}};
   rows.forEach(function(r) {
     if(r.ujp)  ujp  += r.ujp;
-    if(r.cost) cost += r.cost;
     if(r.pf)   pf   += r.pf;
     if(r.sewa) sewa += r.sewa;
     if(r.cbm)  cbm  += parseFloat(r.cbm)||0;
     if(r.lc)   lcSet.add(r.lc);
     if(r.do)   doSum += parseFloat(r.do)||0;
+    var io = r.lc ? INSENTIF_OT_MAP[r.lc] : null;
+    var rowOt = io ? (io.ot||0) : 0;
+    var rowIns = io ? (io.insentif||0) : 0;
+    ot += rowOt;
+    insentif += rowIns;
+    var rowCost = (r.cost||0) + rowOt + rowIns;
+    cost += rowCost;
     var td = (r.td||'').toLowerCase().trim();
     if(byTd[td]) {
-      byTd[td].cost += r.cost||0;
+      byTd[td].cost += rowCost;
       byTd[td].do   += parseFloat(r.do)||0;
       byTd[td].cbm  += parseFloat(r.cbm)||0;
     }
   });
   var trip = lcSet.size;
   return {
-    ujp, cost, pf, sewa, trip, cbm,
+    ujp, cost, pf, sewa, ot, insentif, trip, cbm,
     costTrip:    trip>0               ? cost/trip                   : null,
     costDoCust:  byTd.customer.do>0   ? byTd.customer.cost/byTd.customer.do   : null,
     costDoStore: byTd.store.do>0      ? byTd.store.cost/byTd.store.do         : null,
@@ -2114,6 +2132,8 @@ function buildCostTable(container) {
     +'<th style="text-align:right;color:#0369a1">UJP</th>'
     +'<th style="text-align:right;color:#7c3aed">Prof Fee</th>'
     +'<th style="text-align:right;color:#0f766e">Sewa Armada</th>'
+    +'<th style="text-align:right;color:#b45309">Insentif</th>'
+    +'<th style="text-align:right;color:#be123c">OT</th>'
     +'<th style="text-align:right;color:#374151">Trip</th>'
     +'<th style="text-align:right;color:#374151">Cost/Trip</th>'
     +'<th style="text-align:right;color:#374151">Cost/DO Cust</th>'
@@ -2139,6 +2159,8 @@ function buildCostTable(container) {
         +'<td style="text-align:right;font-size:11px;color:#0369a1;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.ujp)+momCost(d.ujp,prev?prev.ujp:null)+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#7c3aed;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.pf)+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#0f766e;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.sewa)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#b45309;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.insentif)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#be123c;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.ot)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+d.trip.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costTrip)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(d.costDoCust)+'</td>'
@@ -2268,6 +2290,8 @@ function buildCostTable(container) {
       +'<th style="text-align:left">Jalur</th>'
       +'<th style="text-align:right;color:#1d4ed8">Total Cost</th>'
       +'<th style="text-align:right;color:#0369a1">UJP</th>'
+      +'<th style="text-align:right;color:#b45309">Insentif</th>'
+      +'<th style="text-align:right;color:#be123c">OT</th>'
       +'<th style="text-align:right;color:#374151">Trip</th>'
       +'<th style="text-align:right;color:#374151">DO</th>'
       +'<th style="text-align:right;color:#374151">CBM</th>'
@@ -2292,6 +2316,8 @@ function buildCostTable(container) {
         +'<td style="font-size:11px;color:var(--t2)">'+e.jalur+'</td>'
         +'<td style="text-align:right;font-size:11px;font-weight:700;color:#1d4ed8;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.cost)+'</td>'
         +'<td style="text-align:right;font-size:11px;color:#0369a1;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.ujp)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#b45309;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.insentif)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:#be123c;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.ot)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+e.trip.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+Math.round(e.doSum).toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.cbm)+'</td>'
@@ -2806,10 +2832,14 @@ window.renderDetail=function(results,summary,start,end){
     // Cost Analysis
     var costEl = document.getElementById('costAnalysisPanel');
     if(costEl) {
+      var ioNote = INSENTIF_OT_META
+        ? '<div style="padding:6px 16px;font-size:11px;color:#b45309;background:#fffbeb;border-top:1px solid #fde68a">⚠ Insentif & OT baru ter-pairing untuk <b>'+(INSENTIF_OT_META.sites||[]).join(', ')+' '+(INSENTIF_OT_META.owners||[]).join('/')+'</b>, periode <b>'+INSENTIF_OT_META.date_start+' s/d '+INSENTIF_OT_META.date_end+'</b>. Site/periode lain tampil 0 (belum ada data pairing).</div>'
+        : '';
       costEl.innerHTML =
         '<div class="panel">'
         + '<div class="ph"><h3>Cost Analysis</h3>'
         + '<span class="tag">Total Cost · UJP · Cost/Trip · Cost/DO & Cost/CBM per type</span></div>'
+        + ioNote
         + '<div id="costTableContainer"></div></div>';
       buildCostTable(document.getElementById('costTableContainer'));
     }
