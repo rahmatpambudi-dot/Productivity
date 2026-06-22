@@ -120,6 +120,12 @@ def to_float(s):
     try: return float(str(s).replace(',','').replace('%','').strip())
     except: return None
 
+def safe_float(v, default=0):
+    """Like to_float but returns default instead of None, ignores #REF! and sheet errors"""
+    if v is None: return default
+    try: return float(str(v).replace(',','').replace('%','').strip())
+    except: return default
+
 def slim_row(r, cols, sheet_name, site):
     return {
         "sheet": sheet_name,
@@ -483,8 +489,8 @@ def aggregate_monthly(all_rows, timestamp):
                      and not (isJAB and r.get('sheet')=='AHI JABABEKA' and r.get('owner')=='FBI')
                      and not (isSDA and r.get('owner')=='FBI')
                      and (not isCIK or 'non cikande' in (r.get('od') or ''))]
-            oL = sum(float(r.get('cbm') or 0) for r in olf_r)
-            oM = sum(float(r.get('cap') or 0) for r in olf_r)
+            oL = sum(safe_float(r.get('cbm')) for r in olf_r)
+            oM = sum(safe_float(r.get('cap')) for r in olf_r)
 
             dpMx_r = [r for r in srMain if r.get('td')=='customer'
                       and not ((isJAB or isSDA) and r.get('owner')=='FBI')]
@@ -494,9 +500,9 @@ def aggregate_monthly(all_rows, timestamp):
                    and not ((isJAB or isSDA) and r.get('owner')=='FBI')
                    and (not isCIK or 'NON SATELIT' in (r.get('sat') or ''))]
 
-            cbmT = sum(float(r.get('cbm') or 0) for r in drR)
-            doN  = sum(float(r.get('do')  or 0) for r in drR)
-            dpN  = sum(float(r.get('dp')  or 0) for r in drR)
+            cbmT = sum(safe_float(r.get('cbm')) for r in drR)
+            doN  = sum(safe_float(r.get('do') ) for r in drR)
+            dpN  = sum(safe_float(r.get('dp') ) for r in drR)
 
             daily = defaultdict(lambda: {'lc': set(), 'np': set()})
             for r in sr:
@@ -523,11 +529,11 @@ def aggregate_monthly(all_rows, timestamp):
                 'site': site, 'label': SL[site], 'month': mo,
                 'ritase':   _avg(rit_vals),
                 'olf':      round(oL/oM,4) if oM>0 else None,
-                'dpStore':  _avg_list([float(r.get('dp') or 0) for r in olf_r]),
-                'dpMix':    _avg_list([float(r.get('dp') or 0) for r in dpMx_r]),
-                'dpNonReg': _avg_list([float(r.get('dp') or 0) for r in dpNR_r]),
-                'dpReg':    _avg_list([float(r.get('dp') or 0) for r in drR]),
-                'doTrip':   _avg_list([float(r.get('do') or 0) for r in drR]),
+                'dpStore':  _avg_list([safe_float(r.get('dp')) for r in olf_r]),
+                'dpMix':    _avg_list([safe_float(r.get('dp')) for r in dpMx_r]),
+                'dpNonReg': _avg_list([safe_float(r.get('dp')) for r in dpNR_r]),
+                'dpReg':    _avg_list([safe_float(r.get('dp')) for r in drR]),
+                'doTrip':   _avg_list([safe_float(r.get('do')) for r in drR]),
                 'doDp':     round(doN/dpN,4) if dpN>0 else None,
                 'cbmDo':    round(cbmT/doN,4) if doN>0 else None,
                 'cbmDp':    round(cbmT/dpN,4) if dpN>0 else None,
