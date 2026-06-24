@@ -2093,6 +2093,12 @@ function computeCost(rows) {
     costCbmStore: byTd.store.cbm>0     ? byTd.store.cost/byTd.store.cbm        : null,
     costCbmHub:   byTd.hub.cbm>0       ? byTd.hub.cost/byTd.hub.cbm            : null,
     ujpTrip:     trip>0               ? ujp/trip                   : null,
+    doCust:   byTd.customer.do,
+    doStore:  byTd.store.do,
+    doHub:    byTd.hub.do,
+    cbmCust:  byTd.customer.cbm,
+    cbmStore: byTd.store.cbm,
+    cbmHub:   byTd.hub.cbm,
   };
 }
 
@@ -2332,10 +2338,51 @@ function buildCostTable(container) {
         +'</tr>';
     });
 
+    // ── Grand total row ──
+    var gtCost     = jalurEntries.reduce(function(s,e){return s+(e.cost||0);},0);
+    var gtUjp      = jalurEntries.reduce(function(s,e){return s+(e.ujp||0);},0);
+    var gtInsentif = jalurEntries.reduce(function(s,e){return s+(e.insentif||0);},0);
+    var gtOt       = jalurEntries.reduce(function(s,e){return s+(e.ot||0);},0);
+    var gtTrip     = jalurEntries.reduce(function(s,e){return s+(e.trip||0);},0);
+    var gtDo       = jalurEntries.reduce(function(s,e){return s+(e.doSum||0);},0);
+    var gtCbm      = jalurEntries.reduce(function(s,e){return s+(e.cbm||0);},0);
+    var gtDoCust   = jalurEntries.reduce(function(s,e){return s+(e.doCust||0);},0);
+    var gtDoStore  = jalurEntries.reduce(function(s,e){return s+(e.doStore||0);},0);
+    var gtDoHub    = jalurEntries.reduce(function(s,e){return s+(e.doHub||0);},0);
+    var gtCbmCust  = jalurEntries.reduce(function(s,e){return s+(e.cbmCust||0);},0);
+    var gtCbmStore = jalurEntries.reduce(function(s,e){return s+(e.cbmStore||0);},0);
+    var gtCbmHub   = jalurEntries.reduce(function(s,e){return s+(e.cbmHub||0);},0);
+    var gtCostTrip     = gtTrip>0     ? gtCost/gtTrip     : 0;
+    var gtCostDoCust   = gtDoCust>0   ? gtCost/gtDoCust   : 0;
+    var gtCostDoStore  = gtDoStore>0  ? gtCost/gtDoStore  : 0;
+    var gtCostDoHub    = gtDoHub>0    ? gtCost/gtDoHub    : 0;
+    var gtCostCbmCust  = gtCbmCust>0  ? gtCost/gtCbmCust  : 0;
+    var gtCostCbmStore = gtCbmStore>0 ? gtCost/gtCbmStore : 0;
+    var gtCostCbmHub   = gtCbmHub>0   ? gtCost/gtCbmHub   : 0;
+    var tdS='text-align:right;font-size:11px;font-weight:700;font-family:\'JetBrains Mono\',monospace;padding:7px 10px;border-top:2px solid #cbd5e1';
+    var jalurTfoot='<tr style="background:#f0f4f8">'
+      +'<td colspan="2" style="font-size:11px;font-weight:800;color:#0f172a;padding:7px 10px;border-top:2px solid #cbd5e1;letter-spacing:.5px">TOTAL</td>'
+      +'<td style="'+tdS+';color:#1d4ed8">'+fmtRp(gtCost)+'</td>'
+      +'<td style="'+tdS+';color:#0369a1">'+fmtRp(gtUjp)+'</td>'
+      +'<td style="'+tdS+';color:#b45309">'+fmtRp(gtInsentif)+'</td>'
+      +'<td style="'+tdS+';color:#be123c">'+fmtRp(gtOt)+'</td>'
+      +'<td style="'+tdS+'">'+Math.round(gtTrip).toLocaleString(\'id-ID\')+'</td>'
+      +'<td style="'+tdS+'">'+Math.round(gtDo).toLocaleString(\'id-ID\')+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCbm)+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCostTrip)+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCostDoCust)+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCostDoStore)+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCostDoHub)+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCostCbmCust)+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCostCbmStore)+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCostCbmHub)+'</td>'
+      +'<td style="'+tdS+';color:#64748b">100%</td>'
+      +'</tr>';
+
     var wrap = document.getElementById('costJalurTableWrap');
     if(wrap) wrap.innerHTML =
       '<div style="padding:6px 16px 6px;font-size:10px;font-weight:700;color:#64748b;letter-spacing:1.5px;text-transform:uppercase">PER JALUR (periode terpilih)</div>'
-      +'<div style="overflow-x:auto"><table class="mtt cost-tbl"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody></table></div>';
+      +'<div style="overflow-x:auto"><table class="mtt cost-tbl"><thead>'+jalurThead+'</thead><tbody>'+jalurTbody+'</tbody><tfoot>'+jalurTfoot+'</tfoot></table></div>';
   };
 
   // Sync _costBU with global sidebar BU toggle
