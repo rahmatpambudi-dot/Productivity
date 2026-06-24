@@ -2359,7 +2359,7 @@ function buildCostTable(container) {
     var gtCostCbmCust  = gtCbmCust>0  ? gtCost/gtCbmCust  : 0;
     var gtCostCbmStore = gtCbmStore>0 ? gtCost/gtCbmStore : 0;
     var gtCostCbmHub   = gtCbmHub>0   ? gtCost/gtCbmHub   : 0;
-    var tdS='text-align:right;font-size:11px;font-weight:700;font-family:\'JetBrains Mono\',monospace;padding:7px 10px;border-top:2px solid #cbd5e1';
+    var tdS="text-align:right;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:7px 10px;border-top:2px solid #cbd5e1";
     var jalurTfoot='<tr style="background:#f0f4f8">'
       +'<td colspan="2" style="font-size:11px;font-weight:800;color:#0f172a;padding:7px 10px;border-top:2px solid #cbd5e1;letter-spacing:.5px">TOTAL</td>'
       +'<td style="'+tdS+';color:#1d4ed8">'+fmtRp(gtCost)+'</td>'
