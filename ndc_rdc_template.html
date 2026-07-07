@@ -695,7 +695,7 @@ function computeSite(rows, site) {
     if(!isSub && isJAB && r.sheet === 'AHI JABABEKA' && r.owner === 'FBI') return false;
     if(isJAB && r.kat !== 'REGULAR') return false;
     if(isCIK && !(r.od||'').includes('non cikande')) return false;
-    if(!isSub && isSDA && (r.owner === 'FBI' || r.kat !== 'REGULAR')) return false;
+    if(!isSub && isSDA && ((r.owner !== 'HCI' && r.owner !== 'AHI') || r.kat !== 'REGULAR')) return false;
     if(isSub && isSDA && r.kat !== 'REGULAR') return false;
     return true;
   });
