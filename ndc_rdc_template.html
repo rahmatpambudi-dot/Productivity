@@ -202,6 +202,7 @@ body.export-mode #exitExport { display:block; }
 .ac-badge.hit{background:var(--gbg);color:var(--green);}
 .ac-badge.warn{background:#fff8e6;color:#b06000;}
 .ac-badge.miss{background:var(--rbg);color:var(--red);}
+.ac-badge-sm{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:5px;vertical-align:middle;letter-spacing:.2px;}
 .d-up{color:var(--gm);font-weight:600;font-size:11px;}
 .d-dn{color:var(--red);font-weight:600;font-size:11px;}
 .d-nt{color:var(--t3);font-size:11px;}
@@ -1385,6 +1386,7 @@ function renderDetail(results, summary, start, end) {
   });
   let siteAchTable='';
   function mkBadge(pct){if(pct==null)return'';const cls=pct>=100?'hit':pct>=90?'warn':'miss';return'<span class="ac-badge '+cls+'">'+pct.toFixed(1)+'%</span>';}
+  function mkBadgeSm(pct){if(pct==null)return'';const cls=pct>=100?'hit':pct>=90?'warn':'miss';return' <span class="ac-badge ac-badge-sm '+cls+'">'+pct.toFixed(1)+'%</span>';}
   if(currentSite==='ALL'){
     let thead='<tr><th>METRIK</th>';
     results.forEach(r=>{thead+='<th class="num">'+r.label+'</th>';});
@@ -1414,9 +1416,9 @@ function renderDetail(results, summary, start, end) {
     <div class="g2" style="margin-bottom:14px">
       <div class="panel"><div class="ph"><h3>Ringkasan Metrik</h3><span class="tag">range terpilih</span></div>
         <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
-        <tbody>${metrics.map(m=>`<tr><td><strong>${m.label}</strong></td>${results.map(r=>`<td class="num">${m.fmt(r[m.key])}</td>`).join('')}<td class="num"><strong>${m.fmt(summary[m.key])}</strong></td></tr>`).join('')}
+        <tbody>${metrics.map(m=>`<tr><td><strong>${m.label}</strong></td>${results.map(r=>`<td class="num">${m.fmt(r[m.key])}${TARGETS[m.key]?mkBadgeSm(achPct(m.key,r[m.key],r.site)):''}</td>`).join('')}<td class="num"><strong>${m.fmt(summary[m.key])}</strong>${TARGETS[m.key]?mkBadgeSm(achPct(m.key,summary[m.key],'NATIONAL')):''}</td></tr>`).join('')}
         </tbody></table></div>
-        <div style="font-size:11px;color:#888;padding:6px 4px 2px">* Mix = semua delivery Customer tanpa filter kategori</div>
+        <div style="font-size:11px;color:#888;padding:6px 4px 2px">* Mix = semua delivery Customer tanpa filter kategori &nbsp;|&nbsp; badge % = pencapaian vs target (OLF, Ritase, DP Mix, DP Reg, DO/Trip Regular) — hijau ≥100%, kuning 90–99%, merah &lt;90%</div>
       </div>
       <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
     </div>
