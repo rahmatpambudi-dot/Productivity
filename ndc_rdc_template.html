@@ -1366,7 +1366,7 @@ function renderDetail(results, summary, start, end) {
     { key:'doTripMix',label:'DO/Trip (Mix)*',fmt:v=>pf(v,1)},
     { key:'tatDirect',label:'TAT Direct',fmt:v=>tatStr(v)},
     { key:'tatStore',label:'TAT Store',fmt:v=>tatStr(v)},
-    { key:'totalCbmStore',label:'Demand CBM Store',fmt:v=>v!=null?v.toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1}):'—'},
+    { key:'totalCbmStore',label:'Demand CBM Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
     { key:'totalDoCust',label:'Demand DO Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
   ];
   const achMetrics = [
