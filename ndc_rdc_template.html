@@ -1389,7 +1389,7 @@ function renderDetail(results, summary, start, end) {
   });
   let siteAchTable='';
   function mkBadge(pct){if(pct==null)return'';const cls=pct>=100?'hit':pct>=90?'warn':'miss';return'<span class="ac-badge '+cls+'">'+pct.toFixed(1)+'%</span>';}
-  function mkBadgeSm(key,val,site){const t=TARGETS[key];if(!t||val==null)return'';const tgt=getTarget(key,site);if(tgt==null)return'';const pct=achPct(key,val,site);if(pct==null)return'';const cls=pct>=100?'hit':pct>=90?'warn':'miss';return'<div class="ac-badge-sm '+cls+'">Tgt '+t.fmt(tgt)+' ('+pct.toFixed(0)+'%)</div>';}
+  function mkBadgeSm(key,val,site){const t=TARGETS[key];if(!t||val==null)return'';const tgt=getTarget(key,site);if(tgt==null)return'';const pct=achPct(key,val,site);if(pct==null)return'';const cls=pct>=100?'hit':pct>=90?'warn':'miss';return'<div class="ac-badge-sm '+cls+'">🎯'+t.fmt(tgt)+' ('+pct.toFixed(0)+'%)</div>';}
   if(currentSite==='ALL'){
     let thead='<tr><th>METRIK</th>';
     results.forEach(r=>{thead+='<th class="num">'+r.label+'</th>';});
