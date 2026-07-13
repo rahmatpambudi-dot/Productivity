@@ -1518,8 +1518,20 @@ function buildTrendline(results, summary, s, e) {
   var trendLabels=allMonths.map(function(mo){var arr=mo.split('-');return moNames2[parseInt(arr[1])-1]+' '+arr[0];});
   var trendData=allMonths.map(function(mo){
     var {start:d1,end:d2}=getMonthRange(mo);
+    if(currentSite==='ALL'){
+      return makeSummary(computeAll(filterRows(ROWS,d1,d2,'ALL')));
+    }
+    if(currentSite==='NDC_RDC'){
+      return makeSummary(computeAll(filterRows(ROWS,d1,d2,'NDC_RDC')));
+    }
+    if(currentSite==='NDC'){
+      return makeSummary(SITES_NDC.map(function(s){return computeSite(filterRows(ROWS,d1,d2,s),s);}).filter(Boolean));
+    }
+    if(currentSite==='RDC'){
+      return makeSummary(SITES_RDC.map(function(s){return computeSite(filterRows(ROWS,d1,d2,s),s);}).filter(Boolean));
+    }
     var moRows=filterRows(ROWS,d1,d2,currentSite);
-    return currentSite==='ALL'?makeSummary(computeAll(moRows)):(computeSite(moRows,currentSite)||{});
+    return computeSite(moRows,currentSite)||{};
   });
 
   var trendSeries=[
