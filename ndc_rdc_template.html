@@ -1442,6 +1442,7 @@ function renderDetail(results, summary, start, end) {
     </div>
     <div id="costAnalysisPanel" style="margin-top:14px"></div>
     <div id="utilisasiPanel" style="margin-top:14px"></div>
+    <div id="armadaKecilPanel" style="margin-top:14px"></div>
     <div id="tripTypePanel" style="margin-top:14px"></div>
     <div id="demandPanel" style="margin-top:14px"></div>
     <div class="panel" style="margin-top:14px">
@@ -1969,6 +1970,110 @@ function computeUtil(rows, allRows, site) {
     ritaseArmada: avg(ritArmadaVals),
     ritaseMpp:    avg(ritMppVals),
   };
+}
+
+// ── ARMADA KECIL (CDELC/CDDLC, HCI/AHI): DK / LK murni / LK+ritase / Idle / Downtime ──
+function buildArmadaKecilTable(container) {
+  if(!container) return;
+  var {start:s, end:e} = getRange();
+  var rows = filterRows(ROWS, s, e, currentSite).filter(function(r) {
+    var owner = (r.owner||'').toUpperCase();
+    var ta = r.ta||'';
+    return (owner==='HCI'||owner==='AHI') && (ta==='CDELC'||ta==='CDDLC');
+  });
+  if(!rows.length) {
+    container.innerHTML = '<div class="panel"><div class="ph"><h3>Armada Kecil (CDELC/CDDLC)</h3><span class="tag">HCI &amp; AHI</span></div>'
+      +'<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data armada kecil (CDELC/CDDLC, HCI/AHI) untuk periode &amp; site ini.</p></div>';
+    return;
+  }
+  var byNopolDate = {};
+  var nopolTaMap = {};
+  rows.forEach(function(r) {
+    if(!r.nopol || !r.date) return;
+    var key = r.nopol+'|'+r.date;
+    if(!byNopolDate[key]) byNopolDate[key] = {lk:0, dk:0};
+    if(r.sa === 'LUAR KOTA') byNopolDate[key].lk++;
+    else if(r.sa === 'DALAM KOTA') byNopolDate[key].dk++;
+    if(!nopolTaMap[r.nopol]) nopolTaMap[r.nopol] = {};
+    nopolTaMap[r.nopol][r.ta] = (nopolTaMap[r.nopol][r.ta]||0) + 1;
+  });
+  var nopolType = {};
+  Object.keys(nopolTaMap).forEach(function(np) {
+    var best=null, bestC=-1;
+    Object.keys(nopolTaMap[np]).forEach(function(t) { if(nopolTaMap[np][t]>bestC){ bestC=nopolTaMap[np][t]; best=t; } });
+    nopolType[np] = best;
+  });
+  var allDates = [...new Set(rows.map(function(r){return r.date;}))].sort();
+  var allNopol = [...new Set(rows.map(function(r){return r.nopol;}))];
+
+  function classify(nopolSet) {
+    var statusCount = {DK:0, 'LK murni':0, 'LK + ritase DK':0, 'Idle':0, 'Downtime':0};
+    var assetSet = {DK:new Set(), 'LK murni':new Set(), 'LK + ritase DK':new Set(), 'Idle':new Set(), 'Downtime':new Set()};
+    var idleFlags = {};
+    nopolSet.forEach(function(np) {
+      var streak=[];
+      allDates.forEach(function(d) {
+        var key=np+'|'+d;
+        var v=byNopolDate[key];
+        var idle = !v || (v.lk===0 && v.dk===0);
+        idleFlags[key]=idle;
+        if(idle) { streak.push(key); }
+        else { if(streak.length>=5) { streak.forEach(function(k){ idleFlags[k]='downtime'; }); } streak=[]; }
+      });
+      if(streak.length>=5) { streak.forEach(function(k){ idleFlags[k]='downtime'; }); }
+    });
+    nopolSet.forEach(function(np) {
+      allDates.forEach(function(d) {
+        var key=np+'|'+d;
+        var v=byNopolDate[key];
+        var lk=v?v.lk:0, dk=v?v.dk:0;
+        var status;
+        if(lk>0 && dk>0) status='LK + ritase DK';
+        else if(lk>0) status='LK murni';
+        else if(dk>0) status='DK';
+        else status = idleFlags[key]==='downtime' ? 'Downtime' : 'Idle';
+        statusCount[status]++;
+        assetSet[status].add(np);
+      });
+    });
+    return { statusCount:statusCount, assetSet:assetSet, days:allDates.length, nopolCount:nopolSet.length };
+  }
+
+  var overall = classify(allNopol);
+  var cdelcNopol = allNopol.filter(function(np){ return nopolType[np]==='CDELC'; });
+  var cddlcNopol = allNopol.filter(function(np){ return nopolType[np]==='CDDLC'; });
+  var cdelc = classify(cdelcNopol);
+  var cddlc = classify(cddlcNopol);
+
+  var STATUS_ORDER = ['DK','LK murni','LK + ritase DK','Idle','Downtime'];
+  var COLORS = {'DK':'#8B4513','LK murni':'#1F7A4D','LK + ritase DK':'#2E6B9E','Idle':'#808080','Downtime':'#C0392B'};
+
+  function renderTable(data, title, tag) {
+    var thead = '<tr><th style="text-align:left">Type</th><th class="num">Asset</th><th class="num">Avg/hari</th><th class="num">% hari</th></tr>';
+    var tbody = '';
+    STATUS_ORDER.forEach(function(st) {
+      var cnt = data.statusCount[st];
+      var assetN = data.assetSet[st].size;
+      var avgPerDay = data.days ? cnt/data.days : 0;
+      var pct = data.nopolCount ? (avgPerDay/data.nopolCount*100) : 0;
+      tbody += '<tr><td style="color:'+COLORS[st]+';font-weight:600">'+st+'</td>'
+        +'<td class="num">'+assetN+'</td>'
+        +'<td class="num">'+avgPerDay.toFixed(1)+'</td>'
+        +'<td class="num">'+pct.toFixed(1)+'%</td></tr>';
+    });
+    return '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>'+title+'</h3><span class="tag">'+tag+'</span></div>'
+      +'<div class="tw"><table class="dt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table></div></div>';
+  }
+
+  var html = '<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Armada Kecil — Detail Assignment</h3><span class="tag">CDELC/CDDLC · HCI &amp; AHI</span></div></div>';
+  html += renderTable(overall, 'By Aset (Total Armada Kecil)', overall.nopolCount+' nopol · '+overall.days+' hari');
+  html += '<div class="g2">'
+    + renderTable(cdelc, 'By Type — CDELC', cdelc.nopolCount+' nopol')
+    + renderTable(cddlc, 'By Type — CDDLC', cddlc.nopolCount+' nopol')
+    + '</div>';
+  html += '<div style="font-size:11px;color:var(--t2);padding:8px 4px 0">DK = prioritas #1 (Dalam Kota) &nbsp;|&nbsp; LK murni = Luar Kota tanpa ritase DK di hari sama &nbsp;|&nbsp; LK + ritase DK = ada DK &amp; LK di hari sama &nbsp;|&nbsp; Idle = tidak ada trip sama sekali &nbsp;|&nbsp; Downtime = idle beruntun &ge;5 hari kerja (indikasi armada bermasalah/bengkel). Basis: owner HCI &amp; AHI, tipe armada CDELC/CDDLC.</div>';
+
+  container.innerHTML = html;
 }
 
 function buildMonthlyUtilTable(container) {
@@ -2963,6 +3068,9 @@ window.renderDetail=function(results,summary,start,end){
         + '<div id="utilTableContainer"></div></div>';
       buildMonthlyUtilTable(document.getElementById('utilTableContainer'));
     }
+    // Armada Kecil (CDELC/CDDLC, HCI/AHI) — DK/LK/Idle/Downtime breakdown
+    var armEl = document.getElementById('armadaKecilPanel');
+    if(armEl) buildArmadaKecilTable(armEl);
     // Trip Type
     var tripEl = document.getElementById('tripTypePanel');
     if(tripEl) {
