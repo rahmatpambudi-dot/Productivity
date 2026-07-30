@@ -571,7 +571,9 @@ def build():
                 if olf_i < 0: olf_i = next((i for i, h in enumerate(h_up) if "OLF" in h), -1)
                 if olf_i < 0: olf_i = next((i for i, h in enumerate(h_up) if "DETERMINE" in h), -1)
                 cols["olfDet"] = olf_i
-                print(f"  CIKUPA cols: tat={cols['tat']}, sat={cols['satelite']}, olfDet={cols['olfDet']}")
+                sa_cols = [i for i, h in enumerate(h_up) if "SHIPMENT AREA" in h or "SHIPMENT AR" in h]
+                if sa_cols: cols["shipArea"] = sa_cols[-1]
+                print(f"  CIKUPA cols: tat={cols['tat']}, sat={cols['satelite']}, olfDet={cols['olfDet']}, shipArea={cols['shipArea']}")
 
             print(f"  {s['name']} col indices: do={cols['do_']} cbm={cols['cbm']} cap={cols['capArmada']} dp={cols['dp']} kat={cols['kategori']}")
 
