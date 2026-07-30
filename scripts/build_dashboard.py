@@ -551,6 +551,7 @@ def build():
     service = get_service()
     all_rows = []
     total = 0
+    cikupa_debug_headers = None
 
     for s in SHEETS:
         print(f"  Fetching {s['name']}...")
@@ -563,6 +564,7 @@ def build():
             h_up = [x.upper() for x in raw["headers"]]
 
             if s["name"] == "HCI CIKUPA":
+                cikupa_debug_headers = list(raw["headers"])
                 tat_cols = [i for i, h in enumerate(h_up) if h == "TAT"]
                 if tat_cols: cols["tat"] = tat_cols[-1]
                 sat_i = next((i for i, h in enumerate(h_up) if "SATELIT" in h), -1)
@@ -629,8 +631,11 @@ def build():
     for site in SITES_LIST:
         site_rows = by_site.get(site, [])
         site_path = os.path.join(base, '..', f'data_{site}.json')
+        out_obj = {'timestamp': timestamp, 'maps': dec_maps, 'rows': site_rows}
+        if site == 'CIKUPA':
+            out_obj['debugHeaders'] = cikupa_debug_headers
         with open(site_path, 'w', encoding='utf-8') as f:
-            json.dump({'timestamp': timestamp, 'maps': dec_maps, 'rows': site_rows}, f, ensure_ascii=False, separators=(',',':'))
+            json.dump(out_obj, f, ensure_ascii=False, separators=(',',':'))
         kb = os.path.getsize(site_path)/1024
         total_kb += kb
         print(f"data_{site}.json: {kb:.0f} KB ({len(site_rows)} rows)")
