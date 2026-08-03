@@ -2140,13 +2140,15 @@ function buildArmadaTypeTrend(container) {
     if (!r.date || !r.nopol) return;
     var t = normalizeArmadaType(r.ja);
     var key = r.date + '|' + t;
-    if (!agg[key]) agg[key] = { nopol:new Set(), trip:new Set(), cust:new Set(), store:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
+    if (!agg[key]) agg[key] = { nopol:new Set(), trip:new Set(), cust:new Set(), store:new Set(), drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
     var a = agg[key];
     a.nopol.add(r.nopol);
     if (r.lc) a.trip.add(r.lc);
     var td = (r.td || '').toLowerCase().trim();
     if (td === 'customer' && r.lc) a.cust.add(r.lc);
     if (td === 'store' && r.lc) a.store.add(r.lc);
+    if (r.drvId) a.drv.add(r.drvId);
+    if (r.crewId) a.crew.add(r.crewId);
     var io = r.lc ? INSENTIF_OT_MAP[r.lc] : null;
     var rowCost = (r.cost || 0) + (io ? (io.ot || 0) : 0) + (io ? (io.insentif || 0) : 0);
     a.cost += rowCost;
@@ -2188,6 +2190,8 @@ function buildArmadaTypeTrend(container) {
     +'<th style="text-align:center">Trip</th>'
     +'<th style="text-align:center;color:#1a73e8">Demand Cust</th>'
     +'<th style="text-align:center;color:#34a85a">Demand Store</th>'
+    +'<th style="text-align:center;color:#8B4513">Driver</th>'
+    +'<th style="text-align:center;color:#c2185b">Ast. Driver</th>'
     +'<th style="text-align:center">Cost</th>'
     +'<th style="text-align:center">UJP</th>'
     +'<th style="text-align:center">TAT</th>'
@@ -2208,6 +2212,8 @@ function buildArmadaTypeTrend(container) {
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+a.trip.size.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+a.cust.size.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#34a85a">'+a.store.size.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#8B4513">'+(a.drv.size?a.drv.size.toLocaleString('id-ID'):'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#c2185b">'+(a.crew.size?a.crew.size.toLocaleString('id-ID'):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(a.cost)+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(a.ujp)+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(avgTat!=null?tatStr(avgTat):'—')+'</td>'
@@ -2218,6 +2224,7 @@ function buildArmadaTypeTrend(container) {
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb per hari</span>'
     +'<span>Demand Cust/Store = unique LC dgn td=customer / store (exact match)</span>'
+    +'<span>Driver/Ast. Driver = unique DriverId/Crew1Id yang jalanin type armada tsb per hari</span>'
     +'<span>Cost = cost + OT + Insentif &middot; TAT = rata-rata durasi bongkar</span>'
     +'</div>';
 
