@@ -599,7 +599,7 @@ def build():
     out_path      = os.path.join(base, '..', 'dashboard_ndc_rdc.html')
 
     # Encode string fields to integer codes to reduce file size
-    ENCODE_FIELDS = ['sheet','site','td','kat','ta','sa','owner','nopol','jalur','ja','sat','od']
+    ENCODE_FIELDS = ['sheet','site','td','kat','ta','sa','owner','nopol','jalur','ja','sat','od','drvId','crewId']
     
     # Build encoding maps from all rows
     enc_maps = {}
@@ -611,7 +611,6 @@ def build():
     def encode_row(r):
         er = {}
         for k, v in r.items():
-            if k in ('drvId','crewId'): continue  # strip
             if k in enc_maps and v is not None:
                 er[k] = enc_maps[k].get(str(v) if v is not None else '', 0)
             else:
