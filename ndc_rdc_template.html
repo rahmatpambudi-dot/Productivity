@@ -1442,6 +1442,7 @@ function renderDetail(results, summary, start, end) {
     </div>
     <div id="costAnalysisPanel" style="margin-top:14px"></div>
     <div id="utilisasiPanel" style="margin-top:14px"></div>
+    <div id="armadaTypeTrendPanel" style="margin-top:14px"></div>
     <div id="armadaKecilPanel" style="margin-top:14px"></div>
     <div id="tripTypePanel" style="margin-top:14px"></div>
     <div id="demandPanel" style="margin-top:14px"></div>
@@ -2074,6 +2075,184 @@ function buildArmadaKecilTable(container) {
   html += '<div style="font-size:11px;color:var(--t2);padding:8px 4px 0">DK = prioritas #1 (Dalam Kota) &nbsp;|&nbsp; LK murni = Luar Kota tanpa ritase DK di hari sama &nbsp;|&nbsp; LK + ritase DK = ada DK &amp; LK di hari sama &nbsp;|&nbsp; Idle = tidak ada trip sama sekali &nbsp;|&nbsp; Downtime = idle beruntun &ge;5 hari kerja (indikasi armada bermasalah/bengkel). Basis: owner HCI &amp; AHI, tipe armada CDELC/CDDLC.</div>';
 
   container.innerHTML = html;
+}
+
+// ── TREND DAILY UTILISASI ARMADA per TYPE (based on r.ja) ──────
+// Utilisasi % = nopol aktif (ada trip) hari itu / total asset (unique nopol) type tsb dalam periode filter
+const ARMADA_TYPE_NORMALIZE = {
+  'CDD': 'CDD',
+  'CDD LONG CHASSIS': 'CDDLC',
+  'CDD PICK UP': 'CDD PICKUP',
+  'CDD PICKUP': 'CDD PICKUP',
+  'CDE': 'CDE',
+  'CDE LONG CHASSIS': 'CDELC',
+  'CDELC': 'CDELC',
+  'CDE PICK UP': 'CDE PICKUP',
+  'CDE PICKUP': 'CDE PICKUP',
+  'FUSO': 'FUSO',
+  'FUSO GENAP': 'FUSO',
+  'MIN VAN OPS': 'MINI VAN BOX',
+  'MINI VAN BOX': 'MINI VAN BOX',
+  'MINI VANBOX': 'MINI VAN BOX',
+  'MOTOR BOX': 'MOTOR BOX',
+  'PICK UP': 'PICKUP',
+  'PICKUP': 'PICKUP',
+  'PICKUP EXTRA': 'PICKUP',
+  'VAN': 'VAN BOX',
+  'VAN BOX': 'VAN BOX',
+  'WINGBOX': 'WINGBOX',
+  'WINGBOX GANJIL': 'WINGBOX',
+  'BIG MAMA': 'BIG MAMA',
+  'CONT-40': 'CONT-40',
+};
+function normalizeArmadaType(ja) {
+  var v = (ja || '').toString().trim().toUpperCase();
+  if (!v) return 'LAINNYA';
+  return ARMADA_TYPE_NORMALIZE[v] || v;
+}
+const ARMADA_TYPE_COLORS = ['#1a73e8','#34a85a','#e37400','#a142f4','#d93025','#00acc1','#8B4513','#c2185b','#7cb342','#5c6bc0','#f9a825','#546e7a'];
+
+function buildArmadaTypeTrend(container) {
+  if (!container) return;
+  var { start: s, end: e } = getRange();
+  var rows = filterRows(ROWS, s, e, currentSite);
+  if (!rows.length) {
+    container.innerHTML = '<div class="panel"><div class="ph"><h3>Trend Daily Utilisasi Armada per Type</h3></div>'
+      + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data untuk periode &amp; site ini.</p></div>';
+    return;
+  }
+
+  // Assets per type: distinct nopol yang muncul di seluruh periode filter (fixed baseline)
+  var assetsByType = {};
+  rows.forEach(function(r) {
+    if (!r.nopol) return;
+    var t = normalizeArmadaType(r.ja);
+    if (!assetsByType[t]) assetsByType[t] = new Set();
+    assetsByType[t].add(r.nopol);
+  });
+
+  var allDates = [...new Set(rows.map(function(r){ return r.date; }).filter(Boolean))].sort();
+  var allTypes = Object.keys(assetsByType).sort(function(a,b){ return assetsByType[b].size - assetsByType[a].size; });
+
+  // Daily aggregation per date|type
+  var agg = {};
+  rows.forEach(function(r) {
+    if (!r.date || !r.nopol) return;
+    var t = normalizeArmadaType(r.ja);
+    var key = r.date + '|' + t;
+    if (!agg[key]) agg[key] = { nopol:new Set(), trip:new Set(), cust:new Set(), store:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
+    var a = agg[key];
+    a.nopol.add(r.nopol);
+    if (r.lc) a.trip.add(r.lc);
+    var td = (r.td || '').toLowerCase().trim();
+    if (td === 'customer' && r.lc) a.cust.add(r.lc);
+    if (td === 'store' && r.lc) a.store.add(r.lc);
+    var io = r.lc ? INSENTIF_OT_MAP[r.lc] : null;
+    var rowCost = (r.cost || 0) + (io ? (io.ot || 0) : 0) + (io ? (io.insentif || 0) : 0);
+    a.cost += rowCost;
+    if (r.ujp) a.ujp += r.ujp;
+    var th = parseTAT(r.tat);
+    if (th != null) { a.tatSum += th; a.tatCnt++; }
+  });
+
+  function utilCls(pct) {
+    if (pct == null) return '';
+    if (pct >= 95) return 'c-grn'; if (pct >= 85) return 'c-yel'; return 'c-red';
+  }
+
+  // ── Chart: daily % utilisasi per type, top 8 by asset count ──
+  var chartTypes = allTypes.slice(0, 8);
+  var dateLabels = allDates.map(function(d){ return d.slice(8,10)+'/'+d.slice(5,7); });
+  var chartDatasets = chartTypes.map(function(t, i) {
+    var assets = assetsByType[t].size;
+    var data = allDates.map(function(d) {
+      var a = agg[d+'|'+t];
+      if (!a || !assets) return null;
+      return +(a.nopol.size/assets*100).toFixed(1);
+    });
+    return {
+      label: t+' ('+assets+' unit)',
+      data: data,
+      borderColor: ARMADA_TYPE_COLORS[i % ARMADA_TYPE_COLORS.length],
+      backgroundColor: 'transparent',
+      borderWidth: 2, pointRadius: 2, pointHoverRadius: 5,
+      tension: 0.3, fill: false,
+    };
+  });
+
+  // ── Table: satu baris per tanggal+type (yang ada aktivitas), terbaru dulu ──
+  var thead = '<tr>'
+    +'<th style="text-align:left">Tanggal</th>'
+    +'<th style="text-align:left">Type Armada</th>'
+    +'<th style="text-align:center;color:#e37400">Util Armada</th>'
+    +'<th style="text-align:center">Trip</th>'
+    +'<th style="text-align:center;color:#1a73e8">Demand Cust</th>'
+    +'<th style="text-align:center;color:#34a85a">Demand Store</th>'
+    +'<th style="text-align:center">Cost</th>'
+    +'<th style="text-align:center">UJP</th>'
+    +'<th style="text-align:center">TAT</th>'
+    +'</tr>';
+
+  var tbody = '';
+  allDates.slice().reverse().forEach(function(d) {
+    allTypes.forEach(function(t) {
+      var a = agg[d+'|'+t];
+      if (!a) return;
+      var assets = assetsByType[t].size;
+      var utilPct = assets ? (a.nopol.size/assets*100) : null;
+      var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
+      tbody += '<tr>'
+        +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+d+'</td>'
+        +'<td style="font-size:11px;font-weight:600">'+t+'</td>'
+        +'<td class="'+utilCls(utilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(utilPct!=null?utilPct.toFixed(1)+'%':'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+a.trip.size.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+a.cust.size.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#34a85a">'+a.store.size.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(a.cost)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(a.ujp)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(avgTat!=null?tatStr(avgTat):'—')+'</td>'
+        +'</tr>';
+    });
+  });
+
+  var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
+    +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb per hari</span>'
+    +'<span>Demand Cust/Store = unique LC dgn td=customer / store (exact match)</span>'
+    +'<span>Cost = cost + OT + Insentif &middot; TAT = rata-rata durasi bongkar</span>'
+    +'</div>';
+
+  container.innerHTML =
+    '<div class="panel">'
+    + '<div class="ph"><h3>Trend Daily Utilisasi Armada per Type</h3>'
+    + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' hari</span></div>'
+    + '<div style="padding:14px 16px 4px;height:320px;position:relative"><canvas id="cArmTypeTrend"></canvas></div>'
+    + '<div style="overflow-x:auto;max-height:480px;overflow-y:auto;border-top:1px solid var(--border)">'
+    + '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
+    + '</div>'
+    + legendHtml
+    + '</div>';
+
+  var canvas = document.getElementById('cArmTypeTrend');
+  if (canvas) {
+    if (charts.armTypeTrend) charts.armTypeTrend.destroy();
+    charts.armTypeTrend = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { labels: dateLabels, datasets: chartDatasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display:true, position:'top', labels:{ color:'#64748b', font:{family:'Inter',size:10,weight:'500'}, boxWidth:10, boxHeight:10, padding:12, usePointStyle:true, pointStyle:'circle' } },
+          tooltip: { backgroundColor:'#ffffff', borderColor:'#e2e8f0', borderWidth:1, titleColor:'#0f172a', bodyColor:'#64748b', padding:10, cornerRadius:8,
+            callbacks: { label: function(ctx) { return '  '+ctx.dataset.label+': '+(ctx.parsed.y!=null?ctx.parsed.y+'%':'—'); } } },
+          datalabels: { display:false }
+        },
+        scales: {
+          x: { ticks:{color:'#94a3b8',font:{family:'Inter',size:10},maxRotation:0,autoSkip:true,autoSkipPadding:14}, grid:{display:false}, border:{display:false} },
+          y: { min:0, max:100, ticks:{color:'#94a3b8',font:{family:'Inter',size:10},callback:function(v){return v+'%';}}, grid:{color:'#f1f5f9'}, border:{display:false} }
+        }
+      }
+    });
+  }
 }
 
 function buildMonthlyUtilTable(container) {
@@ -3068,6 +3247,9 @@ window.renderDetail=function(results,summary,start,end){
         + '<div id="utilTableContainer"></div></div>';
       buildMonthlyUtilTable(document.getElementById('utilTableContainer'));
     }
+    // Trend Daily Utilisasi Armada per Type (ja-based)
+    var atEl = document.getElementById('armadaTypeTrendPanel');
+    if(atEl) buildArmadaTypeTrend(atEl);
     // Armada Kecil (CDELC/CDDLC, HCI/AHI) — DK/LK/Idle/Downtime breakdown
     var armEl = document.getElementById('armadaKecilPanel');
     if(armEl) buildArmadaKecilTable(armEl);
