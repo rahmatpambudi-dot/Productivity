@@ -2135,17 +2135,71 @@ function normalizeArmadaType(ja) {
 }
 const ARMADA_TYPE_COLORS = ['#1a73e8','#34a85a','#e37400','#a142f4','#d93025','#00acc1','#8B4513','#c2185b','#7cb342','#5c6bc0','#f9a825','#546e7a'];
 
+var ARM_TREND_STATE = { filter: 'ALL', gran: 'daily', container: null };
+function setArmTrendFilter(v) { ARM_TREND_STATE.filter = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
+function setArmTrendGranularity(v) { ARM_TREND_STATE.gran = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
+
+// Bucket a YYYY-MM-DD date string into daily/weekly/monthly key
+function bucketDate(dateStr, gran) {
+  if (gran === 'monthly') return dateStr.slice(0, 7);
+  if (gran === 'weekly') {
+    var d = new Date(dateStr + 'T00:00:00');
+    var day = d.getDay();
+    var diffToMon = (day === 0 ? -6 : 1 - day);
+    d.setDate(d.getDate() + diffToMon);
+    return d.toISOString().slice(0, 10); // Monday of that week
+  }
+  return dateStr;
+}
+function bucketLabel(key, gran) {
+  var moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  if (gran === 'monthly') {
+    var y = key.slice(0,4), m = parseInt(key.slice(5,7),10);
+    return moNames[m-1] + ' ' + y;
+  }
+  if (gran === 'weekly') {
+    var d = new Date(key + 'T00:00:00');
+    var end = new Date(d.getTime()); end.setDate(d.getDate() + 6);
+    return key.slice(8,10)+'/'+key.slice(5,7)+'-'+String(end.getDate()).padStart(2,'0')+'/'+String(end.getMonth()+1).padStart(2,'0');
+  }
+  return key.slice(8,10) + '/' + key.slice(5,7);
+}
+function bucketUnitLabel(gran) { return gran === 'monthly' ? 'bulan' : gran === 'weekly' ? 'minggu' : 'hari'; }
+
 function buildArmadaTypeTrend(container) {
   if (!container) return;
+  ARM_TREND_STATE.container = container;
+  var filterSA = ARM_TREND_STATE.filter, gran = ARM_TREND_STATE.gran;
   var { start: s, end: e } = getRange();
   var rows = filterRows(ROWS, s, e, currentSite);
+  if (filterSA === 'DK') rows = rows.filter(function(r){ return r.sa === 'DALAM KOTA'; });
+  else if (filterSA === 'LK') rows = rows.filter(function(r){ return r.sa === 'LUAR KOTA'; });
+
+  function controlBar() {
+    function btn(label, active, onclick) {
+      return '<button onclick="'+onclick+'" style="padding:5px 12px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid '+(active?'#1a73e8':'var(--border)')+';background:'+(active?'#1a73e8':'transparent')+';color:'+(active?'#fff':'var(--t2)')+';cursor:pointer;margin-right:6px">'+label+'</button>';
+    }
+    var html = '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:10px 16px;border-top:1px solid var(--border)">';
+    html += '<span style="font-size:11px;color:var(--t3);margin-right:8px">Trip:</span>';
+    html += btn('Gabungan', filterSA==='ALL', "setArmTrendFilter('ALL')");
+    html += btn('DK', filterSA==='DK', "setArmTrendFilter('DK')");
+    html += btn('LK', filterSA==='LK', "setArmTrendFilter('LK')");
+    html += '<span style="font-size:11px;color:var(--t3);margin:0 8px 0 16px">Tampilan:</span>';
+    html += btn('Harian', gran==='daily', "setArmTrendGranularity('daily')");
+    html += btn('Mingguan', gran==='weekly', "setArmTrendGranularity('weekly')");
+    html += btn('Bulanan', gran==='monthly', "setArmTrendGranularity('monthly')");
+    html += '</div>';
+    return html;
+  }
+
   if (!rows.length) {
-    container.innerHTML = '<div class="panel"><div class="ph"><h3>Trend Daily Utilisasi Armada per Type</h3></div>'
-      + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data untuk periode &amp; site ini.</p></div>';
+    container.innerHTML = '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3></div>'
+      + controlBar()
+      + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data untuk periode, site, &amp; filter trip ini.</p></div>';
     return;
   }
 
-  // Assets per type: distinct nopol yang muncul di seluruh periode filter (fixed baseline)
+  // Assets per type: distinct nopol yang muncul di subset filter ini (fixed baseline)
   var assetsByType = {};
   rows.forEach(function(r) {
     if (!r.nopol) return;
@@ -2154,15 +2208,16 @@ function buildArmadaTypeTrend(container) {
     assetsByType[t].add(r.nopol);
   });
 
-  var allDates = [...new Set(rows.map(function(r){ return r.date; }).filter(Boolean))].sort();
+  var allDates = [...new Set(rows.map(function(r){ return bucketDate(r.date, gran); }).filter(Boolean))].sort();
   var allTypes = Object.keys(assetsByType).sort(function(a,b){ return assetsByType[b].size - assetsByType[a].size; });
 
-  // Daily aggregation per date|type
+  // Aggregation per bucket|type
   var agg = {};
   rows.forEach(function(r) {
     if (!r.date || !r.nopol) return;
     var t = normalizeArmadaType(r.ja);
-    var key = r.date + '|' + t;
+    var bd = bucketDate(r.date, gran);
+    var key = bd + '|' + t;
     if (!agg[key]) agg[key] = { nopol:new Set(), trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
     var a = agg[key];
     a.nopol.add(r.nopol);
@@ -2185,9 +2240,11 @@ function buildArmadaTypeTrend(container) {
       if (lt > 1) {
         expandActiveDates(r.date, lt).slice(1).forEach(function(ed) {
           if (ed > e) return; // don't extend past the active filter window
-          var ekey = ed + '|' + t;
+          var ebd = bucketDate(ed, gran);
+          var ekey = ebd + '|' + t;
           if (!agg[ekey]) agg[ekey] = { nopol:new Set(), trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
           agg[ekey].nopol.add(r.nopol);
+          if (allDates.indexOf(ebd) === -1) { allDates.push(ebd); allDates.sort(); }
         });
       }
     }
@@ -2198,9 +2255,9 @@ function buildArmadaTypeTrend(container) {
     if (pct >= 95) return 'c-grn'; if (pct >= 85) return 'c-yel'; return 'c-red';
   }
 
-  // ── Chart: daily % utilisasi per type, top 8 by asset count ──
+  // ── Chart: % utilisasi per type per bucket, top 8 by asset count ──
   var chartTypes = allTypes.slice(0, 8);
-  var dateLabels = allDates.map(function(d){ return d.slice(8,10)+'/'+d.slice(5,7); });
+  var dateLabels = allDates.map(function(d){ return bucketLabel(d, gran); });
   var chartDatasets = chartTypes.map(function(t, i) {
     var assets = assetsByType[t].size;
     var data = allDates.map(function(d) {
@@ -2218,9 +2275,9 @@ function buildArmadaTypeTrend(container) {
     };
   });
 
-  // ── Table: satu baris per tanggal+type (yang ada aktivitas), terbaru dulu ──
+  // ── Table: satu baris per bucket+type (yang ada aktivitas), terbaru dulu ──
   var thead = '<tr>'
-    +'<th style="text-align:left">Tanggal</th>'
+    +'<th style="text-align:left">Periode</th>'
     +'<th style="text-align:left">Type Armada</th>'
     +'<th style="text-align:center;color:#e37400">Util Armada</th>'
     +'<th style="text-align:center">Trip</th>'
@@ -2244,7 +2301,7 @@ function buildArmadaTypeTrend(container) {
       var utilPct = assets ? (a.nopol.size/assets*100) : null;
       var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
       tbody += '<tr>'
-        +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+d+'</td>'
+        +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
         +'<td style="font-size:11px;font-weight:600">'+t+'</td>'
         +'<td class="'+utilCls(utilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(utilPct!=null?utilPct.toFixed(1)+'%':'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+a.trip.size.toLocaleString('id-ID')+'</td>'
@@ -2260,21 +2317,22 @@ function buildArmadaTypeTrend(container) {
   });
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
-    +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb per hari</span>'
+    +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb per '+bucketUnitLabel(gran)+'</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
     +'<span>Demand Cust = total DO (td=customer) &middot; Demand Store = total CBM (td=store)</span>'
-    +'<span>Driver/Ast. Driver = unique DriverId/Crew1Id yang jalanin type armada tsb per hari</span>'
+    +'<span>Driver/Ast. Driver = unique DriverId/Crew1Id yang jalanin type armada tsb</span>'
     +'<span>Cost = cost + OT + Insentif &middot; TAT = rata-rata durasi bongkar (0-24 jam, outlier checkout kosong dibuang)</span>'
     +'</div>';
 
   container.innerHTML =
     '<div class="panel">'
-    + '<div class="ph"><h3>Trend Daily Utilisasi Armada per Type</h3>'
-    + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' hari</span></div>'
+    + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
+    + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' '+bucketUnitLabel(gran)+'</span></div>'
+    + controlBar()
     + '<div style="padding:14px 16px 4px;height:320px;position:relative"><canvas id="cArmTypeTrend"></canvas></div>'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
-    + '<span>Data: <b>'+allDates[0]+'</b> s/d <b>'+allDates[allDates.length-1]+'</b> ('+allDates.length+' hari, '+rowCount+' baris)</span>'
-    + '<span>&#8595; scroll di dalam tabel untuk lihat semua tanggal</span>'
+    + '<span>Data: <b>'+bucketLabel(allDates[0],gran)+'</b> s/d <b>'+bucketLabel(allDates[allDates.length-1],gran)+'</b> ('+allDates.length+' '+bucketUnitLabel(gran)+', '+rowCount+' baris)</span>'
+    + '<span>&#8595; scroll di dalam tabel untuk lihat semua periode</span>'
     + '</div>'
     + '<div style="overflow-x:auto;max-height:480px;overflow-y:auto;border-top:1px solid var(--border)">'
     + '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
