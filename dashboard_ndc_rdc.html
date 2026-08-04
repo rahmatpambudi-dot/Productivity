@@ -2225,6 +2225,28 @@ function getMasterAssetNopolSiteWide(date, site, type) {
   });
   return found ? combined : null;
 }
+// Same as above but ignores Type entirely — a vehicle registered anywhere in the site's
+// roster (any BU, any type) is a real asset, even if that day's LC was tagged with the
+// wrong armada type. Used purely for the "armada pengganti" determination.
+function getMasterAssetNopolAnywhereAtSite(date, site) {
+  if (!date) return null;
+  var monthKey = date.slice(0, 7);
+  var monthData = MASTER_ASSET[monthKey];
+  if (!monthData) return null;
+  var siteMap = MASTER_SITE_KEY_MAP[site];
+  if (!siteMap) return null;
+  var found = false;
+  var combined = [];
+  Object.keys(siteMap).forEach(function(bu) {
+    var sk = siteMap[bu];
+    var sd = monthData[sk];
+    if (sd) {
+      found = true;
+      Object.keys(sd).forEach(function(typ) { combined = combined.concat(sd[typ]); });
+    }
+  });
+  return found ? combined : null;
+}
 
 function buildArmadaTypeTrend(container) {
   if (!container) return;
@@ -2323,11 +2345,13 @@ function buildArmadaTypeTrend(container) {
       if (!masterSetByKey[key]) masterSetByKey[key] = new Set();
       mList.forEach(function(np) { masterSetByKey[key].add(np); });
     }
-    // Pengganti check: site-wide (semua BU) — self-correcting, biar nopol yang ketemu
-    // di BU lain (beda tagging owner per trip vs registrasi asli) ga nyangkut ke-flag.
-    var siteWideList = getMasterAssetNopolSiteWide(date, site, t);
-    if (siteWideList !== null) {
-      if (siteWideList.indexOf(nopol) === -1) {
+    // Pengganti check: site-wide, semua BU & semua Type — self-correcting. Nopol yang
+    // ketemu di master manapun (BU lain, atau Type lain krn salah tag pas input LC)
+    // dianggap armada real, bukan pengganti. Cuma nopol yang BENERAN ga ada di master
+    // manapun yang di-flag.
+    var anywhereList = getMasterAssetNopolAnywhereAtSite(date, site);
+    if (anywhereList !== null) {
+      if (anywhereList.indexOf(nopol) === -1) {
         if (!penggantiByKey[key]) penggantiByKey[key] = new Set();
         penggantiByKey[key].add(nopol);
       } else if (penggantiByKey[key]) {
