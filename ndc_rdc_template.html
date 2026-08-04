@@ -2168,9 +2168,9 @@ function buildArmadaTypeTrend(container) {
   var chartDatasets = chartTypes.map(function(t, i) {
     var assets = assetsByType[t].size;
     var data = allDates.map(function(d) {
+      if (!assets) return null;
       var a = agg[d+'|'+t];
-      if (!a || !assets) return null;
-      return +(a.nopol.size/assets*100).toFixed(1);
+      return +((a ? a.nopol.size : 0) / assets * 100).toFixed(1);
     });
     return {
       label: t+' ('+assets+' unit)',
