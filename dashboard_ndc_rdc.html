@@ -2176,9 +2176,16 @@ function buildArmadaTypeTrend(container) {
   if (filterSA === 'DK') rows = rows.filter(function(r){ return r.sa === 'DALAM KOTA'; });
   else if (filterSA === 'LK') rows = rows.filter(function(r){ return r.sa === 'LUAR KOTA'; });
 
-  // Available types (before type-filter) — used for the filter pills & sort order
+  // Stable asset reference: same site + Trip(DK/LK) filter, but NOT bounded by the
+  // currently displayed date range — so "total asset" doesn't shrink/collapse when
+  // the periode filter is narrowed (e.g. down to a single day).
+  var assetRows = filterRows(ROWS, '0001-01-01', '9999-12-31', currentSite);
+  if (filterSA === 'DK') assetRows = assetRows.filter(function(r){ return r.sa === 'DALAM KOTA'; });
+  else if (filterSA === 'LK') assetRows = assetRows.filter(function(r){ return r.sa === 'LUAR KOTA'; });
+
+  // Available types (before type-filter) — from the stable asset reference
   var typeAssetPre = {};
-  rows.forEach(function(r) {
+  assetRows.forEach(function(r) {
     if (!r.nopol) return;
     var t = normalizeArmadaType(r.ja);
     if (!typeAssetPre[t]) typeAssetPre[t] = new Set();
@@ -2188,6 +2195,7 @@ function buildArmadaTypeTrend(container) {
 
   if (filterType !== 'ALL') {
     rows = rows.filter(function(r){ return normalizeArmadaType(r.ja) === filterType; });
+    assetRows = assetRows.filter(function(r){ return normalizeArmadaType(r.ja) === filterType; });
   }
 
   function controlBar() {
@@ -2224,9 +2232,9 @@ function buildArmadaTypeTrend(container) {
     return;
   }
 
-  // Assets per type: distinct nopol yang muncul di subset filter ini (fixed baseline)
+  // Assets per type: stable baseline dari seluruh histori site (bukan cuma range yang lagi ditampilin)
   var assetsByType = {};
-  rows.forEach(function(r) {
+  assetRows.forEach(function(r) {
     if (!r.nopol) return;
     var t = normalizeArmadaType(r.ja);
     if (!assetsByType[t]) assetsByType[t] = new Set();
@@ -2367,7 +2375,7 @@ function buildArmadaTypeTrend(container) {
   });
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
-    +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb per '+bucketUnitLabel(gran)+'</span>'
+    +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb (stabil, dari seluruh histori site — ga ikut nyusut walau periode filter dipersempit)</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
     +'<span>Demand Cust = total DO (td=customer) &middot; Demand Store = total CBM (td=store)</span>'
     +'<span>Driver/Ast. Driver = unique DriverId/Crew1Id yang jalanin type armada tsb</span>'
