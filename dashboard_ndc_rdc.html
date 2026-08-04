@@ -421,6 +421,7 @@ function exportCostJalurCSV() {
 // ── STATE ──────────────────────────────────────────────────────
 let ROWS = [];
 let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
+let MASTER_ASSET = {}; // { 'YYYY-MM': { site: { type: [nopol,...] } } } from data_master_asset.json
 let currentNav  = 'overview';
 let currentSite = 'ALL';
 let currentBU = '_all';
@@ -566,6 +567,12 @@ async function loadData() {
       const uRes = await fetch('data_utilisasi.json?t=' + Date.now());
       if(uRes.ok) { const uJson = await uRes.json(); UTIL_ROWS = uJson.rows || []; }
     } catch(e3) { UTIL_ROWS = []; }
+
+    // Step 3b: Load Master Asset roster (per-month fleet count for accurate Util Armada)
+    try {
+      const maRes = await fetch('data_master_asset.json?t=' + Date.now());
+      if(maRes.ok) { const maJson = await maRes.json(); MASTER_ASSET = maJson.months || {}; }
+    } catch(e3b) { MASTER_ASSET = {}; }
 
     // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
     try {
@@ -2170,6 +2177,35 @@ function bucketLabel(key, gran) {
 }
 function bucketUnitLabel(gran) { return gran === 'monthly' ? 'bulan' : gran === 'weekly' ? 'minggu' : 'hari'; }
 
+// ── MASTER ASSET (real fleet roster, per month) — site-key mapping ──
+const MASTER_SITE_KEY_MAP = {
+  'JABABEKA': { 'HCI':'NDC JABABEKA HCI', 'AHI':'NDC JABABEKA AHI', 'FBI':'NDC JABABEKA FBI', 'KLS':'NDC KLS JABABEKA' },
+  'CIKUPA':   { 'HCI':'NDC CIKUPA HCI' },
+  'SDA':      { 'HCI':'NDC SIDOARJO HCI', 'AHI':'NDC SIDOARJO AHI', 'FBI':'NDC SIDOARJO FBI', 'KLS':'NDC KLS SIDOARJO (IND)' },
+  'TALLO':    { 'HCI':'RDC MAKASAR HCI', 'AHI':'RDC MAKASAR AHI', 'FBI':'RDC MAKASAR FBI' },
+  'TAMORA':   { 'HCI':'RDC TAMORA HCI', 'AHI':'RDC TAMORA AHI', 'FBI':'RDC TAMORA FBI', 'KLS':'RDC TAMORA KLS' },
+};
+function getMasterSiteKey(site, owner) {
+  var m = MASTER_SITE_KEY_MAP[site];
+  if (!m) return null;
+  var o = (owner || '').toUpperCase();
+  if (o === 'NKA' || o === 'TGI') o = 'AHI';
+  return m[o] || null;
+}
+// Returns array of nopol (may be empty) for a given date+site+owner+type, or null if
+// Master Asset has no data at all for that month (signal to fall back to old logic).
+function getMasterAssetNopol(date, site, owner, type) {
+  if (!date) return null;
+  var monthKey = date.slice(0, 7);
+  var monthData = MASTER_ASSET[monthKey];
+  if (!monthData) return null;
+  var siteKey = getMasterSiteKey(site, owner);
+  if (!siteKey) return null;
+  var siteData = monthData[siteKey];
+  if (!siteData) return null;
+  return siteData[type] || [];
+}
+
 function buildArmadaTypeTrend(container) {
   if (!container) return;
   ARM_TREND_STATE.container = container;
@@ -2256,6 +2292,31 @@ function buildArmadaTypeTrend(container) {
 
   // Aggregation per bucket|type
   var agg = {};
+  var masterSetByKey = {};    // key -> Set of master nopol (union across contributing months/sites/owners)
+  var masterAvailByKey = {};  // key -> true if Master Asset data exists for at least one contributing month
+  var penggantiByKey = {};    // key -> Set of active nopol NOT found in Master Asset (armada pengganti)
+
+  function trackMaster(key, date, site, owner, t, nopol) {
+    var mList = getMasterAssetNopol(date, site, owner, t);
+    if (mList === null) return; // no master data this month -> leave availability flag untouched
+    masterAvailByKey[key] = true;
+    if (!masterSetByKey[key]) masterSetByKey[key] = new Set();
+    mList.forEach(function(np) { masterSetByKey[key].add(np); });
+    if (mList.indexOf(nopol) === -1) {
+      if (!penggantiByKey[key]) penggantiByKey[key] = new Set();
+      penggantiByKey[key].add(nopol);
+    }
+  }
+  function getBucketAsset(key, t) {
+    var a = agg[key];
+    var activeCount = a ? a.nopol.size : 0;
+    if (masterAvailByKey[key]) {
+      var masterCount = masterSetByKey[key] ? masterSetByKey[key].size : 0;
+      return Math.max(masterCount, activeCount);
+    }
+    return assetsByType[t] ? assetsByType[t].size : 0; // fallback: stable full-history baseline
+  }
+
   rows.forEach(function(r) {
     if (!r.date || !r.nopol) return;
     var t = normalizeArmadaType(r.ja);
@@ -2276,6 +2337,7 @@ function buildArmadaTypeTrend(container) {
     if (r.ujp) a.ujp += r.ujp;
     var th = parseTAT(r.tat);
     if (th != null && th >= 0 && th <= 24) { a.tatSum += th; a.tatCnt++; }
+    trackMaster(key, r.date, r.site, r.owner, t, r.nopol);
     // Impute transit/kembali days for multi-day Luar Kota trips as "utilized"
     // (nopol only — trip/cost/demand/driver stays on the departure date, no double count)
     if (r.sa === 'LUAR KOTA' && r.jalur) {
@@ -2288,6 +2350,7 @@ function buildArmadaTypeTrend(container) {
           if (!agg[ekey]) agg[ekey] = { nopol:new Set(), trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
           agg[ekey].nopol.add(r.nopol);
           if (allDates.indexOf(ebd) === -1) { allDates.push(ebd); allDates.sort(); }
+          trackMaster(ekey, ed, r.site, r.owner, t, r.nopol);
         });
       }
     }
@@ -2327,14 +2390,16 @@ function buildArmadaTypeTrend(container) {
   var chartTypes = allTypes.slice(0, 8);
   var dateLabels = allDates.map(function(d){ return bucketLabel(d, gran); });
   var chartDatasets = chartTypes.map(function(t, i) {
-    var assets = assetsByType[t].size;
+    var lastAsset = allDates.length ? getBucketAsset(allDates[allDates.length-1]+'|'+t, t) : 0;
     var data = allDates.map(function(d) {
-      if (!assets) return null;
-      var a = agg[d+'|'+t];
-      return +((a ? a.nopol.size : 0) / assets * 100).toFixed(1);
+      var key = d+'|'+t;
+      var asset = getBucketAsset(key, t);
+      if (!asset) return null;
+      var a = agg[key];
+      return +((a ? a.nopol.size : 0) / asset * 100).toFixed(1);
     });
     return {
-      label: t+' ('+assets+' unit)',
+      label: t+' ('+lastAsset+' unit)',
       data: data,
       borderColor: ARMADA_TYPE_COLORS[i % ARMADA_TYPE_COLORS.length],
       backgroundColor: 'transparent',
@@ -2362,15 +2427,20 @@ function buildArmadaTypeTrend(container) {
   var rowCount = 0;
   allDates.slice().reverse().forEach(function(d) {
     allTypes.forEach(function(t) {
-      var a = agg[d+'|'+t];
+      var key = d+'|'+t;
+      var a = agg[key];
       if (!a) return;
       rowCount++;
-      var assets = assetsByType[t].size;
+      var assets = getBucketAsset(key, t);
       var utilPct = assets ? (a.nopol.size/assets*100) : null;
       var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
+      var pengSet = penggantiByKey[key];
+      var pengBadge = (pengSet && pengSet.size)
+        ? ' <span title="Nopol: '+Array.from(pengSet).join(', ')+'" style="font-size:9px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:8px;padding:1px 6px;margin-left:4px;cursor:help">'+pengSet.size+' pengganti</span>'
+        : '';
       tbody += '<tr>'
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
-        +'<td style="font-size:11px;font-weight:600">'+t+'</td>'
+        +'<td style="font-size:11px;font-weight:600">'+t+pengBadge+'</td>'
         +'<td class="'+utilCls(utilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(utilPct!=null?utilPct.toFixed(1)+'%':'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+a.trip.size.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+a.cust.toLocaleString('id-ID')+'</td>'
@@ -2385,7 +2455,7 @@ function buildArmadaTypeTrend(container) {
   });
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
-    +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb (stabil, dari seluruh histori site — ga ikut nyusut walau periode filter dipersempit)</span>'
+    +'<span>Util Armada = nopol aktif / MAX(Master Asset roster, nopol aktif) &mdash; badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset bulan itu</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
     +'<span>Demand Cust = total DO (td=customer) &middot; Demand Store = total CBM (td=store)</span>'
