@@ -2377,7 +2377,7 @@ function buildArmadaTypeTrend(container) {
           if (ed > e) return; // don't extend past the active filter window
           var ebd = bucketDate(ed, gran);
           var ekey = ebd + '|' + t;
-          if (!agg[ekey]) agg[ekey] = { nopol:new Set(), trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
+          if (!agg[ekey]) agg[ekey] = { nopol:new Set(), nopolByDay:{}, trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
           agg[ekey].nopol.add(r.nopol);
           if (allDates.indexOf(ebd) === -1) { allDates.push(ebd); allDates.sort(); }
           trackMaster(ekey, ed, r.site, r.owner, t, r.nopol);
