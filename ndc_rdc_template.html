@@ -2154,7 +2154,7 @@ function buildArmadaTypeTrend(container) {
     a.cost += rowCost;
     if (r.ujp) a.ujp += r.ujp;
     var th = parseTAT(r.tat);
-    if (th != null) { a.tatSum += th; a.tatCnt++; }
+    if (th != null && th >= 0 && th <= 24) { a.tatSum += th; a.tatCnt++; }
   });
 
   function utilCls(pct) {
@@ -2225,7 +2225,7 @@ function buildArmadaTypeTrend(container) {
     +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb per hari</span>'
     +'<span>Demand Cust/Store = unique LC dgn td=customer / store (exact match)</span>'
     +'<span>Driver/Ast. Driver = unique DriverId/Crew1Id yang jalanin type armada tsb per hari</span>'
-    +'<span>Cost = cost + OT + Insentif &middot; TAT = rata-rata durasi bongkar</span>'
+    +'<span>Cost = cost + OT + Insentif &middot; TAT = rata-rata durasi bongkar (0-24 jam, outlier checkout kosong dibuang)</span>'
     +'</div>';
 
   container.innerHTML =
