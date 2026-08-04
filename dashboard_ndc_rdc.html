@@ -739,16 +739,6 @@ function computeSite(rows, site) {
     if(!byDate[r.date]) byDate[r.date]={trips:new Set(),nopols:new Set()};
     byDate[r.date].trips.add(r.lc);
     if(r.nopol) byDate[r.date].nopols.add(r.nopol);
-    // Impute transit/kembali days for multi-day Luar Kota trips as "utilized"
-    if(r.nopol && r.sa === 'LUAR KOTA' && r.jalur) {
-      const lt = getLeadTimeDays(r.site, r.jalur);
-      if(lt > 1) {
-        expandActiveDates(r.date, lt).slice(1).forEach(function(ed) {
-          if(!byDate[ed]) byDate[ed] = {trips:new Set(), nopols:new Set()};
-          byDate[ed].nopols.add(r.nopol);
-        });
-      }
-    }
   });
   // Ritase = total LC unik / total nopol-hari aktif (total to total)
   const ritTotalLC     = new Set(ritRows.map(r=>r.lc).filter(Boolean)).size;
