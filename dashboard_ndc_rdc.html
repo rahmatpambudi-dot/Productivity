@@ -2206,6 +2206,26 @@ function getMasterAssetNopol(date, site, owner, type) {
   return siteData[type] || [];
 }
 
+// Returns array of nopol across ALL BUs at a site (or null if no master data that month) —
+// used only for the "armada pengganti" check, since a vehicle may be tagged under a
+// different BU's owner per trip (billing/cargo) than its true fleet registration.
+function getMasterAssetNopolSiteWide(date, site, type) {
+  if (!date) return null;
+  var monthKey = date.slice(0, 7);
+  var monthData = MASTER_ASSET[monthKey];
+  if (!monthData) return null;
+  var siteMap = MASTER_SITE_KEY_MAP[site];
+  if (!siteMap) return null;
+  var found = false;
+  var combined = [];
+  Object.keys(siteMap).forEach(function(bu) {
+    var sk = siteMap[bu];
+    var sd = monthData[sk];
+    if (sd && sd[type]) { found = true; combined = combined.concat(sd[type]); }
+  });
+  return found ? combined : null;
+}
+
 function buildArmadaTypeTrend(container) {
   if (!container) return;
   ARM_TREND_STATE.container = container;
@@ -2298,13 +2318,21 @@ function buildArmadaTypeTrend(container) {
 
   function trackMaster(key, date, site, owner, t, nopol) {
     var mList = getMasterAssetNopol(date, site, owner, t);
-    if (mList === null) return; // no master data this month -> leave availability flag untouched
-    masterAvailByKey[key] = true;
-    if (!masterSetByKey[key]) masterSetByKey[key] = new Set();
-    mList.forEach(function(np) { masterSetByKey[key].add(np); });
-    if (mList.indexOf(nopol) === -1) {
-      if (!penggantiByKey[key]) penggantiByKey[key] = new Set();
-      penggantiByKey[key].add(nopol);
+    if (mList !== null) {
+      masterAvailByKey[key] = true;
+      if (!masterSetByKey[key]) masterSetByKey[key] = new Set();
+      mList.forEach(function(np) { masterSetByKey[key].add(np); });
+    }
+    // Pengganti check: site-wide (semua BU) — self-correcting, biar nopol yang ketemu
+    // di BU lain (beda tagging owner per trip vs registrasi asli) ga nyangkut ke-flag.
+    var siteWideList = getMasterAssetNopolSiteWide(date, site, t);
+    if (siteWideList !== null) {
+      if (siteWideList.indexOf(nopol) === -1) {
+        if (!penggantiByKey[key]) penggantiByKey[key] = new Set();
+        penggantiByKey[key].add(nopol);
+      } else if (penggantiByKey[key]) {
+        penggantiByKey[key].delete(nopol);
+      }
     }
   }
   function getBucketAsset(key, t) {
