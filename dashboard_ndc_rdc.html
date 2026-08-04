@@ -704,6 +704,9 @@ function computeSite(rows, site) {
   const KLS_TAMORA_NOPOL_SET = new Set(['BK8191MQ','BK8633MS']);
 
   const ritRows = sr.filter(r => {
+    if(!r.date) return false;
+    if(HOLIDAYS_2026.has(r.date)) return false;
+    if(new Date(r.date+'T00:00:00').getDay() === 0) return false; // Minggu
     if(r.td === 'satelite') return false;
     if(isCIK && (r.ja||'').toUpperCase() === 'MIN VAN OPS') return false;
     if(site === 'JAB_FBI') return FBI_NOPOL_SET.has((r.nopol||'').toUpperCase());
@@ -2175,6 +2178,13 @@ function buildArmadaTypeTrend(container) {
   var rows = filterRows(ROWS, s, e, currentSite);
   if (filterSA === 'DK') rows = rows.filter(function(r){ return r.sa === 'DALAM KOTA'; });
   else if (filterSA === 'LK') rows = rows.filter(function(r){ return r.sa === 'LUAR KOTA'; });
+  // Exclude tanggal merah & Minggu dari perhitungan aktif (asset baseline tetap utuh)
+  rows = rows.filter(function(r){
+    if (!r.date) return false;
+    if (HOLIDAYS_2026.has(r.date)) return false;
+    if (new Date(r.date+'T00:00:00').getDay() === 0) return false;
+    return true;
+  });
 
   // Stable asset reference: same site + Trip(DK/LK) filter, but NOT bounded by the
   // currently displayed date range — so "total asset" doesn't shrink/collapse when
@@ -2376,6 +2386,7 @@ function buildArmadaTypeTrend(container) {
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>Util Armada = nopol aktif (ada trip) / total asset type tsb (stabil, dari seluruh histori site — ga ikut nyusut walau periode filter dipersempit)</span>'
+    +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
     +'<span>Demand Cust = total DO (td=customer) &middot; Demand Store = total CBM (td=store)</span>'
     +'<span>Driver/Ast. Driver = unique DriverId/Crew1Id yang jalanin type armada tsb</span>'
