@@ -2198,10 +2198,12 @@ function buildArmadaTypeTrend(container) {
     +'</tr>';
 
   var tbody = '';
+  var rowCount = 0;
   allDates.slice().reverse().forEach(function(d) {
     allTypes.forEach(function(t) {
       var a = agg[d+'|'+t];
       if (!a) return;
+      rowCount++;
       var assets = assetsByType[t].size;
       var utilPct = assets ? (a.nopol.size/assets*100) : null;
       var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
@@ -2233,6 +2235,10 @@ function buildArmadaTypeTrend(container) {
     + '<div class="ph"><h3>Trend Daily Utilisasi Armada per Type</h3>'
     + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' hari</span></div>'
     + '<div style="padding:14px 16px 4px;height:320px;position:relative"><canvas id="cArmTypeTrend"></canvas></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
+    + '<span>Data: <b>'+allDates[0]+'</b> s/d <b>'+allDates[allDates.length-1]+'</b> ('+allDates.length+' hari, '+rowCount+' baris)</span>'
+    + '<span>&#8595; scroll di dalam tabel untuk lihat semua tanggal</span>'
+    + '</div>'
     + '<div style="overflow-x:auto;max-height:480px;overflow-y:auto;border-top:1px solid var(--border)">'
     + '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
     + '</div>'
