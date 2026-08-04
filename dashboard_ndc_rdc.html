@@ -2135,9 +2135,10 @@ function normalizeArmadaType(ja) {
 }
 const ARMADA_TYPE_COLORS = ['#1a73e8','#34a85a','#e37400','#a142f4','#d93025','#00acc1','#8B4513','#c2185b','#7cb342','#5c6bc0','#f9a825','#546e7a'];
 
-var ARM_TREND_STATE = { filter: 'ALL', gran: 'daily', container: null };
+var ARM_TREND_STATE = { filter: 'ALL', gran: 'daily', type: 'ALL', container: null };
 function setArmTrendFilter(v) { ARM_TREND_STATE.filter = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
 function setArmTrendGranularity(v) { ARM_TREND_STATE.gran = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
+function setArmTrendType(v) { ARM_TREND_STATE.type = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
 
 // Bucket a YYYY-MM-DD date string into daily/weekly/monthly key
 function bucketDate(dateStr, gran) {
@@ -2169,15 +2170,32 @@ function bucketUnitLabel(gran) { return gran === 'monthly' ? 'bulan' : gran === 
 function buildArmadaTypeTrend(container) {
   if (!container) return;
   ARM_TREND_STATE.container = container;
-  var filterSA = ARM_TREND_STATE.filter, gran = ARM_TREND_STATE.gran;
+  var filterSA = ARM_TREND_STATE.filter, gran = ARM_TREND_STATE.gran, filterType = ARM_TREND_STATE.type || 'ALL';
   var { start: s, end: e } = getRange();
   var rows = filterRows(ROWS, s, e, currentSite);
   if (filterSA === 'DK') rows = rows.filter(function(r){ return r.sa === 'DALAM KOTA'; });
   else if (filterSA === 'LK') rows = rows.filter(function(r){ return r.sa === 'LUAR KOTA'; });
 
+  // Available types (before type-filter) — used for the filter pills & sort order
+  var typeAssetPre = {};
+  rows.forEach(function(r) {
+    if (!r.nopol) return;
+    var t = normalizeArmadaType(r.ja);
+    if (!typeAssetPre[t]) typeAssetPre[t] = new Set();
+    typeAssetPre[t].add(r.nopol);
+  });
+  var availableTypes = Object.keys(typeAssetPre).sort(function(a,b){ return typeAssetPre[b].size - typeAssetPre[a].size; });
+
+  if (filterType !== 'ALL') {
+    rows = rows.filter(function(r){ return normalizeArmadaType(r.ja) === filterType; });
+  }
+
   function controlBar() {
     function btn(label, active, onclick) {
       return '<button onclick="'+onclick+'" style="padding:5px 12px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid '+(active?'#1a73e8':'var(--border)')+';background:'+(active?'#1a73e8':'transparent')+';color:'+(active?'#fff':'var(--t2)')+';cursor:pointer;margin-right:6px">'+label+'</button>';
+    }
+    function typeBtn(label, active, onclick) {
+      return '<button onclick="'+onclick+'" style="padding:4px 10px;font-size:10.5px;font-weight:600;border-radius:14px;border:1px solid '+(active?'#7e22ce':'var(--border)')+';background:'+(active?'#7e22ce':'transparent')+';color:'+(active?'#fff':'var(--t2)')+';cursor:pointer;margin-right:5px;margin-bottom:4px">'+label+'</button>';
     }
     var html = '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:10px 16px;border-top:1px solid var(--border)">';
     html += '<span style="font-size:11px;color:var(--t3);margin-right:8px">Trip:</span>';
@@ -2188,6 +2206,13 @@ function buildArmadaTypeTrend(container) {
     html += btn('Harian', gran==='daily', "setArmTrendGranularity('daily')");
     html += btn('Mingguan', gran==='weekly', "setArmTrendGranularity('weekly')");
     html += btn('Bulanan', gran==='monthly', "setArmTrendGranularity('monthly')");
+    html += '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:0;align-items:center;padding:2px 16px 10px;border-top:1px solid var(--border)">';
+    html += '<span style="font-size:11px;color:var(--t3);margin-right:8px">Type Armada:</span>';
+    html += typeBtn('Semua', filterType==='ALL', "setArmTrendType('ALL')");
+    availableTypes.forEach(function(t) {
+      html += typeBtn(t, filterType===t, "setArmTrendType('"+t+"')");
+    });
     html += '</div>';
     return html;
   }
