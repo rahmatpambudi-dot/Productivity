@@ -14,6 +14,26 @@ from googleapiclient.discovery import build as gapi_build
 
 SPREADSHEET_ID = "1wumoDA8SrXmaEXRkI_2lNlvof9JVtsXceeE2qhLtb7A"
 
+# Master Asset roster — separate spreadsheet, one tab per month (Indonesian month names)
+MASTER_ASSET_SPREADSHEET_ID = "1I20iRUWcJplXcefl_-E0li_Af-lV2vBawCaz4_Phm4I"
+MASTER_ASSET_MONTHS = {
+    'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
+    'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
+    'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12',
+}
+ARMADA_TYPE_NORMALIZE = {
+    'CDD': 'CDD', 'CDD LONG CHASSIS': 'CDDLC', 'CDD PICK UP': 'CDD PICKUP', 'CDD PICKUP': 'CDD PICKUP',
+    'CDE': 'CDE', 'CDE LONG CHASSIS': 'CDELC', 'CDELC': 'CDELC', 'CDE PICK UP': 'CDE PICKUP', 'CDE PICKUP': 'CDE PICKUP',
+    'FUSO': 'FUSO', 'FUSO GENAP': 'FUSO', 'MIN VAN OPS': 'MINI VAN BOX', 'MINI VAN BOX': 'MINI VAN BOX', 'MINI VANBOX': 'MINI VAN BOX',
+    'MOTOR BOX': 'MOTOR BOX', 'PICK UP': 'PICKUP', 'PICKUP': 'PICKUP', 'PICKUP EXTRA': 'PICKUP',
+    'VAN': 'VAN BOX', 'VAN BOX': 'VAN BOX', 'WINGBOX': 'WINGBOX', 'WINGBOX GANJIL': 'WINGBOX',
+    'BIG MAMA': 'BIG MAMA', 'CONT-40': 'CONT-40', 'TRACTOR HEAD': 'TRACTOR HEAD',
+}
+def norm_armada_type(t):
+    v = (t or '').strip().upper()
+    if not v: return 'LAINNYA'
+    return ARMADA_TYPE_NORMALIZE.get(v, v)
+
 # Utilisasi sheet — same spreadsheet, different sheet name
 UTIL_SHEET_NAME = "Utilisasi"  # adjust if sheet name is different
 
@@ -543,6 +563,63 @@ def aggregate_monthly(all_rows, timestamp):
     return {'timestamp': timestamp, 'monthly': result}
 
 
+def fetch_master_asset(service):
+    """Fetch Master Asset roster (one tab per month) from the separate Master Asset spreadsheet.
+    Returns { 'YYYY-MM': { site: { normalized_type: [nopol,...] } } }"""
+    try:
+        meta = service.spreadsheets().get(spreadsheetId=MASTER_ASSET_SPREADSHEET_ID).execute()
+        tab_names = [s['properties']['title'] for s in meta.get('sheets', [])]
+    except Exception as e:
+        print(f"  ✗ Master Asset: cannot list tabs: {e}")
+        return {}
+
+    months_out = {}
+    for tab in tab_names:
+        month_num = MASTER_ASSET_MONTHS.get(tab.strip())
+        if not month_num:
+            continue  # skip non-month tabs
+        try:
+            result = service.spreadsheets().values().get(
+                spreadsheetId=MASTER_ASSET_SPREADSHEET_ID,
+                range=f"'{tab}'!A:K",
+                valueRenderOption="FORMATTED_VALUE",
+            ).execute()
+            rows = result.get("values", [])
+        except Exception as e:
+            print(f"  ✗ Master Asset tab {tab}: {e}")
+            continue
+        if len(rows) < 2:
+            continue
+        headers = [str(h).strip().upper() for h in rows[0]]
+        def col(*names):
+            for n in names:
+                for i, hh in enumerate(headers):
+                    if n in hh: return i
+            return -1
+        i_nopol = col('NOPOL')
+        i_type  = col('TYPE')
+        i_site  = col('SITE')
+        if i_nopol < 0 or i_type < 0 or i_site < 0:
+            print(f"  ✗ Master Asset tab {tab}: missing NOPOL/Type/Site column")
+            continue
+
+        by_site_type = defaultdict(lambda: defaultdict(list))
+        for r in rows[1:]:
+            if len(r) <= max(i_nopol, i_type, i_site): continue
+            nopol = (r[i_nopol] or '').strip().upper()
+            typ   = norm_armada_type(r[i_type] if i_type < len(r) else '')
+            site  = (r[i_site] or '').strip()
+            if not nopol or not site: continue
+            by_site_type[site][typ].append(nopol)
+
+        month_key = f"2026-{month_num}"
+        months_out[month_key] = {s: dict(t) for s, t in by_site_type.items()}
+        total_nopol = sum(len(v) for t in by_site_type.values() for v in t.values())
+        print(f"  ✓ Master Asset {tab} ({month_key}): {total_nopol} nopol, {len(by_site_type)} site")
+
+    return months_out
+
+
 def build():
     now_wib = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7)))
     timestamp = now_wib.strftime("%d %b %Y %H:%M WIB")
@@ -591,12 +668,24 @@ def build():
 
     print(f"\nTotal rows: {total}")
 
+    print("  Fetching Master Asset roster...")
+    try:
+        master_asset = fetch_master_asset(service)
+    except Exception as e:
+        print(f"  ✗ Master Asset: {e}")
+        master_asset = {}
+
     base = os.path.dirname(os.path.abspath(__file__))
     data_path     = os.path.join(base, '..', 'data.json')
     monthly_path  = os.path.join(base, '..', 'data_monthly.json')
     util_path     = os.path.join(base, '..', 'data_utilisasi.json')
+    master_asset_path = os.path.join(base, '..', 'data_master_asset.json')
     tpl_path      = os.path.join(base, '..', 'ndc_rdc_template.html')
     out_path      = os.path.join(base, '..', 'dashboard_ndc_rdc.html')
+
+    with open(master_asset_path, 'w', encoding='utf-8') as f:
+        json.dump({"timestamp": timestamp, "months": master_asset}, f, ensure_ascii=False, separators=(',',':'))
+    print(f"data_master_asset.json: {os.path.getsize(master_asset_path)/1024:.1f} KB, {len(master_asset)} bulan")
 
     # Encode string fields to integer codes to reduce file size
     ENCODE_FIELDS = ['sheet','site','td','kat','ta','sa','owner','nopol','jalur','ja','sat','od','drvId','crewId']
