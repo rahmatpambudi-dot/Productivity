@@ -2250,6 +2250,31 @@ function buildArmadaTypeTrend(container) {
     }
   });
 
+  // ── Insight: periode dengan trip TERENDAH (low season) — total semua type per bucket ──
+  var tripByBucket = {};
+  allDates.forEach(function(d) {
+    var total = 0;
+    allTypes.forEach(function(t) { var a = agg[d+'|'+t]; if (a) total += a.trip.size; });
+    tripByBucket[d] = total;
+  });
+  var lowSeasonHtml = '';
+  if (allDates.length >= 3) {
+    var sortedByTrip = allDates.slice().filter(function(d){ return tripByBucket[d] > 0; }).sort(function(a,b){ return tripByBucket[a]-tripByBucket[b]; });
+    var lowN = sortedByTrip.slice(0, 3);
+    var avgTrip = allDates.reduce(function(s,d){ return s+tripByBucket[d]; },0) / allDates.length;
+    if (lowN.length) {
+      lowSeasonHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--border);background:#fff7ed">'
+        + '<span style="font-size:11px;font-weight:700;color:#c2410c">📉 Low Season ('+(filterSA==='ALL'?'Gabungan':filterSA)+', total trip terendah):</span>'
+        + lowN.map(function(d){
+            var t = tripByBucket[d];
+            var pctVsAvg = avgTrip ? ((t-avgTrip)/avgTrip*100) : 0;
+            return '<span style="font-size:11px;background:#fff;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px"><b>'+bucketLabel(d,gran)+'</b>: '+t+' trip ('+(pctVsAvg<=0?'':'+')+pctVsAvg.toFixed(0)+'% vs avg)</span>';
+          }).join('')
+        + '<span style="font-size:11px;color:var(--t3)">rata-rata: '+avgTrip.toFixed(0)+' trip/'+bucketUnitLabel(gran)+'</span>'
+        + '</div>';
+    }
+  }
+
   function utilCls(pct) {
     if (pct == null) return '';
     if (pct >= 95) return 'c-grn'; if (pct >= 85) return 'c-yel'; return 'c-red';
@@ -2329,6 +2354,7 @@ function buildArmadaTypeTrend(container) {
     + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
     + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' '+bucketUnitLabel(gran)+'</span></div>'
     + controlBar()
+    + lowSeasonHtml
     + '<div style="padding:14px 16px 4px;height:320px;position:relative"><canvas id="cArmTypeTrend"></canvas></div>'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
     + '<span>Data: <b>'+bucketLabel(allDates[0],gran)+'</b> s/d <b>'+bucketLabel(allDates[allDates.length-1],gran)+'</b> ('+allDates.length+' '+bucketUnitLabel(gran)+', '+rowCount+' baris)</span>'
