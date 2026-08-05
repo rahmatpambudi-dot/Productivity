@@ -2463,7 +2463,7 @@ function buildArmadaTypeTrend(container) {
   });
 
   var allDates = [...new Set(rows.map(function(r){ return bucketDate(r.date, gran); }).filter(Boolean))].sort();
-  var allTypes = Object.keys(assetsByType).sort(function(a,b){ return assetsByType[b].size - assetsByType[a].size; });
+  var allTypes = Object.keys(assetsByType).filter(function(t){ return t !== 'CONT-40'; }).sort(function(a,b){ return assetsByType[b].size - assetsByType[a].size; });
 
   // Aggregation per bucket|type
   var agg = {};
@@ -2745,7 +2745,7 @@ function buildArmadaTypeTrend(container) {
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>Util Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>Util Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
-    +'<span>*CONT-40 = N/A: LC ngiket ke Tractor Head, bukan nopol trailer, jadi Util Armada belum bisa dihitung valid</span>'
+    +'<span>CONT-40 di-exclude dari panel ini: LC ngiket ke Tractor Head, bukan nopol trailer, jadi belum bisa dihitung valid per-type</span>'
     +'<span>Baris TOTAL = angka sheet Utilisasi apa adanya (identik) kalau datanya lengkap; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
