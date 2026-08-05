@@ -2583,7 +2583,7 @@ function buildArmadaTypeTrend(container) {
   }
 
   // ── Chart: % utilisasi per type per bucket, top 8 by asset count ──
-  var chartTypes = allTypes.slice(0, 8);
+  var chartTypes = allTypes.filter(function(t){ return t !== 'CONT-40'; }).slice(0, 8);
   var dateLabels = allDates.map(function(d){ return bucketLabel(d, gran); });
   var chartDatasets = chartTypes.map(function(t, i) {
     var lastAsset = allDates.length ? getBucketAsset(allDates[allDates.length-1]+'|'+t, t) : 0;
@@ -2667,6 +2667,7 @@ function buildArmadaTypeTrend(container) {
       var assets = getBucketAsset(key, t);
       var calibAssetRow = assets ? calibratedAsset(a, assets, t) : 0;
       var utilPct = calibAssetRow ? (calibratedActive(a, calibAssetRow, t)/calibAssetRow*100) : null;
+      var isContNA = (t === 'CONT-40');
       var nopolDays = Object.keys(a.nopolByDay).reduce(function(s,dt){ return s + a.nopolByDay[dt].size; }, 0);
       var ritaseVal = nopolDays ? (a.trip.size/nopolDays) : null;
       var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
@@ -2677,7 +2678,9 @@ function buildArmadaTypeTrend(container) {
       tbody += '<tr>'
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
         +'<td style="font-size:11px;font-weight:600">'+t+pengBadge+'</td>'
-        +'<td class="'+utilCls(utilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(utilPct!=null?utilPct.toFixed(1)+'%':'—')+'</td>'
+        +(isContNA
+          ? '<td style="text-align:center;font-size:11px;color:var(--t3)" title="LC CONT-40 ngiket ke Tractor Head, bukan nopol trailer — nopol trailer ga pernah muncul di trip data, jadi Util Armada belum bisa dihitung valid">N/A*</td>'
+          : '<td class="'+utilCls(utilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(utilPct!=null?utilPct.toFixed(1)+'%':'—')+'</td>')
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(ritaseVal!=null?ritaseVal.toFixed(2):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+a.trip.size.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+a.cust.toLocaleString('id-ID')+'</td>'
@@ -2690,8 +2693,10 @@ function buildArmadaTypeTrend(container) {
         +'</tr>';
       // accumulate TOTAL for this periode
       var calibAssetTot = assets ? calibratedAsset(a, assets, t) : 0;
-      tot.asset += calibAssetTot;
-      tot.activeCalib += calibratedActive(a, calibAssetTot, t);
+      if (!isContNA) {
+        tot.asset += calibAssetTot;
+        tot.activeCalib += calibratedActive(a, calibAssetTot, t);
+      }
       Object.keys(a.nopolByDay).forEach(function(dt){ tot.sheetDates.add(dt); });
       a.trip.forEach(function(lc){ tot.trip.add(lc); });
       tot.nopolDays += nopolDays;
@@ -2740,6 +2745,7 @@ function buildArmadaTypeTrend(container) {
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>Util Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>Util Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
+    +'<span>*CONT-40 = N/A: LC ngiket ke Tractor Head, bukan nopol trailer, jadi Util Armada belum bisa dihitung valid</span>'
     +'<span>Baris TOTAL = angka sheet Utilisasi apa adanya (identik) kalau datanya lengkap; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
