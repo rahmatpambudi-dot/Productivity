@@ -2604,6 +2604,39 @@ function buildArmadaTypeTrend(container) {
       tension: 0.3, fill: false,
     };
   });
+  // Extra dedicated line: exact sheet Utilisasi ratio (arm_util/arm_avail) per bucket —
+  // same source as the table's TOTAL row, shown separately since it doesn't decompose
+  // into per-type values.
+  var bucketRawDates = {};
+  rows.forEach(function(r) {
+    if (!r.date) return;
+    var bd = bucketDate(r.date, gran);
+    if (!bucketRawDates[bd]) bucketRawDates[bd] = new Set();
+    bucketRawDates[bd].add(r.date);
+  });
+  var totalSheetData = allDates.map(function(d) {
+    var dates = bucketRawDates[d] ? Array.from(bucketRawDates[d]) : [];
+    if (!dates.length) return null;
+    var sumUtil = 0, sumAvail = 0, coverage = 0;
+    dates.forEach(function(dt) {
+      if (dailyCalibScale.targetActive[dt] != null && dailyCalibScale.targetAsset[dt] != null) {
+        sumUtil += dailyCalibScale.targetActive[dt]; sumAvail += dailyCalibScale.targetAsset[dt]; coverage++;
+      }
+    });
+    if (coverage !== dates.length || sumAvail <= 0) return null;
+    return +(sumUtil / sumAvail * 100).toFixed(1);
+  });
+  if (totalSheetData.some(function(v){ return v != null; })) {
+    chartDatasets.push({
+      label: 'TOTAL (Sheet Utilisasi)',
+      data: totalSheetData,
+      borderColor: '#0f172a',
+      backgroundColor: 'transparent',
+      borderWidth: 3, pointRadius: 3, pointHoverRadius: 6,
+      borderDash: [6, 3],
+      tension: 0.2, fill: false,
+    });
+  }
 
   // ── Table: satu baris per bucket+type (yang ada aktivitas), terbaru dulu ──
   var thead = '<tr>'
