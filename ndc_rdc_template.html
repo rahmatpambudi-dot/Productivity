@@ -2138,6 +2138,13 @@ const ARMADA_TYPE_NORMALIZE = {
   'BIG MAMA': 'BIG MAMA',
   'CONT-40': 'CONT-40',
 };
+// Data-quality guard: rows tagged sa='LUAR KOTA' but with jalur='#N/A'/blank are a known
+// sheet-corruption pattern (paired with garbage TAT) — treat as DALAM KOTA (their real history).
+function effectiveSA(r) {
+  if (r.sa === 'LUAR KOTA' && (!r.jalur || r.jalur === '#N/A')) return 'DALAM KOTA';
+  return r.sa;
+}
+
 function normalizeArmadaType(ja) {
   var v = (ja || '').toString().trim().toUpperCase();
   if (!v) return 'LAINNYA';
@@ -2254,8 +2261,8 @@ function buildArmadaTypeTrend(container) {
   var filterSA = ARM_TREND_STATE.filter, gran = ARM_TREND_STATE.gran, filterType = ARM_TREND_STATE.type || 'ALL';
   var { start: s, end: e } = getRange();
   var rows = filterRows(ROWS, s, e, currentSite);
-  if (filterSA === 'DK') rows = rows.filter(function(r){ return r.sa === 'DALAM KOTA'; });
-  else if (filterSA === 'LK') rows = rows.filter(function(r){ return r.sa === 'LUAR KOTA'; });
+  if (filterSA === 'DK') rows = rows.filter(function(r){ return effectiveSA(r) === 'DALAM KOTA'; });
+  else if (filterSA === 'LK') rows = rows.filter(function(r){ return effectiveSA(r) === 'LUAR KOTA'; });
   // Exclude tanggal merah & Minggu dari perhitungan aktif (asset baseline tetap utuh)
   rows = rows.filter(function(r){
     if (!r.date) return false;
@@ -2268,8 +2275,8 @@ function buildArmadaTypeTrend(container) {
   // currently displayed date range — so "total asset" doesn't shrink/collapse when
   // the periode filter is narrowed (e.g. down to a single day).
   var assetRows = filterRows(ROWS, '0001-01-01', '9999-12-31', currentSite);
-  if (filterSA === 'DK') assetRows = assetRows.filter(function(r){ return r.sa === 'DALAM KOTA'; });
-  else if (filterSA === 'LK') assetRows = assetRows.filter(function(r){ return r.sa === 'LUAR KOTA'; });
+  if (filterSA === 'DK') assetRows = assetRows.filter(function(r){ return effectiveSA(r) === 'DALAM KOTA'; });
+  else if (filterSA === 'LK') assetRows = assetRows.filter(function(r){ return effectiveSA(r) === 'LUAR KOTA'; });
 
   // Available types (before type-filter) — from the stable asset reference
   var typeAssetPre = {};
@@ -2394,7 +2401,7 @@ function buildArmadaTypeTrend(container) {
     trackMaster(key, r.date, r.site, r.owner, t, r.nopol);
     // Impute transit/kembali days for multi-day Luar Kota trips as "utilized"
     // (nopol only — trip/cost/demand/driver stays on the departure date, no double count)
-    if (r.sa === 'LUAR KOTA' && r.jalur) {
+    if (effectiveSA(r) === 'LUAR KOTA' && r.jalur && r.jalur !== '#N/A') {
       var lt = getLeadTimeDays(r.site, r.jalur);
       if (lt > 1) {
         expandActiveDates(r.date, lt).slice(1).forEach(function(ed) {
