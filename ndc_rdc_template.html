@@ -2199,6 +2199,18 @@ function getMasterSiteKey(site, owner) {
   if (o === 'NKA' || o === 'TGI') o = 'AHI';
   return m[o] || null;
 }
+function getMasterAssetTotalCount(date, site, owner) {
+  var monthKey = resolveMasterAssetMonth(date.slice(0, 7));
+  if (!monthKey) return 0;
+  var monthData = MASTER_ASSET[monthKey];
+  var siteKey = getMasterSiteKey(site, owner);
+  if (!siteKey) return 0;
+  var siteData = monthData[siteKey];
+  if (!siteData) return 0;
+  var total = 0;
+  Object.keys(siteData).forEach(function(typ) { total += siteData[typ].length; });
+  return total;
+}
 // Resolves a 'YYYY-MM' key to the best available Master Asset month: exact match if it
 // exists, otherwise auto carry-forward from the latest available month <= requested
 // (or the earliest available, if the requested month predates all data). Returns null
@@ -2317,20 +2329,26 @@ function buildDailyCalibScale(rows, agg) {
       a.nopolByDay[dt].forEach(function(np) { dateActiveTotal[dt].add(np); });
     });
   });
-  var scale = {};
+  var activeScale = {}, assetScale = {};
   Object.keys(ownersByDate).forEach(function(date) {
-    var target = 0, foundAny = false;
+    var targetUtil = 0, targetAvail = 0, foundAny = false, masterTotal = 0;
     ownersByDate[date].forEach(function(siteOwner) {
       var parts = siteOwner.split('|');
       var sk = getUtilSheetSiteKey(parts[0], parts[1]);
-      if (!sk) return;
-      var row = idx[sk + '|' + date];
-      if (row && row.arm_util != null) { target += row.arm_util; foundAny = true; }
+      if (sk) {
+        var row = idx[sk + '|' + date];
+        if (row) {
+          if (row.arm_util != null) { targetUtil += row.arm_util; foundAny = true; }
+          if (row.arm_avail != null) targetAvail += row.arm_avail;
+        }
+      }
+      masterTotal += getMasterAssetTotalCount(date, parts[0], parts[1]);
     });
-    var tripTotal = dateActiveTotal[date] ? dateActiveTotal[date].size : 0;
-    if (foundAny && tripTotal > 0) scale[date] = target / tripTotal;
+    var tripActiveTotal = dateActiveTotal[date] ? dateActiveTotal[date].size : 0;
+    if (foundAny && tripActiveTotal > 0) activeScale[date] = targetUtil / tripActiveTotal;
+    if (foundAny && targetAvail > 0 && masterTotal > 0) assetScale[date] = targetAvail / masterTotal;
   });
-  return scale;
+  return { activeScale: activeScale, assetScale: assetScale };
 }
 
 function buildArmadaTypeTrend(container) {
@@ -2496,13 +2514,25 @@ function buildArmadaTypeTrend(container) {
   });
 
   // Kalibrasi harian ke sheet "Utilisasi" (ground truth observasi lapangan)
+  // UTL Armada sheet = arm_util / arm_avail (bukan / arm_assets) — armada Service/bengkel
+  // dikeluarkan dulu dari pembagi. Asset (denominator) & active (numerator) dua-duanya
+  // di-scale biar konsisten sama definisi itu.
   var dailyCalibScale = buildDailyCalibScale(rows, agg);
-  function calibratedActive(a, assets) {
+  function calibratedAsset(a, assets) {
+    var dates = Object.keys(a.nopolByDay);
+    if (!dates.length) return assets;
+    var sum = 0, cnt = 0;
+    dates.forEach(function(dt) {
+      if (dailyCalibScale.assetScale[dt] != null) { sum += dailyCalibScale.assetScale[dt]; cnt++; }
+    });
+    return cnt ? assets * (sum / cnt) : assets;
+  }
+  function calibratedActive(a, calibAsset) {
     var sum = 0;
     Object.keys(a.nopolByDay).forEach(function(dt) {
-      sum += a.nopolByDay[dt].size * (dailyCalibScale[dt] || 1);
+      sum += a.nopolByDay[dt].size * (dailyCalibScale.activeScale[dt] || 1);
     });
-    return assets ? Math.min(sum, assets) : sum;
+    return calibAsset ? Math.min(sum, calibAsset) : sum;
   }
 
   // ── Insight: periode dengan trip TERENDAH (low season) — total semua type per bucket ──
@@ -2545,7 +2575,8 @@ function buildArmadaTypeTrend(container) {
       var asset = getBucketAsset(key, t);
       if (!asset) return null;
       var a = agg[key];
-      return +((a ? calibratedActive(a, asset) : 0) / asset * 100).toFixed(1);
+      var calibAsset = a ? calibratedAsset(a, asset) : asset;
+      return +((a ? calibratedActive(a, calibAsset) : 0) / calibAsset * 100).toFixed(1);
     });
     return {
       label: t+' ('+lastAsset+' unit)',
@@ -2584,7 +2615,8 @@ function buildArmadaTypeTrend(container) {
       rowCount++;
       tot.hasRow = true;
       var assets = getBucketAsset(key, t);
-      var utilPct = assets ? (calibratedActive(a, assets)/assets*100) : null;
+      var calibAssetRow = assets ? calibratedAsset(a, assets) : 0;
+      var utilPct = calibAssetRow ? (calibratedActive(a, calibAssetRow)/calibAssetRow*100) : null;
       var nopolDays = Object.keys(a.nopolByDay).reduce(function(s,dt){ return s + a.nopolByDay[dt].size; }, 0);
       var ritaseVal = nopolDays ? (a.trip.size/nopolDays) : null;
       var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
@@ -2607,8 +2639,9 @@ function buildArmadaTypeTrend(container) {
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(avgTat!=null?tatStr(avgTat):'—')+'</td>'
         +'</tr>';
       // accumulate TOTAL for this periode
-      tot.asset += assets;
-      tot.activeCalib += calibratedActive(a, assets);
+      var calibAssetTot = assets ? calibratedAsset(a, assets) : 0;
+      tot.asset += calibAssetTot;
+      tot.activeCalib += calibratedActive(a, calibAssetTot);
       a.trip.forEach(function(lc){ tot.trip.add(lc); });
       tot.nopolDays += nopolDays;
       tot.cust += a.cust; tot.store += a.store;
@@ -2640,7 +2673,7 @@ function buildArmadaTypeTrend(container) {
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>Util Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
-    +'<span>Kalibrasi: total aktif per hari di-scale ke arm_util sheet Utilisasi (ground truth observasi lapangan), didistribusi proporsional per type</span>'
+    +'<span>Kalibrasi: Util Armada = aktif (scale ke arm_util) / availability (scale ke arm_avail) &mdash; sesuai formula sheet Utilisasi, bukan / total Assets</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
