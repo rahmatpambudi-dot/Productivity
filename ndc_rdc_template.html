@@ -2329,7 +2329,7 @@ function buildDailyCalibScale(rows, agg) {
       a.nopolByDay[dt].forEach(function(np) { dateActiveTotal[dt].add(np); });
     });
   });
-  var activeScale = {}, assetScale = {};
+  var activeScale = {}, assetScale = {}, targetActive = {}, targetAsset = {};
   Object.keys(ownersByDate).forEach(function(date) {
     var targetUtil = 0, targetAvail = 0, foundAny = false, masterTotal = 0;
     ownersByDate[date].forEach(function(siteOwner) {
@@ -2347,8 +2347,38 @@ function buildDailyCalibScale(rows, agg) {
     var tripActiveTotal = dateActiveTotal[date] ? dateActiveTotal[date].size : 0;
     if (foundAny && tripActiveTotal > 0) activeScale[date] = targetUtil / tripActiveTotal;
     if (foundAny && targetAvail > 0 && masterTotal > 0) assetScale[date] = targetAvail / masterTotal;
+    if (foundAny) { targetActive[date] = targetUtil; targetAsset[date] = targetAvail; }
   });
-  return { activeScale: activeScale, assetScale: assetScale };
+  return { activeScale: activeScale, assetScale: assetScale, targetActive: targetActive, targetAsset: targetAsset };
+}
+// Water-filling reallocation: given per-type (active, calibAsset) for one date, and a
+// known target total (arm_util), distribute the target across types proportional to
+// their active share, but when a type saturates (hits its own calibAsset), redistribute
+// its unused share to types that still have headroom — so the TOTAL matches the target
+// exactly (when target <= sum of calibAsset) instead of leaking due to per-type caps.
+function waterFillAllocate(items, target) {
+  var alloc = {};
+  items.forEach(function(it){ alloc[it.key] = 0; });
+  var remaining = items.slice();
+  var left = target;
+  for (var iter = 0; iter < 8 && remaining.length && left > 1e-6; iter++) {
+    var activeSum = remaining.reduce(function(s,it){ return s + it.active; }, 0);
+    if (activeSum <= 0) break;
+    var anyCapped = false, distributed = 0, nextRemaining = [];
+    remaining.forEach(function(it) {
+      var share = left * (it.active / activeSum);
+      var room = it.cap - alloc[it.key];
+      if (share >= room - 1e-9) {
+        alloc[it.key] += room; distributed += room; anyCapped = true;
+      } else {
+        alloc[it.key] += share; distributed += share; nextRemaining.push(it);
+      }
+    });
+    left -= distributed;
+    remaining = nextRemaining;
+    if (!anyCapped) break;
+  }
+  return alloc;
 }
 
 function buildArmadaTypeTrend(container) {
@@ -2515,24 +2545,50 @@ function buildArmadaTypeTrend(container) {
 
   // Kalibrasi harian ke sheet "Utilisasi" (ground truth observasi lapangan)
   // UTL Armada sheet = arm_util / arm_avail (bukan / arm_assets) — armada Service/bengkel
-  // dikeluarkan dulu dari pembagi. Asset (denominator) & active (numerator) dua-duanya
-  // di-scale biar konsisten sama definisi itu.
+  // dikeluarkan dulu dari pembagi. Target per hari dialokasikan ke semua type sekaligus
+  // (water-filling): kalau 1 type udah full (capped), sisanya dialihin ke type lain yang
+  // masih ada slot, biar TOTAL harian match persis ke target sheet (bukan leak per-type).
   var dailyCalibScale = buildDailyCalibScale(rows, agg);
-  function calibratedAsset(a, assets) {
+  var calibAssetByDateType = {};   // 'date|type' -> availability-scaled asset
+  var dateTypesActive = {};        // date -> [{type, active}]
+  Object.keys(agg).forEach(function(key) {
+    var t = key.slice(key.lastIndexOf('|') + 1);
+    var a = agg[key];
+    var assets = getBucketAsset(key, t);
+    var dates = Object.keys(a.nopolByDay);
+    if (!dates.length) return;
+    var sum = 0, cnt = 0;
+    dates.forEach(function(dt) { if (dailyCalibScale.assetScale[dt] != null) { sum += dailyCalibScale.assetScale[dt]; cnt++; } });
+    var calibAssetVal = cnt ? assets * (sum / cnt) : assets;
+    dates.forEach(function(dt) {
+      calibAssetByDateType[dt + '|' + t] = calibAssetVal;
+      if (!dateTypesActive[dt]) dateTypesActive[dt] = [];
+      dateTypesActive[dt].push({ type: t, active: a.nopolByDay[dt].size });
+    });
+  });
+  var calibActiveByDateType = {}; // 'date|type' -> allocated active (water-filled)
+  Object.keys(dateTypesActive).forEach(function(dt) {
+    var target = dailyCalibScale.targetActive[dt];
+    if (target == null) return; // no sheet data that date -> caller falls back to raw
+    var items = dateTypesActive[dt].map(function(x) {
+      return { key: x.type, active: x.active, cap: calibAssetByDateType[dt + '|' + x.type] != null ? calibAssetByDateType[dt + '|' + x.type] : x.active };
+    });
+    var alloc = waterFillAllocate(items, target);
+    Object.keys(alloc).forEach(function(t) { calibActiveByDateType[dt + '|' + t] = alloc[t]; });
+  });
+  function calibratedAsset(a, assets, typeKey) {
     var dates = Object.keys(a.nopolByDay);
     if (!dates.length) return assets;
-    var sum = 0, cnt = 0;
-    dates.forEach(function(dt) {
-      if (dailyCalibScale.assetScale[dt] != null) { sum += dailyCalibScale.assetScale[dt]; cnt++; }
-    });
-    return cnt ? assets * (sum / cnt) : assets;
+    var val = calibAssetByDateType[dates[0] + '|' + typeKey];
+    return val != null ? val : assets;
   }
-  function calibratedActive(a, calibAsset) {
+  function calibratedActive(a, calibAsset, typeKey) {
     var sum = 0;
     Object.keys(a.nopolByDay).forEach(function(dt) {
-      sum += a.nopolByDay[dt].size * (dailyCalibScale.activeScale[dt] || 1);
+      var k = dt + '|' + typeKey;
+      sum += calibActiveByDateType[k] != null ? calibActiveByDateType[k] : a.nopolByDay[dt].size;
     });
-    return calibAsset ? Math.min(sum, calibAsset) : sum;
+    return sum;
   }
 
   // ── Insight: periode dengan trip TERENDAH (low season) — total semua type per bucket ──
@@ -2575,8 +2631,8 @@ function buildArmadaTypeTrend(container) {
       var asset = getBucketAsset(key, t);
       if (!asset) return null;
       var a = agg[key];
-      var calibAsset = a ? calibratedAsset(a, asset) : asset;
-      return +((a ? calibratedActive(a, calibAsset) : 0) / calibAsset * 100).toFixed(1);
+      var calibAsset = a ? calibratedAsset(a, asset, t) : asset;
+      return +((a ? calibratedActive(a, calibAsset, t) : 0) / calibAsset * 100).toFixed(1);
     });
     return {
       label: t+' ('+lastAsset+' unit)',
@@ -2615,8 +2671,8 @@ function buildArmadaTypeTrend(container) {
       rowCount++;
       tot.hasRow = true;
       var assets = getBucketAsset(key, t);
-      var calibAssetRow = assets ? calibratedAsset(a, assets) : 0;
-      var utilPct = calibAssetRow ? (calibratedActive(a, calibAssetRow)/calibAssetRow*100) : null;
+      var calibAssetRow = assets ? calibratedAsset(a, assets, t) : 0;
+      var utilPct = calibAssetRow ? (calibratedActive(a, calibAssetRow, t)/calibAssetRow*100) : null;
       var nopolDays = Object.keys(a.nopolByDay).reduce(function(s,dt){ return s + a.nopolByDay[dt].size; }, 0);
       var ritaseVal = nopolDays ? (a.trip.size/nopolDays) : null;
       var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
@@ -2639,9 +2695,9 @@ function buildArmadaTypeTrend(container) {
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(avgTat!=null?tatStr(avgTat):'—')+'</td>'
         +'</tr>';
       // accumulate TOTAL for this periode
-      var calibAssetTot = assets ? calibratedAsset(a, assets) : 0;
+      var calibAssetTot = assets ? calibratedAsset(a, assets, t) : 0;
       tot.asset += calibAssetTot;
-      tot.activeCalib += calibratedActive(a, calibAssetTot);
+      tot.activeCalib += calibratedActive(a, calibAssetTot, t);
       a.trip.forEach(function(lc){ tot.trip.add(lc); });
       tot.nopolDays += nopolDays;
       tot.cust += a.cust; tot.store += a.store;
