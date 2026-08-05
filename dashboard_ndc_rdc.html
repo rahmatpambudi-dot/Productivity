@@ -2508,11 +2508,13 @@ function buildArmadaTypeTrend(container) {
   var tbody = '';
   var rowCount = 0;
   allDates.slice().reverse().forEach(function(d) {
+    var tot = { nopol:new Set(), asset:0, trip:new Set(), nopolDays:0, cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0, hasRow:false };
     allTypes.forEach(function(t) {
       var key = d+'|'+t;
       var a = agg[key];
       if (!a) return;
       rowCount++;
+      tot.hasRow = true;
       var assets = getBucketAsset(key, t);
       var utilPct = assets ? (a.nopol.size/assets*100) : null;
       var nopolDays = Object.keys(a.nopolByDay).reduce(function(s,dt){ return s + a.nopolByDay[dt].size; }, 0);
@@ -2536,7 +2538,36 @@ function buildArmadaTypeTrend(container) {
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(a.ujp)+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(avgTat!=null?tatStr(avgTat):'—')+'</td>'
         +'</tr>';
+      // accumulate TOTAL for this periode
+      tot.asset += assets;
+      a.nopol.forEach(function(np){ tot.nopol.add(t+'|'+np); }); // prefix by type: same nopol can't legitimately double as 2 types same day, but keeps union safe
+      a.trip.forEach(function(lc){ tot.trip.add(lc); });
+      tot.nopolDays += nopolDays;
+      tot.cust += a.cust; tot.store += a.store;
+      a.drv.forEach(function(x){ tot.drv.add(x); });
+      a.crew.forEach(function(x){ tot.crew.add(x); });
+      tot.cost += a.cost; tot.ujp += a.ujp;
+      tot.tatSum += a.tatSum; tot.tatCnt += a.tatCnt;
     });
+    if (tot.hasRow) {
+      var totUtilPct = tot.asset ? (tot.nopol.size/tot.asset*100) : null;
+      var totRitase = tot.nopolDays ? (tot.trip.size/tot.nopolDays) : null;
+      var totAvgTat = tot.tatCnt ? tot.tatSum/tot.tatCnt : null;
+      tbody += '<tr style="background:var(--bg);font-weight:700;border-top:2px solid var(--border)">'
+        +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
+        +'<td style="font-size:11px">TOTAL</td>'
+        +'<td class="'+utilCls(totUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(totUtilPct!=null?totUtilPct.toFixed(1)+'%':'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(totRitase!=null?totRitase.toFixed(2):'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+tot.trip.size.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+tot.cust.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#34a85a">'+tot.store.toFixed(1)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#8B4513">'+(tot.drv.size?tot.drv.size.toLocaleString('id-ID'):'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#c2185b">'+(tot.crew.size?tot.crew.size.toLocaleString('id-ID'):'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(tot.cost)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(tot.ujp)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(totAvgTat!=null?tatStr(totAvgTat):'—')+'</td>'
+        +'</tr>';
+    }
   });
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
