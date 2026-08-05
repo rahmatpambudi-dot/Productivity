@@ -2779,6 +2779,25 @@ function buildArmadaTypeTrend(container) {
       tot.cost += a.cost; tot.ujp += a.ujp;
       tot.tatSum += a.tatSum; tot.tatCnt += a.tatCnt;
     });
+    // Excluded types (CONT-40/BIG MAMA/MOTOR BOX/LAINNYA) masih valid buat Trip/Cost/
+    // Demand/Ritase (ga butuh Master Asset) — cuma Util Armada mereka yang ga reliable.
+    // Include kontribusi mereka ke TOTAL biar Ritase/Trip/Cost TOTAL tetep lengkap &
+    // konsisten sama Ritase Armada di panel Utilisasi MPP & Armada.
+    EXCLUDED_ARMADA_TYPES.forEach(function(t) {
+      var key = d+'|'+t;
+      var a = agg[key];
+      if (!a) return;
+      tot.hasRow = true;
+      var nopolDays = Object.keys(a.nopolByDay).reduce(function(s,dt){ return s + a.nopolByDay[dt].size; }, 0);
+      Object.keys(a.nopolByDay).forEach(function(dt){ tot.sheetDates.add(dt); });
+      a.trip.forEach(function(lc){ tot.trip.add(lc); });
+      tot.nopolDays += nopolDays;
+      tot.cust += a.cust; tot.store += a.store;
+      a.drv.forEach(function(x){ tot.drv.add(x); });
+      a.crew.forEach(function(x){ tot.crew.add(x); });
+      tot.cost += a.cost; tot.ujp += a.ujp;
+      tot.tatSum += a.tatSum; tot.tatCnt += a.tatCnt;
+    });
     if (tot.hasRow) {
       var totUtilPct = tot.asset ? (tot.activeCalib/tot.asset*100) : null;
       // Kalau sheet Utilisasi punya data lengkap buat semua tanggal di periode ini,
