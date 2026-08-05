@@ -2816,6 +2816,16 @@ function buildArmadaTypeTrend(container) {
         totUtilPct = sheetUtilSum / sheetAvailSum * 100;
       }
       var totRitase = tot.nopolDays ? (tot.trip.size/tot.nopolDays) : null;
+      // Sama kayak Util Armada: pake computeSite() (fungsi yang sama dipake panel
+      // Utilisasi MPP & Armada) buat Ritase yang otoritatif & exact-match, scoped ke
+      // range tanggal bucket ini — bukan rekonstruksi ulang dari agregasi per-type.
+      if (sheetDatesArr.length) {
+        var bucketMinDate = sheetDatesArr.reduce(function(a,b){ return a<b?a:b; });
+        var bucketMaxDate = sheetDatesArr.reduce(function(a,b){ return a>b?a:b; });
+        var bucketRowsForRitase = rows.filter(function(r){ return r.date >= bucketMinDate && r.date <= bucketMaxDate; });
+        var siteResultForRitase = computeSite(bucketRowsForRitase, currentSite);
+        if (siteResultForRitase && siteResultForRitase.ritase != null) totRitase = siteResultForRitase.ritase;
+      }
       var totAvgTat = tot.tatCnt ? tot.tatSum/tot.tatCnt : null;
       tbody += '<tr style="background:var(--bg);font-weight:700;border-top:2px solid var(--border)">'
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
@@ -2838,7 +2848,7 @@ function buildArmadaTypeTrend(container) {
     +'<span>Util Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>Util Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
     +'<span>Di-exclude dari panel ini: CONT-40 (LC ngiket ke Tractor Head, bukan trailer), BIG MAMA &amp; MOTOR BOX (ga ada di Master Asset), LAINNYA (ja kosong, data belum lengkap)</span>'
-    +'<span>Baris TOTAL = angka sheet Utilisasi apa adanya (identik) kalau datanya lengkap; breakdown per type tetap estimasi proporsional</span>'
+    +'<span>Baris TOTAL = Util Armada dari sheet Utilisasi apa adanya, Ritase dari computeSite() (sama kayak panel Utilisasi MPP & Armada) — dijamin identik; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
