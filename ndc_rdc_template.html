@@ -2663,7 +2663,7 @@ function buildArmadaTypeTrend(container) {
   var tbody = '';
   var rowCount = 0;
   allDates.slice().reverse().forEach(function(d) {
-    var tot = { activeCalib:0, asset:0, trip:new Set(), nopolDays:0, cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0, hasRow:false };
+    var tot = { activeCalib:0, asset:0, trip:new Set(), nopolDays:0, cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0, hasRow:false, sheetDates:new Set() };
     allTypes.forEach(function(t) {
       var key = d+'|'+t;
       var a = agg[key];
@@ -2698,6 +2698,7 @@ function buildArmadaTypeTrend(container) {
       var calibAssetTot = assets ? calibratedAsset(a, assets, t) : 0;
       tot.asset += calibAssetTot;
       tot.activeCalib += calibratedActive(a, calibAssetTot, t);
+      Object.keys(a.nopolByDay).forEach(function(dt){ tot.sheetDates.add(dt); });
       a.trip.forEach(function(lc){ tot.trip.add(lc); });
       tot.nopolDays += nopolDays;
       tot.cust += a.cust; tot.store += a.store;
@@ -2708,6 +2709,21 @@ function buildArmadaTypeTrend(container) {
     });
     if (tot.hasRow) {
       var totUtilPct = tot.asset ? (tot.activeCalib/tot.asset*100) : null;
+      // Kalau sheet Utilisasi punya data lengkap buat semua tanggal di periode ini,
+      // pakai rasio sheet apa adanya (arm_util/arm_avail) — dijamin identik ke sheet,
+      // bukan hasil rekonstruksi per-type yang bisa sedikit meleset.
+      var sheetDatesArr = Array.from(tot.sheetDates);
+      var sheetUtilSum = 0, sheetAvailSum = 0, sheetCoverage = 0;
+      sheetDatesArr.forEach(function(dt) {
+        if (dailyCalibScale.targetActive[dt] != null && dailyCalibScale.targetAsset[dt] != null) {
+          sheetUtilSum += dailyCalibScale.targetActive[dt];
+          sheetAvailSum += dailyCalibScale.targetAsset[dt];
+          sheetCoverage++;
+        }
+      });
+      if (sheetDatesArr.length && sheetCoverage === sheetDatesArr.length && sheetAvailSum > 0) {
+        totUtilPct = sheetUtilSum / sheetAvailSum * 100;
+      }
       var totRitase = tot.nopolDays ? (tot.trip.size/tot.nopolDays) : null;
       var totAvgTat = tot.tatCnt ? tot.tatSum/tot.tatCnt : null;
       tbody += '<tr style="background:var(--bg);font-weight:700;border-top:2px solid var(--border)">'
@@ -2730,6 +2746,7 @@ function buildArmadaTypeTrend(container) {
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>Util Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>Kalibrasi: Util Armada = aktif (scale ke arm_util) / availability (scale ke arm_avail) &mdash; sesuai formula sheet Utilisasi, bukan / total Assets</span>'
+    +'<span>Baris TOTAL = angka sheet Utilisasi apa adanya (identik) kalau datanya lengkap; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
