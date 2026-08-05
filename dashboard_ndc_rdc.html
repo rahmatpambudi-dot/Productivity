@@ -2544,52 +2544,13 @@ function buildArmadaTypeTrend(container) {
   });
 
   // Kalibrasi harian ke sheet "Utilisasi" (ground truth observasi lapangan)
-  // UTL Armada sheet = arm_util / arm_avail (bukan / arm_assets) — armada Service/bengkel
-  // dikeluarkan dulu dari pembagi. Target per hari dialokasikan ke semua type sekaligus
-  // (water-filling): kalau 1 type udah full (capped), sisanya dialihin ke type lain yang
-  // masih ada slot, biar TOTAL harian match persis ke target sheet (bukan leak per-type).
+  // UTL Armada sheet = arm_util / arm_avail. Dipakai HANYA buat baris TOTAL (exact match,
+  // lihat di bawah) — bukan buat kalibrasi per-type, karena mendistribusikan target ke
+  // tiap type bikin variasi antar-type "ketekan" ke deket 100% semua & jadi kurang
+  // informatif. Baris & chart per-type tetap pakai MAX(Master Asset, aktif) apa adanya.
   var dailyCalibScale = buildDailyCalibScale(rows, agg);
-  var calibAssetByDateType = {};   // 'date|type' -> availability-scaled asset
-  var dateTypesActive = {};        // date -> [{type, active}]
-  Object.keys(agg).forEach(function(key) {
-    var t = key.slice(key.lastIndexOf('|') + 1);
-    var a = agg[key];
-    var assets = getBucketAsset(key, t);
-    var dates = Object.keys(a.nopolByDay);
-    if (!dates.length) return;
-    var sum = 0, cnt = 0;
-    dates.forEach(function(dt) { if (dailyCalibScale.assetScale[dt] != null) { sum += dailyCalibScale.assetScale[dt]; cnt++; } });
-    var calibAssetVal = cnt ? assets * (sum / cnt) : assets;
-    dates.forEach(function(dt) {
-      calibAssetByDateType[dt + '|' + t] = calibAssetVal;
-      if (!dateTypesActive[dt]) dateTypesActive[dt] = [];
-      dateTypesActive[dt].push({ type: t, active: a.nopolByDay[dt].size });
-    });
-  });
-  var calibActiveByDateType = {}; // 'date|type' -> allocated active (water-filled)
-  Object.keys(dateTypesActive).forEach(function(dt) {
-    var target = dailyCalibScale.targetActive[dt];
-    if (target == null) return; // no sheet data that date -> caller falls back to raw
-    var items = dateTypesActive[dt].map(function(x) {
-      return { key: x.type, active: x.active, cap: calibAssetByDateType[dt + '|' + x.type] != null ? calibAssetByDateType[dt + '|' + x.type] : x.active };
-    });
-    var alloc = waterFillAllocate(items, target);
-    Object.keys(alloc).forEach(function(t) { calibActiveByDateType[dt + '|' + t] = alloc[t]; });
-  });
-  function calibratedAsset(a, assets, typeKey) {
-    var dates = Object.keys(a.nopolByDay);
-    if (!dates.length) return assets;
-    var val = calibAssetByDateType[dates[0] + '|' + typeKey];
-    return val != null ? val : assets;
-  }
-  function calibratedActive(a, calibAsset, typeKey) {
-    var sum = 0;
-    Object.keys(a.nopolByDay).forEach(function(dt) {
-      var k = dt + '|' + typeKey;
-      sum += calibActiveByDateType[k] != null ? calibActiveByDateType[k] : a.nopolByDay[dt].size;
-    });
-    return sum;
-  }
+  function calibratedAsset(a, assets, typeKey) { return assets; }
+  function calibratedActive(a, calibAsset, typeKey) { return a.nopol.size; }
 
   // ── Insight: periode dengan trip TERENDAH (low season) — total semua type per bucket ──
   var tripByBucket = {};
@@ -2745,7 +2706,7 @@ function buildArmadaTypeTrend(container) {
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>Util Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
-    +'<span>Kalibrasi: Util Armada = aktif (scale ke arm_util) / availability (scale ke arm_avail) &mdash; sesuai formula sheet Utilisasi, bukan / total Assets</span>'
+    +'<span>Util Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
     +'<span>Baris TOTAL = angka sheet Utilisasi apa adanya (identik) kalau datanya lengkap; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
