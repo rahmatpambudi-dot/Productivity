@@ -2131,8 +2131,8 @@ const ARMADA_TYPE_NORMALIZE = {
   'PICK UP': 'PICKUP',
   'PICKUP': 'PICKUP',
   'PICKUP EXTRA': 'PICKUP',
-  'VAN': 'VAN BOX',
-  'VAN BOX': 'VAN BOX',
+  'VAN': 'MINI VAN BOX',
+  'VAN BOX': 'MINI VAN BOX',
   'WINGBOX': 'WINGBOX',
   'WINGBOX GANJIL': 'WINGBOX',
   'BIG MAMA': 'BIG MAMA',
@@ -2463,7 +2463,8 @@ function buildArmadaTypeTrend(container) {
   });
 
   var allDates = [...new Set(rows.map(function(r){ return bucketDate(r.date, gran); }).filter(Boolean))].sort();
-  var allTypes = Object.keys(assetsByType).filter(function(t){ return t !== 'CONT-40'; }).sort(function(a,b){ return assetsByType[b].size - assetsByType[a].size; });
+  var EXCLUDED_ARMADA_TYPES = ['CONT-40', 'BIG MAMA', 'MOTOR BOX', 'LAINNYA'];
+  var allTypes = Object.keys(assetsByType).filter(function(t){ return EXCLUDED_ARMADA_TYPES.indexOf(t) === -1; }).sort(function(a,b){ return assetsByType[b].size - assetsByType[a].size; });
 
   // Aggregation per bucket|type
   var agg = {};
@@ -2655,7 +2656,7 @@ function buildArmadaTypeTrend(container) {
   }
 
   // ── Chart: % utilisasi per type per bucket, top 8 by asset count ──
-  var chartTypes = allTypes.filter(function(t){ return t !== 'CONT-40'; }).slice(0, 8);
+  var chartTypes = allTypes.filter(function(t){ return EXCLUDED_ARMADA_TYPES.indexOf(t) === -1; }).slice(0, 8);
   var dateLabels = allDates.map(function(d){ return bucketLabel(d, gran); });
   var chartDatasets = chartTypes.map(function(t, i) {
     var lastAsset = allDates.length ? getBucketAsset(allDates[allDates.length-1]+'|'+t, t) : 0;
@@ -2817,7 +2818,7 @@ function buildArmadaTypeTrend(container) {
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>Util Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>Util Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
-    +'<span>CONT-40 di-exclude dari panel ini: LC ngiket ke Tractor Head, bukan nopol trailer, jadi belum bisa dihitung valid per-type</span>'
+    +'<span>Di-exclude dari panel ini: CONT-40 (LC ngiket ke Tractor Head, bukan trailer), BIG MAMA &amp; MOTOR BOX (ga ada di Master Asset), LAINNYA (ja kosong, data belum lengkap)</span>'
     +'<span>Baris TOTAL = angka sheet Utilisasi apa adanya (identik) kalau datanya lengkap; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
