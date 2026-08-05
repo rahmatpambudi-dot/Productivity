@@ -2199,13 +2199,33 @@ function getMasterSiteKey(site, owner) {
   if (o === 'NKA' || o === 'TGI') o = 'AHI';
   return m[o] || null;
 }
+// Resolves a 'YYYY-MM' key to the best available Master Asset month: exact match if it
+// exists, otherwise auto carry-forward from the latest available month <= requested
+// (or the earliest available, if the requested month predates all data). Returns null
+// only if MASTER_ASSET has no data loaded at all.
+var _masterMonthCache = {};
+function resolveMasterAssetMonth(monthKey) {
+  if (_masterMonthCache[monthKey] !== undefined) return _masterMonthCache[monthKey];
+  var result = null;
+  if (MASTER_ASSET[monthKey]) {
+    result = monthKey;
+  } else {
+    var avail = Object.keys(MASTER_ASSET).sort(); // ascending 'YYYY-MM'
+    if (avail.length) {
+      var candidates = avail.filter(function(m) { return m <= monthKey; });
+      result = candidates.length ? candidates[candidates.length - 1] : avail[0];
+    }
+  }
+  _masterMonthCache[monthKey] = result;
+  return result;
+}
 // Returns array of nopol (may be empty) for a given date+site+owner+type, or null if
-// Master Asset has no data at all for that month (signal to fall back to old logic).
+// Master Asset has no data at all (signal to fall back to old logic).
 function getMasterAssetNopol(date, site, owner, type) {
   if (!date) return null;
-  var monthKey = date.slice(0, 7);
+  var monthKey = resolveMasterAssetMonth(date.slice(0, 7));
+  if (!monthKey) return null;
   var monthData = MASTER_ASSET[monthKey];
-  if (!monthData) return null;
   var siteKey = getMasterSiteKey(site, owner);
   if (!siteKey) return null;
   var siteData = monthData[siteKey];
@@ -2213,14 +2233,14 @@ function getMasterAssetNopol(date, site, owner, type) {
   return siteData[type] || [];
 }
 
-// Returns array of nopol across ALL BUs at a site (or null if no master data that month) —
+// Returns array of nopol across ALL BUs at a site (or null if no master data at all) —
 // used only for the "armada pengganti" check, since a vehicle may be tagged under a
 // different BU's owner per trip (billing/cargo) than its true fleet registration.
 function getMasterAssetNopolSiteWide(date, site, type) {
   if (!date) return null;
-  var monthKey = date.slice(0, 7);
+  var monthKey = resolveMasterAssetMonth(date.slice(0, 7));
+  if (!monthKey) return null;
   var monthData = MASTER_ASSET[monthKey];
-  if (!monthData) return null;
   var siteMap = MASTER_SITE_KEY_MAP[site];
   if (!siteMap) return null;
   var found = false;
@@ -2237,9 +2257,9 @@ function getMasterAssetNopolSiteWide(date, site, type) {
 // wrong armada type. Used purely for the "armada pengganti" determination.
 function getMasterAssetNopolAnywhereAtSite(date, site) {
   if (!date) return null;
-  var monthKey = date.slice(0, 7);
+  var monthKey = resolveMasterAssetMonth(date.slice(0, 7));
+  if (!monthKey) return null;
   var monthData = MASTER_ASSET[monthKey];
-  if (!monthData) return null;
   var siteMap = MASTER_SITE_KEY_MAP[site];
   if (!siteMap) return null;
   var found = false;
@@ -2520,7 +2540,8 @@ function buildArmadaTypeTrend(container) {
   });
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
-    +'<span>Util Armada = nopol aktif / MAX(Master Asset roster, nopol aktif) &mdash; badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset bulan itu</span>'
+    +'<span>Util Armada = nopol aktif / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
+    +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
     +'<span>Ritase = Trip unik / total nopol-hari-aktif (total-to-total, exclude hari transit imputed LK)</span>'
