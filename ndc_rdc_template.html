@@ -839,12 +839,8 @@ function computeSite(rows, site) {
     cbmDpMix:  dpMxSum>0 ? cbmMx/dpMxSum    : null,
     doTripMix: dpMxLC>0  ? doMx/dpMxLC      : null,
     tatDirect: avg(tatD), tatStore: avg(tatS),
-    tatDirectMax: tatD.length ? Math.max.apply(null, tatD) : null,
-    tatDirectMin: tatD.length ? Math.min.apply(null, tatD) : null,
     tatDirectOver8: tatD.length ? tatD.filter(function(v){return v>8;}).length/tatD.length*100 : null,
     tatDirectUnder8: tatD.length ? tatD.filter(function(v){return v<=8;}).length/tatD.length*100 : null,
-    tatStoreMax: tatS.length ? Math.max.apply(null, tatS) : null,
-    tatStoreMin: tatS.length ? Math.min.apply(null, tatS) : null,
     tatStoreOver8: tatS.length ? tatS.filter(function(v){return v>8;}).length/tatS.length*100 : null,
     tatStoreUnder8: tatS.length ? tatS.filter(function(v){return v<=8;}).length/tatS.length*100 : null,
     totalCbmStore, totalDoCust, totalDpCust,
@@ -857,16 +853,10 @@ function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(B
 function makeSummary(results) {
   const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDoMix','cbmDp','cbmDpMix','doTripMix','tatDirect','tatStore','doTripAll','tatDirectOver8','tatDirectUnder8','tatStoreOver8','tatStoreUnder8'];
   const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust'];
-  const maxKeys = ['tatDirectMax','tatStoreMax'];
-  const minKeys = ['tatDirectMin','tatStoreMin'];
-  function maxOf(vals) { const v = vals.filter(x=>x!=null); return v.length ? Math.max.apply(null, v) : null; }
-  function minOf(vals) { const v = vals.filter(x=>x!=null); return v.length ? Math.min.apply(null, v) : null; }
   return {
     site:'NDC & RDC', label:'NDC & RDC',
     ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])),
     ...Object.fromEntries(sumKeys.map(k=>[k,ssum(results.map(r=>r[k]||0))])),
-    ...Object.fromEntries(maxKeys.map(k=>[k,maxOf(results.map(r=>r[k]))])),
-    ...Object.fromEntries(minKeys.map(k=>[k,minOf(results.map(r=>r[k]))])),
   };
 }
 
@@ -1417,13 +1407,9 @@ function renderDetail(results, summary, start, end) {
     { key:'cbmDpMix',label:'CBM/DP (Mix)*',fmt:v=>pf(v,2)},
     { key:'doTripMix',label:'DO/Trip (Mix)*',fmt:v=>pf(v,1)},
     { key:'tatDirect',label:'TAT Direct',fmt:v=>tatStr(v)},
-    { key:'tatDirectMax',label:'TAT Direct (Max)',fmt:v=>tatStr(v)},
-    { key:'tatDirectMin',label:'TAT Direct (Min)',fmt:v=>tatStr(v)},
     { key:'tatDirectOver8',label:'TAT Direct (% &gt;8 jam)',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'tatDirectUnder8',label:'TAT Direct (% &le;8 jam)',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'tatStore',label:'TAT Store',fmt:v=>tatStr(v)},
-    { key:'tatStoreMax',label:'TAT Store (Max)',fmt:v=>tatStr(v)},
-    { key:'tatStoreMin',label:'TAT Store (Min)',fmt:v=>tatStr(v)},
     { key:'tatStoreOver8',label:'TAT Store (% &gt;8 jam)',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'tatStoreUnder8',label:'TAT Store (% &le;8 jam)',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'totalCbmStore',label:'Demand CBM Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
