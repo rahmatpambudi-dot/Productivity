@@ -610,6 +610,10 @@ def fetch_master_asset(service):
             typ   = norm_armada_type(r[i_type] if i_type < len(r) else '')
             site  = (r[i_site] or '').strip()
             if not nopol or not site: continue
+            # Tamora master sheet: 'CDE' entries are a data-entry shorthand for 'CDE LC'
+            # (CDELC), not a genuinely separate short-chassis fleet like at other sites.
+            if 'TAMORA' in site.upper() and typ == 'CDE':
+                typ = 'CDELC'
             by_site_type[site][typ].append(nopol)
 
         month_key = f"2026-{month_num}"
