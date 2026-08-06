@@ -2350,9 +2350,9 @@ function buildDailyCalibScale(rows, agg) {
       a.nopolByDay[dt].forEach(function(np) { dateActiveTotal[dt].add(np); });
     });
   });
-  var activeScale = {}, assetScale = {}, targetActive = {}, targetAsset = {};
+  var activeScale = {}, assetScale = {}, targetActive = {}, targetAsset = {}, targetIdle = {};
   Object.keys(ownersByDate).forEach(function(date) {
-    var targetUtil = 0, targetAvail = 0, foundAny = false, masterTotal = 0;
+    var targetUtil = 0, targetAvail = 0, foundAny = false, masterTotal = 0, idleSum = 0, idleFound = false;
     ownersByDate[date].forEach(function(siteOwner) {
       var parts = siteOwner.split('|');
       var sk = getUtilSheetSiteKey(parts[0], parts[1]);
@@ -2361,6 +2361,7 @@ function buildDailyCalibScale(rows, agg) {
         if (row) {
           if (row.arm_util != null) { targetUtil += row.arm_util; foundAny = true; }
           if (row.arm_avail != null) targetAvail += row.arm_avail;
+          if (row.arm_idle != null) { idleSum += row.arm_idle; idleFound = true; }
         }
       }
       masterTotal += getMasterAssetTotalCount(date, parts[0], parts[1]);
@@ -2369,8 +2370,9 @@ function buildDailyCalibScale(rows, agg) {
     if (foundAny && tripActiveTotal > 0) activeScale[date] = targetUtil / tripActiveTotal;
     if (foundAny && targetAvail > 0 && masterTotal > 0) assetScale[date] = targetAvail / masterTotal;
     if (foundAny) { targetActive[date] = targetUtil; targetAsset[date] = targetAvail; }
+    if (idleFound) targetIdle[date] = idleSum;
   });
-  return { activeScale: activeScale, assetScale: assetScale, targetActive: targetActive, targetAsset: targetAsset };
+  return { activeScale: activeScale, assetScale: assetScale, targetActive: targetActive, targetAsset: targetAsset, targetIdle: targetIdle };
 }
 // Water-filling reallocation: given per-type (active, calibAsset) for one date, and a
 // known target total (arm_util), distribute the target across types proportional to
@@ -2849,6 +2851,16 @@ function buildArmadaTypeTrend(container) {
       if (sheetDatesArr.length && sheetCoverage === sheetDatesArr.length && sheetAvailSum > 0) {
         totUtilPct = sheetUtilSum / sheetAvailSum * 100;
       }
+      // Unutilized TOTAL: pake Idle asli dari sheet (ground truth observasi lapangan)
+      // kalau datanya lengkap, bukan hasil turunan Asset-Aktif.
+      var totUnutilized = tot.asset ? Math.max(0, Math.round(tot.asset - tot.activeCalib)) : null;
+      var sheetIdleSum = 0, sheetIdleCoverage = 0;
+      sheetDatesArr.forEach(function(dt) {
+        if (dailyCalibScale.targetIdle[dt] != null) { sheetIdleSum += dailyCalibScale.targetIdle[dt]; sheetIdleCoverage++; }
+      });
+      if (sheetDatesArr.length && sheetIdleCoverage === sheetDatesArr.length) {
+        totUnutilized = Math.round(sheetIdleSum);
+      }
       var totRitase = tot.nopolDays ? (tot.trip.size/tot.nopolDays) : null;
       // Sama kayak UTL Armada: pake computeSite() (fungsi yang sama dipake panel
       // Utilisasi MPP & Armada) buat Ritase yang otoritatif & exact-match, scoped ke
@@ -2875,7 +2887,7 @@ function buildArmadaTypeTrend(container) {
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
         +'<td style="font-size:11px">TOTAL</td>'
         +'<td class="'+utilCls(totUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(totUtilPct!=null?totUtilPct.toFixed(1)+'%':'—')+'</td>'
-        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:'+(tot.asset>tot.activeCalib?'#dc2626':'#94a3b8')+'">'+(tot.asset?Math.max(0,Math.round(tot.asset-tot.activeCalib)).toLocaleString('id-ID'):'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:'+(totUnutilized>0?'#dc2626':'#94a3b8')+'">'+(totUnutilized!=null?totUnutilized.toLocaleString('id-ID'):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(totRitase!=null?totRitase.toFixed(2):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+tot.trip.size.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+tot.cust.toLocaleString('id-ID')+'</td>'
@@ -2893,7 +2905,7 @@ function buildArmadaTypeTrend(container) {
     +'<span>UTL Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>UTL Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
     +'<span>Di-exclude dari panel ini: CONT-40 (LC ngiket ke Tractor Head, bukan trailer), BIG MAMA &amp; MOTOR BOX (ga ada di Master Asset), LAINNYA (ja kosong, data belum lengkap)</span>'
-    +'<span>Baris TOTAL = UTL Armada dari sheet Utilisasi apa adanya, Ritase dari computeSite() (sama kayak panel Utilisasi MPP & Armada) — dijamin identik; breakdown per type tetap estimasi proporsional</span>'
+    +'<span>Baris TOTAL = UTL Armada &amp; Unutilized dari sheet Utilisasi apa adanya (Idle asli), Ritase dari computeSite() (sama kayak panel Utilisasi MPP & Armada) — dijamin identik; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
     +'<span>Trip LK multi-hari: nopol tetap dianggap utilized selama transit/kembali (sesuai master lead time)</span>'
