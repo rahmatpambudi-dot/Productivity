@@ -2596,12 +2596,15 @@ function buildArmadaTypeTrend(container) {
   buGapFindings.sort(function(a,b){ return b.gap - a.gap; });
   var buGapHtml = '';
   if (buGapFindings.length) {
-    buGapHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--border);background:#eff6ff">'
+    buGapHtml = '<div style="padding:10px 16px;border-top:1px solid var(--border);background:#eff6ff">'
+      + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px">'
       + '<span style="font-size:11px;font-weight:700;color:#1d4ed8">🔀 Gap antar-BU (potensi sharing armada):</span>'
       + buGapFindings.slice(0, 3).map(function(f) {
           return '<span style="font-size:11px;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:3px 8px">'
             + '<b>'+f.type+'</b>: '+f.lo.owner+' '+f.lo.pct.toFixed(0)+'% ('+f.lo.unit+'u) vs '+f.hi.owner+' '+f.hi.pct.toFixed(0)+'% ('+f.hi.unit+'u)</span>';
         }).join('')
+      + '</div>'
+      + '<div style="height:110px;position:relative"><canvas id="cBuGapChart"></canvas></div>'
       + '</div>';
   }
 
@@ -2630,7 +2633,8 @@ function buildArmadaTypeTrend(container) {
     var sortedByUtil = Object.keys(utilByBucket).sort(function(a,b){ return utilByBucket[a]-utilByBucket[b]; });
     var lowUtilN = sortedByUtil.slice(0, 3);
     var avgUtil = Object.keys(utilByBucket).reduce(function(s,d){ return s+utilByBucket[d]; },0) / Object.keys(utilByBucket).length;
-    lowUtilHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--border);background:#fef2f2">'
+    lowUtilHtml = '<div style="padding:10px 16px;border-top:1px solid var(--border);background:#fef2f2">'
+      + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px">'
       + '<span style="font-size:11px;font-weight:700;color:#b91c1c">🪫 Low Utilization (Util Armada terendah, potensi slack fleet):</span>'
       + lowUtilN.map(function(d){
           var v = utilByBucket[d];
@@ -2638,6 +2642,8 @@ function buildArmadaTypeTrend(container) {
           return '<span style="font-size:11px;background:#fff;border:1px solid #fecaca;border-radius:6px;padding:3px 8px"><b>'+bucketLabel(d,gran)+'</b>: '+v.toFixed(1)+'% ('+(diff<=0?'':'+')+diff.toFixed(0)+'pt vs avg)</span>';
         }).join('')
       + '<span style="font-size:11px;color:var(--t3)">rata-rata: '+avgUtil.toFixed(1)+'%</span>'
+      + '</div>'
+      + '<div style="height:110px;position:relative"><canvas id="cLowUtilChart"></canvas></div>'
       + '</div>';
   }
 
@@ -2647,7 +2653,8 @@ function buildArmadaTypeTrend(container) {
     var lowN = sortedByTrip.slice(0, 3);
     var avgTrip = allDates.reduce(function(s,d){ return s+tripByBucket[d]; },0) / allDates.length;
     if (lowN.length) {
-      lowSeasonHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--border);background:#fff7ed">'
+      lowSeasonHtml = '<div style="padding:10px 16px;border-top:1px solid var(--border);background:#fff7ed">'
+        + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:8px">'
         + '<span style="font-size:11px;font-weight:700;color:#c2410c">📉 Low Season ('+(filterSA==='ALL'?'Gabungan':filterSA)+', total trip terendah):</span>'
         + lowN.map(function(d){
             var t = tripByBucket[d];
@@ -2655,6 +2662,8 @@ function buildArmadaTypeTrend(container) {
             return '<span style="font-size:11px;background:#fff;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px"><b>'+bucketLabel(d,gran)+'</b>: '+t+' trip ('+(pctVsAvg<=0?'':'+')+pctVsAvg.toFixed(0)+'% vs avg)</span>';
           }).join('')
         + '<span style="font-size:11px;color:var(--t3)">rata-rata: '+avgTrip.toFixed(0)+' trip/'+bucketUnitLabel(gran)+'</span>'
+        + '</div>'
+        + '<div style="height:110px;position:relative"><canvas id="cLowSeasonChart"></canvas></div>'
         + '</div>';
     }
   }
@@ -2906,6 +2915,46 @@ function buildArmadaTypeTrend(container) {
         }
       }
     });
+  }
+
+  // ── Small bar charts for the insight callouts ──
+  function simpleBarChart(canvasId, chartsKey, labels, data, color) {
+    var cv = document.getElementById(canvasId);
+    if (!cv) return;
+    if (charts[chartsKey]) charts[chartsKey].destroy();
+    charts[chartsKey] = new Chart(cv.getContext('2d'), {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ data: data, backgroundColor: color, borderRadius: 4, maxBarThickness: 40 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display:false }, tooltip: { backgroundColor:'#ffffff', borderColor:'#e2e8f0', borderWidth:1, titleColor:'#0f172a', bodyColor:'#64748b', padding:8, cornerRadius:8 }, datalabels: { display:false } },
+        scales: {
+          x: { ticks:{color:'#64748b',font:{family:'Inter',size:10}}, grid:{display:false}, border:{display:false} },
+          y: { beginAtZero:true, ticks:{color:'#94a3b8',font:{family:'Inter',size:10}}, grid:{color:'#f1f5f9'}, border:{display:false} }
+        }
+      }
+    });
+  }
+
+  if (buGapFindings.length) {
+    var buGapLabels = [], buGapData = [], buGapColors = [];
+    buGapFindings.slice(0, 3).forEach(function(f) {
+      buGapLabels.push(f.lo.owner+' '+f.type); buGapData.push(+f.lo.pct.toFixed(1)); buGapColors.push('#ef4444');
+      buGapLabels.push(f.hi.owner+' '+f.type); buGapData.push(+f.hi.pct.toFixed(1)); buGapColors.push('#22c55e');
+    });
+    simpleBarChart('cBuGapChart', 'buGapChart', buGapLabels, buGapData, buGapColors);
+  }
+  if (Object.keys(utilByBucket).length >= 3) {
+    simpleBarChart('cLowUtilChart', 'lowUtilChart',
+      lowUtilN.map(function(d){ return bucketLabel(d,gran); }),
+      lowUtilN.map(function(d){ return +utilByBucket[d].toFixed(1); }),
+      '#ef4444');
+  }
+  if (allDates.length >= 3 && typeof lowN !== 'undefined' && lowN.length) {
+    simpleBarChart('cLowSeasonChart', 'lowSeasonChart',
+      lowN.map(function(d){ return bucketLabel(d,gran); }),
+      lowN.map(function(d){ return tripByBucket[d]; }),
+      '#f97316');
   }
 }
 
