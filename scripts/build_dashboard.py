@@ -261,6 +261,8 @@ def fetch_utilisasi(service, timestamp):
         'arm_assets': 19,  # ARMADA Assets
         'arm_avail':  20,  # ARMADA Availibility
         'arm_util':   21,  # ARMADA Utilisasi
+        'arm_service':23,  # ARMADA Service
+        'arm_idle':   24,  # ARMADA Idle
     }
     print(f"  Utilisasi col indices (hardcoded): {IDX}")
 
@@ -278,6 +280,8 @@ def fetch_utilisasi(service, timestamp):
         arm_assets = to_num(cell(r, IDX['arm_assets']))
         arm_avail  = to_num(cell(r, IDX['arm_avail']))
         arm_util   = to_num(cell(r, IDX['arm_util']))
+        arm_service= to_num(cell(r, IDX['arm_service']))
+        arm_idle   = to_num(cell(r, IDX['arm_idle']))
 
         util_rows.append({
             'site':       site,
@@ -289,6 +293,8 @@ def fetch_utilisasi(service, timestamp):
             'arm_assets': arm_assets,
             'arm_avail':  arm_avail,
             'arm_util':   arm_util,
+            'arm_service':arm_service,
+            'arm_idle':   arm_idle,
         })
 
     print(f"  ✓ {UTIL_SHEET_NAME}: {len(util_rows)} rows")
