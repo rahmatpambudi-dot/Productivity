@@ -2183,6 +2183,13 @@ function bucketLabel(key, gran) {
   return key.slice(8,10) + '/' + key.slice(5,7);
 }
 function bucketUnitLabel(gran) { return gran === 'monthly' ? 'bulan' : gran === 'weekly' ? 'minggu' : 'hari'; }
+// Chart-only label: 2 baris (nama hari di atas, tanggal di bawah) buat granularity harian.
+function chartAxisLabel(key, gran) {
+  if (gran !== 'daily') return bucketLabel(key, gran);
+  var dayNames = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  var d = new Date(key + 'T00:00:00');
+  return [dayNames[d.getDay()], key.slice(8,10)+'/'+key.slice(5,7)];
+}
 
 // ── MASTER ASSET (real fleet roster, per month) — site-key mapping ──
 const MASTER_SITE_KEY_MAP = {
@@ -2657,7 +2664,7 @@ function buildArmadaTypeTrend(container) {
 
   // ── Chart: % utilisasi per type per bucket, top 8 by asset count ──
   var chartTypes = allTypes.filter(function(t){ return EXCLUDED_ARMADA_TYPES.indexOf(t) === -1; }).slice(0, 8);
-  var dateLabels = allDates.map(function(d){ return bucketLabel(d, gran); });
+  var dateLabels = allDates.map(function(d){ return chartAxisLabel(d, gran); });
   var chartDatasets = chartTypes.map(function(t, i) {
     var lastAsset = allDates.length ? getBucketAsset(allDates[allDates.length-1]+'|'+t, t) : 0;
     var data = allDates.map(function(d) {
