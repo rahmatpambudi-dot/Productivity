@@ -2848,13 +2848,23 @@ function buildArmadaTypeTrend(container) {
       var totRitase = tot.nopolDays ? (tot.trip.size/tot.nopolDays) : null;
       // Sama kayak Util Armada: pake computeSite() (fungsi yang sama dipake panel
       // Utilisasi MPP & Armada) buat Ritase yang otoritatif & exact-match, scoped ke
-      // range tanggal bucket ini — bukan rekonstruksi ulang dari agregasi per-type.
+      // range tanggal bucket ini. Pake rows TANPA filter Trip/Type Armada lokal panel
+      // ini (biar selalu match ke angka site penuh, bukan subset yang lagi di-filter).
+      // Di-cache per (tanggal, site) biar ga recompute computeSite() yang berat tiap
+      // kali user ganti filter Trip/Type/Tampilan (yang trigger re-render penuh).
       if (sheetDatesArr.length) {
         var bucketMinDate = sheetDatesArr.reduce(function(a,b){ return a<b?a:b; });
         var bucketMaxDate = sheetDatesArr.reduce(function(a,b){ return a>b?a:b; });
-        var bucketRowsForRitase = rows.filter(function(r){ return r.date >= bucketMinDate && r.date <= bucketMaxDate; });
-        var siteResultForRitase = computeSite(bucketRowsForRitase, currentSite);
-        if (siteResultForRitase && siteResultForRitase.ritase != null) totRitase = siteResultForRitase.ritase;
+        var ritaseCacheKey = bucketMinDate + '|' + bucketMaxDate + '|' + currentSite;
+        if (!window._ritaseExactCache) window._ritaseExactCache = {};
+        var cachedRitase = window._ritaseExactCache[ritaseCacheKey];
+        if (cachedRitase === undefined) {
+          var bucketRowsForRitase = filterRows(ROWS, bucketMinDate, bucketMaxDate, currentSite);
+          var siteResultForRitase = computeSite(bucketRowsForRitase, currentSite);
+          cachedRitase = (siteResultForRitase && siteResultForRitase.ritase != null) ? siteResultForRitase.ritase : null;
+          window._ritaseExactCache[ritaseCacheKey] = cachedRitase;
+        }
+        if (cachedRitase != null) totRitase = cachedRitase;
       }
       var totAvgTat = tot.tatCnt ? tot.tatSum/tot.tatCnt : null;
       tbody += '<tr style="background:var(--bg);font-weight:700;border-top:2px solid var(--border)">'
