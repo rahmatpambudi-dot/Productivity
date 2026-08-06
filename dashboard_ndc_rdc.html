@@ -466,7 +466,6 @@ const SUB_SITES = {
 const TARGETS = {
   olf:      { label:'OLF', target: 0.85,  dir:'up',   fmt: v=>v!=null?(v*100).toFixed(1)+'%':'—', tgtFmt:'85%' },
   ritase:   { label:'Ritase', targetBySite:{ JABABEKA:1.15, CIKUPA:1.05, SDA:1.07, TALLO:1.25, TAMORA:1.25, NATIONAL:1.15 }, targetNational:1.15, dir:'up', fmt: v=>v!=null?v.toFixed(2):'—', tgtFmt:'site-specific' },
-  dpMix:    { label:'DP Mix', target: 8.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
   dpReg:    { label:'DP Reg', target: 8.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
   doTrip:   { label:'DO/Trip (Regular)', target: 11.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
 };
@@ -1111,7 +1110,6 @@ function buildKesimpulan(resA, resB, sumA, sumB) {
   const checks = [
     { key:'olf',label:'OLF Store',tgt:0.85,dir:'up',fmtV:v=>(v*100).toFixed(1)+'%',fmtT:'85%' },
     { key:'ritase',label:'Ritase',tgtFn:(site)=>getTarget('ritase',site),dir:'up',fmtV:v=>v.toFixed(2) },
-    { key:'dpMix',label:'DP Mix',tgt:8.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'8.0' },
     { key:'dpReg',label:'DP Reg',tgt:8.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'8.0' },
     { key:'doTrip',label:'DO/Trip (Regular)',tgt:11.0,dir:'up',fmtV:v=>v.toFixed(1),fmtT:'11.0' },
   ];
@@ -1405,7 +1403,6 @@ function renderDetail(results, summary, start, end) {
   const achMetrics = [
     { key:'olf',label:'OLF Store',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—',tgtFmt:'Target ≥85%'},
     { key:'ritase',label:'Ritase',fmt:v=>v!=null?v.toFixed(2):'—',tgtFmt:(site)=>`Target ≥${getTarget('ritase',site)||1.15}`},
-    { key:'dpMix',label:'DP Mix',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥8.0'},
     { key:'dpReg',label:'DP Reg',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥8.0'},
     { key:'doTrip',label:'DO/Trip (Regular)',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥11.0'},
   ];
@@ -4668,7 +4665,7 @@ function openPresentation() {
       var dpMixVal  = isFBIbu ? d.dpStore  : d.dpMix;
       var dpMixPrev = isFBIbu ? (p?p.dpStore:null) : (p?p.dpMix:null);
       var dpMixFmt  = dpMixVal!=null ? num(dpMixVal,1)+(isFBIbu?'<sup style="font-size:8px;color:#94a3b8">*</sup>':'') : '—';
-      return '<td class="'+(d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+pct(d.olf)+badge(d.olf,p?.olf,false,false)+'</td>'
+      return '<td class="'+(!isFBIbu&&d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+(isFBIbu?'—':pct(d.olf)+badge(d.olf,p?.olf,false,false))+'</td>'
         +'<td>'+dpMixFmt+badge(dpMixVal,dpMixPrev,false,true,1)+'</td>'
         +'<td>'+num(d.dpReg,1)+badge(d.dpReg,p?.dpReg,false,true,1)+'</td>'
         +'<td>'+num(d.cbmDpMix,2)+badge(d.cbmDpMix,p?.cbmDpMix,false,true,2)+'</td>'
