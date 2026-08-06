@@ -2310,7 +2310,7 @@ function getMasterAssetNopolAnywhereAtSite(date, site) {
 
 // ── Kalibrasi ke sheet "Utilisasi" (ground truth observasi lapangan: Assets/Idle/Service) ──
 const UTIL_SHEET_SITE_MAP = {
-  'JABABEKA': { 'HCI':'HCI JABABEKA', 'AHI':'AHI JABABEKA', 'FBI':'JAB_FBI', 'KLS':'JAB_KLS' },
+  'JABABEKA': { 'HCI':'HCI JABABEKA', 'AHI':'AHI JABABEKA' }, // FBI/KLS: no reliable Utilisasi sheet data
   'CIKUPA':   { 'HCI':'HCI CIKUPA' },
   'SDA':      { 'HCI':'SDA_HCI', 'AHI':'SDA_AHI', 'FBI':'SDA_FBI' },
   'TALLO':    { 'HCI':'TALLO_HCI', 'AHI':'TALLO_AHI', 'FBI':'TALLO_FBI' },
@@ -2352,25 +2352,27 @@ function buildDailyCalibScale(rows, agg) {
   });
   var activeScale = {}, assetScale = {}, targetActive = {}, targetAsset = {}, targetIdle = {};
   Object.keys(ownersByDate).forEach(function(date) {
-    var targetUtil = 0, targetAvail = 0, foundAny = false, masterTotal = 0, idleSum = 0, idleFound = false;
+    var targetUtil = 0, targetAvail = 0, masterTotal = 0, idleSum = 0;
+    var allCovered = true, allIdleCovered = true;
     ownersByDate[date].forEach(function(siteOwner) {
       var parts = siteOwner.split('|');
       var sk = getUtilSheetSiteKey(parts[0], parts[1]);
-      if (sk) {
-        var row = idx[sk + '|' + date];
-        if (row) {
-          if (row.arm_util != null) { targetUtil += row.arm_util; foundAny = true; }
-          if (row.arm_avail != null) targetAvail += row.arm_avail;
-          if (row.arm_idle != null) { idleSum += row.arm_idle; idleFound = true; }
-        }
+      var row = sk ? idx[sk + '|' + date] : null;
+      if (!sk || !row || row.arm_util == null || row.arm_avail == null) {
+        allCovered = false;
+      } else {
+        targetUtil += row.arm_util;
+        targetAvail += row.arm_avail;
       }
+      if (!sk || !row || row.arm_idle == null) allIdleCovered = false;
+      else idleSum += row.arm_idle;
       masterTotal += getMasterAssetTotalCount(date, parts[0], parts[1]);
     });
     var tripActiveTotal = dateActiveTotal[date] ? dateActiveTotal[date].size : 0;
-    if (foundAny && tripActiveTotal > 0) activeScale[date] = targetUtil / tripActiveTotal;
-    if (foundAny && targetAvail > 0 && masterTotal > 0) assetScale[date] = targetAvail / masterTotal;
-    if (foundAny) { targetActive[date] = targetUtil; targetAsset[date] = targetAvail; }
-    if (idleFound) targetIdle[date] = idleSum;
+    if (allCovered && tripActiveTotal > 0) activeScale[date] = targetUtil / tripActiveTotal;
+    if (allCovered && targetAvail > 0 && masterTotal > 0) assetScale[date] = targetAvail / masterTotal;
+    if (allCovered) { targetActive[date] = targetUtil; targetAsset[date] = targetAvail; }
+    if (allIdleCovered) targetIdle[date] = idleSum;
   });
   return { activeScale: activeScale, assetScale: assetScale, targetActive: targetActive, targetAsset: targetAsset, targetIdle: targetIdle };
 }
