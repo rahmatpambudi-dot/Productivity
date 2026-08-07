@@ -3972,7 +3972,7 @@ window.renderDetail=function(results,summary,start,end){
         : '';
       costEl.innerHTML =
         '<div class="panel">'
-        + '<div class="ph"><h3>Cost Analysis</h3>'
+        + '<div class="ph"><h3>Cost Delivery Analysis</h3>'
         + '<div style="display:flex;align-items:center;gap:8px">'
         + '<span class="tag">Total Cost · UJP · Cost/Trip · Cost/DO & Cost/CBM per type</span>'
         + '<button onclick="exportCostJalurCSV()" title="Export tabel Per Jalur yang sedang tampil ke CSV" style="display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;padding:3px 10px;border-radius:20px;cursor:pointer;font-family:Inter,sans-serif">⬇ Export CSV</button>'
@@ -4209,7 +4209,7 @@ function renderSlide(results, summary, start, end) {
           <div style="margin-bottom:20px">
             <div style="font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Konten Slide</div>
             <div style="display:flex;flex-direction:column;gap:6px">
-              ${['📌 Slide 1 — Cover','📊 Slide 2 — Trend Bulanan per Site','🚛 Slide 3 — Utilisasi MPP & Armada','🔢 Slide 4 — Trip per Type Delivery','💰 Slide 5 — Cost Analysis'].map(s=>'<div style="padding:9px 14px;background:var(--gbg);border:1px solid var(--gl);border-radius:8px;font-size:12px;color:var(--green);font-weight:500">'+s+'</div>').join('')}
+              ${['📌 Slide 1 — Cover','📊 Slide 2 — Trend Bulanan per Site','🚛 Slide 3 — Utilisasi MPP & Armada','🔢 Slide 4 — Trip per Type Delivery','💰 Slide 5 — Cost Delivery Analysis'].map(s=>'<div style="padding:9px 14px;background:var(--gbg);border:1px solid var(--gl);border-radius:8px;font-size:12px;color:var(--green);font-weight:500">'+s+'</div>').join('')}
             </div>
           </div>
           <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
@@ -4847,7 +4847,7 @@ function openPresentation() {
       +'</div>'
       // Top-right: Cost
       +'<div class="prs-section">'
-      +'<div class="prs-sec-title">💰 Cost Analysis</div>'
+      +'<div class="prs-sec-title">💰 Cost Delivery Analysis</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+costThead+'<tbody>'+costBody+'</tbody></table></div>'
       +'</div>'
       // Bottom-left: Trip only
