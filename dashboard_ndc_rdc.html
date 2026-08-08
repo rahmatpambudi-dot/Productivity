@@ -604,8 +604,14 @@ function getMonthRange(mo) {
   if(fullMonthMode) {
     return { start: mo+'-01', end: mo+'-'+String(lastDay).padStart(2,'0') };
   } else {
-    var d1 = Math.min(parseInt(fs.slice(8,10)), lastDay);
-    var d2 = Math.min(parseInt(fe.slice(8,10)), lastDay);
+    // Fix: d1 hanya pakai day-of-month dari fs kalau mo = bulan pertama filter,
+    // d2 hanya pakai day-of-month dari fe kalau mo = bulan terakhir filter.
+    // Bulan di tengah (atau satu-satunya bulan lain) pakai full month.
+    // Sebelumnya d1/d2 selalu pakai day(fs)/day(fe) untuk SEMUA bulan — kalau day(fs) > day(fe)
+    // (misal filter 30 Jul-05 Agu), d1>d2 di kedua bulan sehingga filterRows() selalu kosong.
+    var fsMonth = fs.slice(0,7), feMonth = fe.slice(0,7);
+    var d1 = (mo === fsMonth) ? Math.min(parseInt(fs.slice(8,10)), lastDay) : 1;
+    var d2 = (mo === feMonth) ? Math.min(parseInt(fe.slice(8,10)), lastDay) : lastDay;
     return { start: mo+'-'+String(d1).padStart(2,'0'), end: mo+'-'+String(d2).padStart(2,'0') };
   }
 }
