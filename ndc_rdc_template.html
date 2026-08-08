@@ -4257,8 +4257,12 @@ function generatePPT() {
     var cacheKey = buKey+'|'+mo;
     if(_resCache[cacheKey] !== undefined) return _resCache[cacheKey];
     var dIM = new Date(parseInt(mo.slice(0,4)),parseInt(mo.slice(5,7)),0).getDate();
-    var d1 = mo+'-'+String(parseInt(s.slice(8,10))).padStart(2,'0');
-    var d2 = mo+'-'+String(Math.min(parseInt(e.slice(8,10)),dIM)).padStart(2,'0');
+    // Bulan pertama di range pakai tanggal awal filter (s), bulan terakhir pakai tanggal akhir filter (e),
+    // bulan di tengah pakai full month. Ini fix bug: sebelumnya d1 selalu pakai day-of-month dari s dan
+    // d2 selalu pakai day-of-month dari e untuk SEMUA bulan — kalau day(s) > day(e) (misal filter 30 Jul–05 Agu),
+    // d1 jadi lebih besar dari d2 di kedua bulan, sehingga filterRows() selalu return kosong (data PPT blank).
+    var d1 = mo === fsMonth ? s : mo+'-01';
+    var d2 = mo === feMonth ? e : mo+'-'+String(dIM).padStart(2,'0');
     var moF = filterRows(ROWS,d1,d2,buKey);
     var sub = SUB_SITES[buKey];
     var sr = sub ? moF : moF.filter(function(r){return r.site===(buKey==='JABABEKA'||buKey==='SDA'||buKey==='CIKUPA'||buKey==='TALLO'||buKey==='TAMORA'?buKey:buKey);});
