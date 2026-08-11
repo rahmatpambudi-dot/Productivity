@@ -4842,47 +4842,132 @@ function openPresentation() {
         +'<td>'+fmtK(cc?.costCbmHub)+(cp?bdgN(cc?.costCbmHub,cp?.costCbmHub,true,'rb'):'')+'</td></tr>';
     });
 
-    return '<div class="prs-slide-inner">'
-      // Header
-      +'<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">'
+    // ── KPI Achievement cards (Slide 1): Corporate-level ──
+    function kpiArrow(cur, prev, isLow) {
+      if(cur==null||prev==null) return '';
+      var d = cur-prev; if(Math.abs(d)<0.05) return '';
+      var good = isLow ? d<0 : d>0;
+      return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(1)+' pts vs '+mnPrev+'</span>';
+    }
+    function kpiBadge(val, target) {
+      if(val==null||target==null) return '';
+      var ok = val >= target;
+      return '<span class="prs-kpi-badge" style="background:'+(ok?'#dcfce7':'#fee2e2')+';color:'+(ok?'#166534':'#991b1b')+'">'+(ok?'✅ Achieved':'🔴 Di bawah target '+target+'%')+'</span>';
+    }
+    var dCorp = getRes(site, curMo), dCorpP = prevMo?getRes(site,prevMo):null;
+    var uCorp = getUtil(site, curMo), uCorpP = prevMo?getUtil(site,prevMo):null;
+    var olfCorp = dCorp.olf!=null ? dCorp.olf*100 : null;
+    var olfCorpP = dCorpP && dCorpP.olf!=null ? dCorpP.olf*100 : null;
+    function kpiBadgeNum(val, target, dec) {
+      if(val==null||target==null) return '';
+      var ok = val >= target;
+      return '<span class="prs-kpi-badge" style="background:'+(ok?'#dcfce7':'#fee2e2')+';color:'+(ok?'#166534':'#991b1b')+'">'+(ok?'✅ Achieved':'🔴 Di bawah target '+target.toFixed(dec||2))+'</span>';
+    }
+    function kpiArrowNum(cur, prev, dec) {
+      if(cur==null||prev==null) return '';
+      var d = cur-prev; if(Math.abs(d)<0.005) return '';
+      var good = d>0;
+      return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+' vs '+mnPrev+'</span>';
+    }
+    var kpiCardsHTML = '<div class="prs-kpi-row" style="grid-template-columns:repeat(5,1fr)">'
+      +'<div class="prs-kpi"><div class="prs-kpi-label">Availability Armada</div>'
+      +'<div class="prs-kpi-val">'+(uCorp&&uCorp.armAvailPct!=null?uCorp.armAvailPct.toFixed(1)+'%':'—')+'</div>'
+      +kpiBadge(uCorp?uCorp.armAvailPct:null, 97)
+      +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.armAvailPct:null, uCorpP?uCorpP.armAvailPct:null, false)+'</div>'
+      +'</div>'
+      +'<div class="prs-kpi"><div class="prs-kpi-label">Fleet Trip Utilization</div>'
+      +'<div class="prs-kpi-val">'+(uCorp&&uCorp.armUtilPct!=null?uCorp.armUtilPct.toFixed(1)+'%':'—')+'</div>'
+      +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.armUtilPct:null, uCorpP?uCorpP.armUtilPct:null, false)+'</div>'
+      +'</div>'
+      +'<div class="prs-kpi"><div class="prs-kpi-label">Driver Trip Utilization</div>'
+      +'<div class="prs-kpi-val">'+(uCorp&&uCorp.drvUtil!=null?uCorp.drvUtil.toFixed(1)+'%':'—')+'</div>'
+      +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.drvUtil:null, uCorpP?uCorpP.drvUtil:null, false)+'</div>'
+      +'</div>'
+      +'<div class="prs-kpi"><div class="prs-kpi-label">OLF (Armada Store)</div>'
+      +'<div class="prs-kpi-val">'+(olfCorp!=null?olfCorp.toFixed(1)+'%':'—')+'</div>'
+      +kpiBadge(olfCorp, 85)
+      +'<div class="prs-kpi-sub">'+kpiArrow(olfCorp, olfCorpP, false)+'</div>'
+      +'</div>'
+      +'<div class="prs-kpi"><div class="prs-kpi-label">Ritase Armada</div>'
+      +'<div class="prs-kpi-val">'+(uCorp&&uCorp.ritaseArmada!=null?uCorp.ritaseArmada.toFixed(2):'—')+'</div>'
+      +kpiBadgeNum(uCorp?uCorp.ritaseArmada:null, 1.15, 2)
+      +'<div class="prs-kpi-sub">'+kpiArrowNum(uCorp?uCorp.ritaseArmada:null, uCorpP?uCorpP.ritaseArmada:null, 2)+'</div>'
+      +'</div>'
+      +'</div>';
+
+    // ── Cost KPI cards (Slide 2): Corporate-level ──
+    var ccCorp = getCost(site, curMo), ccCorpP = prevMo?getCost(site,prevMo):null;
+    function costArrow(cur, prev, isLow, fmt) {
+      if(cur==null||prev==null) return '';
+      var d = cur-prev; if(d===0) return '';
+      var good = isLow ? d<0 : d>0;
+      var label;
+      if(fmt==='jt') label=(Math.abs(d)/1e6).toFixed(1)+' jt';
+      else if(fmt==='rb') label=Math.round(Math.abs(d)/1000).toLocaleString('id-ID')+' rb';
+      else label=Math.abs(Math.round(d)).toLocaleString('id-ID');
+      return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+label+' vs '+mnPrev+'</span>';
+    }
+    function costCard(label, val, prev, fmtFn, isLow, fmt) {
+      return '<div class="prs-kpi"><div class="prs-kpi-label">'+label+'</div>'
+        +'<div class="prs-kpi-val" style="font-size:18px">'+fmtFn(val)+'</div>'
+        +'<div class="prs-kpi-sub">'+costArrow(val, prev, isLow, fmt)+'</div>'
+        +'</div>';
+    }
+    var costKpiHTML = '<div class="prs-kpi-row">'
+      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, false, 'jt')
+      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, function(v){return v!=null?v:'—';}, false, 'n')
+      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb')
+      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb')
+      +'</div><div class="prs-kpi-row">'
+      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb')
+      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb')
+      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb')
+      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb')
+      +'</div>';
+
+    var headerHTML = '<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">'
       +'<div class="prs-site-label">'+siteName+'</div>'
       +'<div class="prs-mom-label">'+momLabel+'</div>'
-      +'</div>'
-      // 2x2 grid
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:8px">'
-      // Top-left: Metrik
+      +'</div>';
+
+    var slide1 = '<div class="prs-slide-inner">'
+      +headerHTML
+      +kpiCardsHTML
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
       +'<div class="prs-section">'
-      +'<div class="prs-sec-title">📊 Produktivitas</div>'
-      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+metrikThead+'<tbody>'+metrikBody+'</tbody></table></div>'+metrikLegend
+      +'<div class="prs-sec-title">📦 Demand</div>'
+      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+demandThead+'<tbody>'+demandBody+'</tbody></table></div>'
       +'</div>'
-      // Top-right: Cost
-      +'<div class="prs-section">'
-      +'<div class="prs-sec-title">💰 Cost Delivery Analysis</div>'
-      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+costThead+'<tbody>'+costBody+'</tbody></table></div>'
-      +'</div>'
-      // Bottom-left: Trip only
       +'<div class="prs-section">'
       +'<div class="prs-sec-title">🚛 Trip per Type</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+tripThead+'<tbody>'+tripBody+'</tbody></table></div>'
       +'</div>'
-      // Bottom-right: Demand left (wider), Insight right (narrower)
-      +'<div class="prs-section" style="display:flex;gap:12px">'
-      +'<div style="flex:1.4;min-width:0">'
-      +'<div class="prs-sec-title">📦 Demand</div>'
-      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+demandThead+'<tbody>'+demandBody+'</tbody></table></div>'
       +'</div>'
-      +'<div style="flex:0.6;min-width:0;overflow:hidden">'
-      +'<div class="prs-sec-title">💡 Insight</div>'
-      +buildInsight(site, curMo, prevMo)
-      +'</div>'
-      +'</div>'
+      +'<div class="prs-section" style="margin-top:8px">'
+      +'<div class="prs-sec-title">📊 Produktivitas</div>'
+      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+metrikThead+'<tbody>'+metrikBody+'</tbody></table></div>'+metrikLegend
       +'</div>'
       +'</div>';
+
+    var slide2 = '<div class="prs-slide-inner">'
+      +headerHTML
+      +costKpiHTML
+      +'<div class="prs-section">'
+      +'<div class="prs-sec-title">💰 Cost Delivery Analysis</div>'
+      +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+costThead+'<tbody>'+costBody+'</tbody></table></div>'
+      +'</div>'
+      +'</div>';
+
+    return {slide1: slide1, slide2: slide2};
   }
 
-  // Build slides list: cover + 1 per site
+  // Build slides list: cover + 2 per site (KPI/Demand/Trip/Produktivitas, then Cost)
   var slides = [{type:'cover'}];
-  SITE_ORDER.forEach(function(site){ slides.push({type:'site', site}); });
+  SITE_ORDER.forEach(function(site){
+    var built = buildSiteSlide(site);
+    slides.push({type:'site1', site, html: built.slide1});
+    slides.push({type:'site2', site, html: built.slide2});
+  });
 
   var slidesHTML = slides.map(function(sl,i){
     var content;
@@ -4896,7 +4981,7 @@ function openPresentation() {
         +'<div class="prs-fm">'+(fullMonthMode?'Mode: Full Month':'Mode: Range Date')+'</div>'
         +'</div>';
     } else {
-      content = buildSiteSlide(sl.site);
+      content = sl.html;
     }
     return '<div class="prs-slide" id="slide-'+i+'">'+content+'</div>';
   }).join('');
@@ -4926,6 +5011,12 @@ function openPresentation() {
     +'.prs-tbl td{padding:5px 7px;text-align:right;border-bottom:1px solid #e2e8f0;white-space:nowrap}'
     +'.bu-label{text-align:left!important;color:#334155}'
     +'.corp-row td{background:#f0fdf4!important;border-top:2px solid #16a34a}'
+    +'.prs-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}'
+    +'.prs-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px}'
+    +'.prs-kpi-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}'
+    +'.prs-kpi-val{font-size:24px;font-weight:800;color:#0f172a}'
+    +'.prs-kpi-sub{font-size:10px;margin-top:4px;font-weight:600}'
+    +'.prs-kpi-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;margin-top:5px}'
     +'.prs-tbl td.g{color:#166534;font-weight:700;background:#dcfce7!important}'
     +'.prs-tbl td.y{color:#854d0e;font-weight:700;background:#fef9c3!important}'
     +'.prs-tbl td.r{color:#991b1b;font-weight:700;background:#fee2e2!important}'
