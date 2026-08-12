@@ -832,7 +832,8 @@ function computeSite(rows, site) {
   const totalDpCust = ssum(drAll.map(r=>parseFloat(r.dp)||0));
 
   // On Time Fleet Fulfillment by Batch — % row dgn SLA Check In = HIT dari semua trip yang punya data sla
-  const slaRows = sr.filter(r => r.sla === 'HIT' || r.sla === 'MIS');
+  // (normalisasi: "MIS" & "MISS" dua-duanya dianggap Mis, biar gak kesenggol variasi input di sheet)
+  const slaRows = sr.filter(r => r.sla === 'HIT' || r.sla === 'MIS' || r.sla === 'MISS');
   const slaHitPct = slaRows.length ? (slaRows.filter(r=>r.sla==='HIT').length / slaRows.length * 100) : null;
 
   return {
@@ -862,7 +863,7 @@ function computeSite(rows, site) {
 
 function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(Boolean); }
 function makeSummary(results) {
-  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDoMix','cbmDp','cbmDpMix','doTripMix','tatDirect','tatStore','doTripAll','tatDirectOver8','tatDirectUnder8','tatStoreOver8','tatStoreUnder8'];
+  const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDoMix','cbmDp','cbmDpMix','doTripMix','tatDirect','tatStore','doTripAll','tatDirectOver8','tatDirectUnder8','tatStoreOver8','tatStoreUnder8','slaHitPct'];
   const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust'];
   return {
     site:'NDC & RDC', label:'NDC & RDC',
