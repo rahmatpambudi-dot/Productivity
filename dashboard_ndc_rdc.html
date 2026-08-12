@@ -468,6 +468,7 @@ const TARGETS = {
   ritase:   { label:'Ritase', targetBySite:{ JABABEKA:1.15, CIKUPA:1.05, SDA:1.07, TALLO:1.25, TAMORA:1.25, NATIONAL:1.15 }, targetNational:1.15, dir:'up', fmt: v=>v!=null?v.toFixed(2):'—', tgtFmt:'site-specific' },
   dpReg:    { label:'DP Reg', target: 8.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'8.0' },
   doTrip:   { label:'DO/Trip (Regular)', target: 11.0, dir:'up', fmt: v=>v!=null?v.toFixed(1):'—', tgtFmt:'11.0' },
+  slaHitPct:{ label:'On Time Fleet Fulfillment by Batch', target: 99.6, dir:'up', fmt: v=>v!=null?v.toFixed(1)+'%':'—', tgtFmt:'99.6%' },
 };
 let cmpA = { start:'', end:'' };
 let cmpB = { start:'', end:'' };
@@ -830,6 +831,10 @@ function computeSite(rows, site) {
   const totalDoCust = ssum(drAll.map(r=>parseFloat(r.do)||0));
   const totalDpCust = ssum(drAll.map(r=>parseFloat(r.dp)||0));
 
+  // On Time Fleet Fulfillment by Batch — % row dgn SLA Check In = HIT dari semua trip yang punya data sla
+  const slaRows = sr.filter(r => r.sla === 'HIT' || r.sla === 'MIS');
+  const slaHitPct = slaRows.length ? (slaRows.filter(r=>r.sla==='HIT').length / slaRows.length * 100) : null;
+
   return {
     site, label: SL[site]||site,
     ritase: ritaseVal, olf: (isKLS||site==='TAMORA_KLS') ? null : (oM>0?oL/oM:null),
@@ -850,7 +855,7 @@ function computeSite(rows, site) {
     tatStoreOver8: tatS.length ? tatS.filter(function(v){return v>8;}).length/tatS.length*100 : null,
     tatStoreUnder8: tatS.length ? tatS.filter(function(v){return v<=8;}).length/tatS.length*100 : null,
     totalCbmStore, totalDoCust, totalDpCust,
-    doTripAll,
+    doTripAll, slaHitPct,
     rowCount: sr.length,
   };
 }
@@ -978,6 +983,7 @@ function renderOverview(results, summary, start, end) {
     {l:'OLF STORE',v:pp(summary.olf),s:'Avg NDC & RDC',c:'green'},
     {l:'OLF TERBAIK',v:pp(best.olf),s:best.label||'—',c:'green'},
     {l:'OLF RENDAH',v:pp(worst.olf),s:worst.label||'—',c:'red'},
+    {l:'ON TIME FLEET FULFILLMENT',v:summary.slaHitPct!=null?summary.slaHitPct.toFixed(1)+'%':'—',s:'Avg, target 99.6%',c:(summary.slaHitPct!=null&&summary.slaHitPct>=99.6)?'green':'red'},
     {l:'DP STORE',v:pf(summary.dpStore,1),s:'Avg',c:'blue'},
     {l:'DO/TRIP',v:pf(summary.doTrip,1),s:'Avg Direct',c:''},
     {l:'DO/DP',v:pf(summary.doDp,2),s:'Avg Direct',c:''},
@@ -1000,6 +1006,7 @@ function renderOverview(results, summary, start, end) {
         <th style="text-align:left;min-width:90px">SITE</th>
         <th class="num" style="min-width:70px">RITASE</th>
         <th class="num" style="min-width:80px">OLF STORE</th>
+        <th class="num" style="min-width:110px">ON TIME FULFILLMENT</th>
         <th class="num" style="min-width:75px">DP STORE</th>
         <th class="num" style="min-width:70px">DP MIX</th>
         <th class="num" style="min-width:90px">DP NON REG</th>
@@ -1043,6 +1050,7 @@ function renderOverview(results, summary, start, end) {
       <td><strong>${r.label||r.site}</strong></td>
       <td class="num">${pf(r.ritase,2)}</td>
       <td class="num">${olfBadge(r.olf)}</td>
+      <td class="num">${slaBadge(r.slaHitPct)}</td>
       <td class="num">${pf(r.dpStore,1)}</td><td class="num">${pf(r.dpMix,1)}</td>
       <td class="num">${pf(r.dpNonReg,1)}</td><td class="num">${pf(r.dpReg,1)}</td>
       <td class="num">${pf(r.doTrip,1)}</td><td class="num">${pf(r.doTripMix,1)}</td><td class="num">${pf(r.doDp,2)}</td>
@@ -1056,6 +1064,11 @@ function olfBadge(v) {
   if(p>=90)return`<span class="bg">${p.toFixed(1)}%</span>`;
   if(p>=80)return`<span class="bm">${p.toFixed(1)}%</span>`;
   return`<span class="br">${p.toFixed(1)}%</span>`;
+}
+
+function slaBadge(v) {
+  if(v==null)return'—';
+  return v>=99.6 ? `<span class="bg">${v.toFixed(1)}%</span>` : `<span class="br">${v.toFixed(1)}%</span>`;
 }
 
 function renderBars(id, results, getFn, fmtFn, cls) {
@@ -1400,6 +1413,7 @@ function renderDetail(results, summary, start, end) {
   const filtered = filterRows(ROWS, s, e, currentSite);
   const metrics = [
     { key:'olf',label:'OLF',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—'},
+    { key:'slaHitPct',label:'On Time Fleet Fulfillment by Batch',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'ritase',label:'Ritase',fmt:v=>pf(v,2)},
     { key:'dpStore',label:'DP Store',fmt:v=>pf(v,1)},
     { key:'dpMix',label:'DP Mix',fmt:v=>pf(v,1)},
@@ -1423,6 +1437,7 @@ function renderDetail(results, summary, start, end) {
   ];
   const achMetrics = [
     { key:'olf',label:'OLF Store',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—',tgtFmt:'Target ≥85%'},
+    { key:'slaHitPct',label:'On Time Fleet Fulfillment by Batch',fmt:v=>v!=null?v.toFixed(1)+'%':'—',tgtFmt:'Target ≥99.6%'},
     { key:'ritase',label:'Ritase',fmt:v=>v!=null?v.toFixed(2):'—',tgtFmt:(site)=>`Target ≥${getTarget('ritase',site)||1.15}`},
     { key:'dpReg',label:'DP Reg',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥8.0'},
     { key:'doTrip',label:'DO/Trip (Regular)',fmt:v=>v!=null?v.toFixed(1):'—',tgtFmt:'Target ≥11.0'},
@@ -4869,7 +4884,12 @@ function openPresentation() {
       var good = d>0;
       return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+' vs '+mnPrev+'</span>';
     }
-    var kpiCardsHTML = '<div class="prs-kpi-row" style="grid-template-columns:repeat(5,1fr)">'
+    var kpiCardsHTML = '<div class="prs-kpi-row" style="grid-template-columns:repeat(6,1fr)">'
+      +'<div class="prs-kpi"><div class="prs-kpi-label">On Time Fleet Fulfillment by Batch</div>'
+      +'<div class="prs-kpi-val">'+(dCorp&&dCorp.slaHitPct!=null?dCorp.slaHitPct.toFixed(1)+'%':'—')+'</div>'
+      +kpiBadge(dCorp?dCorp.slaHitPct:null, 99.6)
+      +'<div class="prs-kpi-sub">'+kpiArrow(dCorp?dCorp.slaHitPct:null, dCorpP?dCorpP.slaHitPct:null, false)+'</div>'
+      +'</div>'
       +'<div class="prs-kpi"><div class="prs-kpi-label">Availability Armada</div>'
       +'<div class="prs-kpi-val">'+(uCorp&&uCorp.armAvailPct!=null?uCorp.armAvailPct.toFixed(1)+'%':'—')+'</div>'
       +kpiBadge(uCorp?uCorp.armAvailPct:null, 97)
