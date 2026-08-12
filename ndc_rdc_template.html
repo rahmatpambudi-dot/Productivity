@@ -72,9 +72,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .spinner{width:28px;height:28px;border:2.5px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:18px;}
-.kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:var(--shadow);transition:box-shadow .2s;}
+.kpi{background:var(--white);border:1px solid var(--border);border-left:4px solid #94a3b8;border-radius:var(--r);padding:13px 15px;box-shadow:var(--shadow);transition:box-shadow .2s;}
+.kpi-green{border-left-color:var(--green)!important;}
+.kpi-red{border-left-color:var(--red)!important;}
+.kpi-blue{border-left-color:var(--blue)!important;}
 .kpi:hover{box-shadow:var(--shadow-md);}
-.kpi .lbl{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px;}
+.kpi .lbl{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px;line-height:1.35;min-height:24px;display:flex;align-items:flex-end;}
 .kpi .val{font-size:21px;font-weight:700;color:var(--text);font-family:'JetBrains Mono',monospace;line-height:1;}
 .kpi .val.green{color:var(--green);}.kpi .val.red{color:var(--red);}.kpi .val.blue{color:var(--blue);}
 .kpi .sub{font-size:10px;color:var(--t3);margin-top:4px;}
@@ -984,7 +987,7 @@ function renderOverview(results, summary, start, end) {
     {l:'OLF STORE',v:pp(summary.olf),s:'Avg NDC & RDC',c:'green'},
     {l:'OLF TERBAIK',v:pp(best.olf),s:best.label||'—',c:'green'},
     {l:'OLF RENDAH',v:pp(worst.olf),s:worst.label||'—',c:'red'},
-    {l:'ON TIME FLEET FULFILLMENT',v:summary.slaHitPct!=null?summary.slaHitPct.toFixed(1)+'%':'—',s:'Avg, target 99.6%',c:(summary.slaHitPct!=null&&summary.slaHitPct>=99.6)?'green':'red'},
+    {l:'ON TIME FLEET FULFILLMENT',v:summary.slaHitPct!=null?summary.slaHitPct.toFixed(1)+'%':'—',s:'Avg, target 99.6%',c:'blue'},
     {l:'DP STORE',v:pf(summary.dpStore,1),s:'Avg',c:'blue'},
     {l:'DO/TRIP',v:pf(summary.doTrip,1),s:'Avg Direct',c:''},
     {l:'DO/DP',v:pf(summary.doDp,2),s:'Avg Direct',c:''},
@@ -992,7 +995,7 @@ function renderOverview(results, summary, start, end) {
     {l:'TAT STORE',v:tatStr(summary.tatStore),s:'Avg',c:'blue'},
   ];
   document.getElementById('content').innerHTML = `
-    <div class="kpi-row">${kpis.map(k=>`<div class="kpi"><div class="lbl">${k.l}</div><div class="val ${k.c}">${k.v}</div><div class="sub">${k.s}</div></div>`).join('')}</div>
+    <div class="kpi-row">${kpis.map(k=>`<div class="kpi ${k.c?'kpi-'+k.c:''}"><div class="lbl">${k.l}</div><div class="val ${k.c}">${k.v}</div><div class="sub">${k.s}</div></div>`).join('')}</div>
     <div class="g3">
       <div class="panel"><div class="ph"><h3>OLF Store</h3><span class="tag">% utilitas</span></div><div class="pb"><div class="bars" id="bOLF"></div></div></div>
       <div class="panel"><div class="ph"><h3>DO / Trip Direct</h3><span class="tag">avg</span></div><div class="pb"><div class="bars" id="bDOT"></div></div></div>
@@ -4886,30 +4889,30 @@ function openPresentation() {
       return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+' vs '+mnPrev+'</span>';
     }
     var kpiCardsHTML = '<div class="prs-kpi-row" style="grid-template-columns:repeat(6,1fr)">'
-      +'<div class="prs-kpi"><div class="prs-kpi-label">On Time Fleet Fulfillment by Batch</div>'
+      +'<div class="prs-kpi prs-kpi-c1"><div class="prs-kpi-label">On Time Fleet Fulfillment by Batch</div>'
       +'<div class="prs-kpi-val">'+(dCorp&&dCorp.slaHitPct!=null?dCorp.slaHitPct.toFixed(1)+'%':'—')+'</div>'
       +kpiBadge(dCorp?dCorp.slaHitPct:null, 99.6)
       +'<div class="prs-kpi-sub">'+kpiArrow(dCorp?dCorp.slaHitPct:null, dCorpP?dCorpP.slaHitPct:null, false)+'</div>'
       +'</div>'
-      +'<div class="prs-kpi"><div class="prs-kpi-label">Availability Armada</div>'
+      +'<div class="prs-kpi prs-kpi-c2"><div class="prs-kpi-label">Availability Armada</div>'
       +'<div class="prs-kpi-val">'+(uCorp&&uCorp.armAvailPct!=null?uCorp.armAvailPct.toFixed(1)+'%':'—')+'</div>'
       +kpiBadge(uCorp?uCorp.armAvailPct:null, 97)
       +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.armAvailPct:null, uCorpP?uCorpP.armAvailPct:null, false)+'</div>'
       +'</div>'
-      +'<div class="prs-kpi"><div class="prs-kpi-label">Fleet Trip Utilization</div>'
+      +'<div class="prs-kpi prs-kpi-c3"><div class="prs-kpi-label">Fleet Trip Utilization</div>'
       +'<div class="prs-kpi-val">'+(uCorp&&uCorp.armUtilPct!=null?uCorp.armUtilPct.toFixed(1)+'%':'—')+'</div>'
       +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.armUtilPct:null, uCorpP?uCorpP.armUtilPct:null, false)+'</div>'
       +'</div>'
-      +'<div class="prs-kpi"><div class="prs-kpi-label">Driver Trip Utilization</div>'
+      +'<div class="prs-kpi prs-kpi-c4"><div class="prs-kpi-label">Driver Trip Utilization</div>'
       +'<div class="prs-kpi-val">'+(uCorp&&uCorp.drvUtil!=null?uCorp.drvUtil.toFixed(1)+'%':'—')+'</div>'
       +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.drvUtil:null, uCorpP?uCorpP.drvUtil:null, false)+'</div>'
       +'</div>'
-      +'<div class="prs-kpi"><div class="prs-kpi-label">OLF (Armada Store)</div>'
+      +'<div class="prs-kpi prs-kpi-c5"><div class="prs-kpi-label">OLF (Armada Store)</div>'
       +'<div class="prs-kpi-val">'+(olfCorp!=null?olfCorp.toFixed(1)+'%':'—')+'</div>'
       +kpiBadge(olfCorp, 85)
       +'<div class="prs-kpi-sub">'+kpiArrow(olfCorp, olfCorpP, false)+'</div>'
       +'</div>'
-      +'<div class="prs-kpi"><div class="prs-kpi-label">Ritase Armada</div>'
+      +'<div class="prs-kpi prs-kpi-c6"><div class="prs-kpi-label">Ritase Armada</div>'
       +'<div class="prs-kpi-val">'+(uCorp&&uCorp.ritaseArmada!=null?uCorp.ritaseArmada.toFixed(2):'—')+'</div>'
       +kpiBadgeNum(uCorp?uCorp.ritaseArmada:null, 1.15, 2)
       +'<div class="prs-kpi-sub">'+kpiArrowNum(uCorp?uCorp.ritaseArmada:null, uCorpP?uCorpP.ritaseArmada:null, 2)+'</div>'
@@ -4928,22 +4931,22 @@ function openPresentation() {
       else label=Math.abs(Math.round(d)).toLocaleString('id-ID');
       return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+label+' vs '+mnPrev+'</span>';
     }
-    function costCard(label, val, prev, fmtFn, isLow, fmt) {
-      return '<div class="prs-kpi"><div class="prs-kpi-label">'+label+'</div>'
+    function costCard(label, val, prev, fmtFn, isLow, fmt, colorCls) {
+      return '<div class="prs-kpi '+colorCls+'"><div class="prs-kpi-label">'+label+'</div>'
         +'<div class="prs-kpi-val" style="font-size:18px">'+fmtFn(val)+'</div>'
         +'<div class="prs-kpi-sub">'+costArrow(val, prev, isLow, fmt)+'</div>'
         +'</div>';
     }
     var costKpiHTML = '<div class="prs-kpi-row">'
-      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, false, 'jt')
-      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, function(v){return v!=null?v:'—';}, false, 'n')
-      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb')
-      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb')
+      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, false, 'jt', 'prs-kpi-c1')
+      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, function(v){return v!=null?v:'—';}, false, 'n', 'prs-kpi-c2')
+      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb', 'prs-kpi-c3')
+      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb', 'prs-kpi-c4')
       +'</div><div class="prs-kpi-row">'
-      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb')
-      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb')
-      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb')
-      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb')
+      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb', 'prs-kpi-c5')
+      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb', 'prs-kpi-c6')
+      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb', 'prs-kpi-c7')
+      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb', 'prs-kpi-c8')
       +'</div>';
 
     var headerHTML = '<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">'
@@ -5033,7 +5036,15 @@ function openPresentation() {
     +'.bu-label{text-align:left!important;color:#334155}'
     +'.corp-row td{background:#f0fdf4!important;border-top:2px solid #16a34a}'
     +'.prs-kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}'
-    +'.prs-kpi{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px}'
+    +'.prs-kpi{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #94a3b8;border-radius:8px;padding:10px 14px}'
+    +'.prs-kpi-c1{border-left-color:#0ea5e9}'
+    +'.prs-kpi-c2{border-left-color:#10b981}'
+    +'.prs-kpi-c3{border-left-color:#f97316}'
+    +'.prs-kpi-c4{border-left-color:#8b5cf6}'
+    +'.prs-kpi-c5{border-left-color:#06b6d4}'
+    +'.prs-kpi-c6{border-left-color:#ef4444}'
+    +'.prs-kpi-c7{border-left-color:#eab308}'
+    +'.prs-kpi-c8{border-left-color:#ec4899}'
     +'.prs-kpi-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}'
     +'.prs-kpi-val{font-size:24px;font-weight:800;color:#0f172a}'
     +'.prs-kpi-sub{font-size:10px;margin-top:4px;font-weight:600}'
