@@ -57,7 +57,7 @@ def get_service():
     )
     return gapi_build("sheets", "v4", credentials=creds, cache_discovery=False)
 
-def fetch_sheet(service, sheet_name, range_str="A:AQ"):
+def fetch_sheet(service, sheet_name, range_str="A:BF"):
     result = service.spreadsheets().values().get(
         spreadsheetId=SPREADSHEET_ID,
         range=f"'{sheet_name}'!{range_str}",
@@ -102,6 +102,7 @@ def map_cols(headers):
         "sewaArmada":  find("SEWA ARMADA"),
         "drvId":       find("DRIVERID", "DRIVER ID", "DRIVER_ID"),
         "crewId":      find("CREW1ID", "CREW 1 ID", "CREW1 ID", "CREW_1_ID"),
+        "sla":         find("SLA CHECK IN", "SLA CHECKIN"),
     }
 
 def parse_date_str(s):
@@ -173,6 +174,7 @@ def slim_row(r, cols, sheet_name, site):
         "sewa":  to_float(cell(r, cols["sewaArmada"])) if cols.get("sewaArmada",-1) >= 0 else None,
         "drvId":  cell(r, cols["drvId"]).upper()  if cols.get("drvId",-1)  >= 0 else "",
         "crewId": cell(r, cols["crewId"]).upper() if cols.get("crewId",-1) >= 0 else "",
+        "sla":    cell(r, cols["sla"]).strip().upper() if cols.get("sla",-1) >= 0 else "",
     }
 
 def parse_tat_py(s):
@@ -698,7 +700,7 @@ def build():
     print(f"data_master_asset.json: {os.path.getsize(master_asset_path)/1024:.1f} KB, {len(master_asset)} bulan")
 
     # Encode string fields to integer codes to reduce file size
-    ENCODE_FIELDS = ['sheet','site','td','kat','ta','sa','owner','nopol','jalur','ja','sat','od','drvId','crewId']
+    ENCODE_FIELDS = ['sheet','site','td','kat','ta','sa','owner','nopol','jalur','ja','sat','od','drvId','crewId','sla']
     
     # Build encoding maps from all rows
     enc_maps = {}
