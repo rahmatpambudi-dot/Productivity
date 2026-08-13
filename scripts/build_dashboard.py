@@ -641,14 +641,27 @@ def build():
     all_rows = []
     total = 0
 
+    # TEMP DEBUG — diagnosing why HCI JABABEKA / KLS JABABEKA yield 0 rows.
+    # Captured per-sheet and written to debug_build.json so we can inspect it
+    # without needing GitHub Actions log access (Azure Blob redirect issue).
+    import traceback
+    debug_info = []
+
     for s in SHEETS:
         print(f"  Fetching {s['name']}...")
+        sheet_debug = {"name": s["name"], "site": s["site"]}
         try:
             raw = fetch_sheet(service, s["name"])
+            sheet_debug["raw_data_rows"] = len(raw["data"])
+            sheet_debug["headers"] = raw["headers"]
             if not raw["headers"]:
-                print(f"  ✗ {s['name']}: empty"); continue
+                print(f"  ✗ {s['name']}: empty")
+                sheet_debug["status"] = "empty_headers"
+                debug_info.append(sheet_debug)
+                continue
 
             cols = map_cols(raw["headers"])
+            sheet_debug["cols"] = cols
             h_up = [x.upper() for x in raw["headers"]]
 
             if s["name"] == "HCI CIKUPA":
@@ -666,6 +679,10 @@ def build():
 
             print(f"  {s['name']} col indices: do={cols['do_']} cbm={cols['cbm']} cap={cols['capArmada']} dp={cols['dp']} kat={cols['kategori']}")
 
+            # sample first 3 raw date cells (before parsing) to catch format issues
+            sheet_debug["sample_date_cells"] = [cell(r, cols["date"]) for r in raw["data"][:3]]
+            sheet_debug["sample_parsed_dates"] = [parse_date_str(cell(r, cols["date"])) for r in raw["data"][:3]]
+
             for r in raw["data"]:
                 row = slim_row(r, cols, s["name"], s["site"])
                 if row["date"]:
@@ -674,9 +691,25 @@ def build():
             cnt = len([r for r in raw["data"] if parse_date_str(cell(r, cols["date"]))])
             total += cnt
             print(f"  ✓ {s['name']}: {cnt} rows")
+            sheet_debug["status"] = "ok"
+            sheet_debug["parsed_rows"] = cnt
 
         except Exception as e:
             print(f"  ✗ {s['name']}: {e}")
+            sheet_debug["status"] = "exception"
+            sheet_debug["error"] = str(e)
+            sheet_debug["traceback"] = traceback.format_exc()
+
+        debug_info.append(sheet_debug)
+
+    try:
+        _dbg_base = os.path.dirname(os.path.abspath(__file__))
+        _dbg_path = os.path.join(_dbg_base, '..', 'debug_build.json')
+        with open(_dbg_path, 'w', encoding='utf-8') as _dbgf:
+            json.dump({"timestamp": timestamp, "sheets": debug_info}, _dbgf, ensure_ascii=False, indent=2)
+        print(f"debug_build.json written: {len(debug_info)} sheets")
+    except Exception as _e:
+        print(f"  ✗ failed writing debug_build.json: {_e}")
 
     print(f"\nTotal rows: {total}")
 
