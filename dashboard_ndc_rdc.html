@@ -4501,29 +4501,44 @@ function openPresentation() {
   // Helper: compute result
   // Reset caches — pastikan tidak ada stale data dari sesi sebelumnya
   var _cache = {}, _ucache = {}, _ccache = {}, _tcache = {};
+
+  // MoM range helper — KHUSUS Present feature.
+  // Beda dari getMonthRange() global: getMonthRange() dipakai juga di trend chart/tabel historis,
+  // di mana bulan "di tengah range" MEMANG harus full month by design.
+  // Tapi di sini cuma ada 2 bulan (curMo & prevMo) buat perbandingan MoM langsung — jadi prevMo
+  // (Jul) harus mirror day-window yang sama persis kayak filter aktif (Agu 1-12 → Jul 1-12),
+  // bukan full month. Kalau tidak, delta MoM jadi apples-to-oranges (12 hari vs 31 hari).
+  function getMoMRange(mo) {
+    var year = parseInt(mo.slice(0,4)), month = parseInt(mo.slice(5,7));
+    var lastDay = new Date(year, month, 0).getDate();
+    var d1 = Math.min(parseInt(s.slice(8,10)), lastDay);
+    var d2 = Math.min(parseInt(e.slice(8,10)), lastDay);
+    return { start: mo+'-'+String(d1).padStart(2,'0'), end: mo+'-'+String(d2).padStart(2,'0') };
+  }
+
   function getRes(site, mo) {
     var k=site+'|'+mo; if(_cache[k]) return _cache[k];
-    var {start:d1,end:d2}=getMonthRange(mo);
+    var {start:d1,end:d2}=getMoMRange(mo);
     var rows=filterRows(ROWS,d1,d2,site);
     _cache[k]=computeSite(rows,site)||{}; return _cache[k];
   }
   function getUtil(site, mo) {
     var k=site+'|'+mo; if(_ucache[k]!==undefined) return _ucache[k];
-    var {start:d1,end:d2}=getMonthRange(mo);
+    var {start:d1,end:d2}=getMoMRange(mo);
     var r=filterUtilRows(d1,d2,site);
     _ucache[k]=r.rows.length?computeUtil(r.rows,r.allRows,site):null; return _ucache[k];
   }
 
   function getCost(site, mo) {
     var k=site+'|'+mo; if(_ccache[k]!==undefined) return _ccache[k];
-    var {start:d1,end:d2}=getMonthRange(mo);
+    var {start:d1,end:d2}=getMoMRange(mo);
     var rows=filterRows(ROWS,d1,d2,site);
     _ccache[k]=computeCost(rows); return _ccache[k];
   }
 
   function getTripByType(site, mo) {
     var k=site+'|'+mo; if(_tcache[k]!==undefined) return _tcache[k];
-    var {start:d1,end:d2}=getMonthRange(mo);
+    var {start:d1,end:d2}=getMoMRange(mo);
     var rows=filterRows(ROWS,d1,d2,site);
     var sets={customer:new Set(),store:new Set(),hub:new Set(),satelite:new Set(),other:new Set(),total:new Set()};
     rows.forEach(function(r){
