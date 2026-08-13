@@ -4851,22 +4851,24 @@ function openPresentation() {
     function fmtK(v){ return v!=null?Math.round(v/1000).toLocaleString('id-ID')+' rb':'—'; }
     function fmtD(v){ if(v==null) return '—'; if(v>=10000) return Math.round(v/1000).toLocaleString('id-ID')+' rb'; return Math.round(v).toLocaleString('id-ID'); }
     var costThead='<thead><tr><th style="text-align:left">BU</th>'
-      +'<th style="color:#1d4ed8">Total Cost</th><th style="color:#0369a1">UJP</th>'
+      +'<th style="color:#1d4ed8">Total Cost</th><th style="color:#0369a1">UJP</th><th style="color:#0369a1">UJP/Trip</th>'
       +'<th>Trip</th><th>Cost/Trip</th><th>C/DO Cust</th><th>C/DO Store</th><th>C/DO Hub</th>'
       +'<th>C/CBM Cust</th><th>C/CBM Store</th><th>C/CBM Hub</th>'
       +'</tr></thead>';
     var costBody='';
     buList.forEach(function(bu,i){
-      if(i>0) costBody+='<tr><td colspan="11" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      if(i>0) costBody+='<tr><td colspan="12" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       var cc=getCost(bu.key,curMo), cp=prevMo?getCost(bu.key,prevMo):null;
       if(prevMo&&cp) costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
-        +'<td>'+fmtM(cp.cost)+'</td><td>'+fmtM(cp.ujp)+'</td><td>'+cp.trip+'</td>'
+        +'<td>'+fmtM(cp.cost)+'</td><td>'+fmtM(cp.ujp)+'</td><td>'+fmtK(cp.ujpTrip)+'</td><td>'+cp.trip+'</td>'
         +'<td>'+fmtK(cp.costTrip)+'</td><td>'+fmtK(cp.costDoCust)+'</td><td>'+fmtK(cp.costDoStore)+'</td><td>'+fmtK(cp.costDoHub)+'</td>'
         +'<td>'+fmtK(cp.costCbmCust)+'</td><td>'+fmtK(cp.costCbmStore)+'</td><td>'+fmtK(cp.costCbmHub)+'</td></tr>';
       costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
         +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,false,'jt'):'')+'</td>'
-        +'<td>'+fmtM(cc?.ujp)+'</td><td>'+(cc?cc.trip:'—')+'</td>'
+        +'<td>'+fmtM(cc?.ujp)+'</td>'
+        +'<td>'+fmtK(cc?.ujpTrip)+(cp?bdgN(cc?.ujpTrip,cp?.ujpTrip,true,'rb'):'')+'</td>'
+        +'<td>'+(cc?cc.trip:'—')+'</td>'
         +'<td>'+fmtK(cc?.costTrip)+(cp?bdgN(cc?.costTrip,cp?.costTrip,true,'rb'):'')+'</td>'
         +'<td>'+fmtK(cc?.costDoCust)+(cp?bdgN(cc?.costDoCust,cp?.costDoCust,true,'rb'):'')+'</td>'
         +'<td>'+fmtK(cc?.costDoStore)+(cp?bdgN(cc?.costDoStore,cp?.costDoStore,true,'rb'):'')+'</td>'
