@@ -4824,7 +4824,7 @@ function openPresentation() {
       var dc=getRes(bu.key,curMo), dp2=prevMo?getRes(bu.key,prevMo):null;
       // Get CBM store & DO/CBM customer from raw rows
       function getDemand(mo) {
-        var {start:d1,end:d2}=getMonthRange(mo);
+        var {start:d1,end:d2}=getMoMRange(mo);
         var rows=filterRows(ROWS,d1,d2,bu.key);
         var cbmStore=0, doCust=0, cbmCust=0;
         rows.forEach(function(r){
