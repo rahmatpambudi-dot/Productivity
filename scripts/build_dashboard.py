@@ -778,6 +778,7 @@ def build():
 
     # data_monthly.json
     monthly = aggregate_monthly(all_rows, timestamp)
+    monthly["_debug_build"] = debug_info  # TEMP — remove after diagnosing HCI/KLS JABABEKA 0-row issue
     with open(monthly_path, 'w', encoding='utf-8') as f:
         json.dump(monthly, f, ensure_ascii=False, separators=(',',':'))
     print(f"data_monthly.json: {os.path.getsize(monthly_path)/1024:.1f} KB")
