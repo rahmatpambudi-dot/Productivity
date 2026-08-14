@@ -256,18 +256,10 @@ def fetch_utilisasi(service, timestamp):
     IDX = {
         'site':       0,
         'date':       1,
-        'drv_assets':  2,  # DRIVER Assets (TEMP debug)
-        'drv_plan':    3,  # DRIVER Plan
-        'drv_aktual':  4,  # DRIVER Aktual
-        'drv_gap':     5,  # DRIVER Gap (TEMP debug)
-        'drv_keh':     6,  # DRIVER Kehadiran (TEMP debug)
-        'drv_util':    7,  # DRIVER Utilize (TEMP debug)
-        'ast_assets':  8,  # AST.DRIVER Assets (TEMP debug)
-        'ast_plan':    9,  # AST.DRIVER Plan
+        'drv_plan':   3,   # DRIVER Plan
+        'drv_aktual': 4,   # DRIVER Aktual
+        'ast_plan':   9,   # AST.DRIVER Plan
         'ast_aktual': 10,  # AST.DRIVER Aktual
-        'ast_gap':    11,  # AST.DRIVER Gap (TEMP debug)
-        'ast_keh':    12,  # AST.DRIVER Kehadiran (TEMP debug)
-        'ast_util':   13,  # AST.DRIVER Utilize (TEMP debug)
         'arm_assets': 19,  # ARMADA Assets
         'arm_avail':  20,  # ARMADA Availibility
         'arm_util':   21,  # ARMADA Utilisasi
@@ -287,21 +279,10 @@ def fetch_utilisasi(service, timestamp):
     for r in data_rows:
         if cell(r, IDX['site']).strip().upper() == 'CORP SIDOARJO' or 'SIDOARJO' in cell(r, IDX['site']).upper():
             d = parse_date_str(cell(r, IDX['date']))
-            if d and '2026-07-20' <= d <= '2026-08-13':
+            if d and '2026-08-01' <= d <= '2026-08-12':
                 debug_util["sample_sda_rows"].append({
                     "date": d,
-                    "drv_assets": cell(r, IDX['drv_assets']),
-                    "drv_plan":   cell(r, IDX['drv_plan']),
-                    "drv_aktual": cell(r, IDX['drv_aktual']),
-                    "drv_gap":    cell(r, IDX['drv_gap']),
-                    "drv_keh":    cell(r, IDX['drv_keh']),
-                    "drv_util":   cell(r, IDX['drv_util']),
-                    "ast_assets": cell(r, IDX['ast_assets']),
-                    "ast_plan":   cell(r, IDX['ast_plan']),
-                    "ast_aktual": cell(r, IDX['ast_aktual']),
-                    "ast_gap":    cell(r, IDX['ast_gap']),
-                    "ast_keh":    cell(r, IDX['ast_keh']),
-                    "ast_util":   cell(r, IDX['ast_util']),
+                    "raw_row_T_to_Z": [cell(r, i) for i in range(19, 26)],
                 })
 
     util_rows = []
