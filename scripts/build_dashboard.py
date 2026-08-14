@@ -793,15 +793,7 @@ def build():
         json.dump({'timestamp': timestamp, 'maps': dec_maps, 'rows': all_encoded}, f, ensure_ascii=False, separators=(',',':'))
     print(f"data.json (combined): {os.path.getsize(data_path)/1024:.0f} KB")
 
-    # data_monthly.json
-    monthly = aggregate_monthly(all_rows, timestamp)
-    monthly["_debug_build"] = debug_info  # TEMP — remove after diagnosing HCI/KLS JABABEKA 0-row issue
-    monthly["_debug_util"] = debug_util  # TEMP — verify Utilisasi sheet column indices (arm_avail>arm_assets check)
-    with open(monthly_path, 'w', encoding='utf-8') as f:
-        json.dump(monthly, f, ensure_ascii=False, separators=(',',':'))
-    print(f"data_monthly.json: {os.path.getsize(monthly_path)/1024:.1f} KB")
-
-    # data_utilisasi.json
+    # data_utilisasi.json — fetch FIRST so debug_util is available for data_monthly.json below
     util_rows, debug_util = fetch_utilisasi(service, timestamp)
     # Inject ritase_armada & ritase_mpp per site per date from raw trip data
     ritase_map = compute_ritase_by_site_date(all_rows)
@@ -810,6 +802,14 @@ def build():
         r = ritase_map.get(key, {})
         row['ritase_armada'] = r.get('ritase_armada')
         row['ritase_mpp']    = r.get('ritase_mpp')
+
+    # data_monthly.json
+    monthly = aggregate_monthly(all_rows, timestamp)
+    monthly["_debug_build"] = debug_info  # TEMP — remove after diagnosing HCI/KLS JABABEKA 0-row issue
+    monthly["_debug_util"] = debug_util  # TEMP — verify Utilisasi sheet column indices (arm_avail>arm_assets check)
+    with open(monthly_path, 'w', encoding='utf-8') as f:
+        json.dump(monthly, f, ensure_ascii=False, separators=(',',':'))
+    print(f"data_monthly.json: {os.path.getsize(monthly_path)/1024:.1f} KB")
 
     # Inject synthetic rows for JAB_FBI (assets=15) & JAB_KLS (assets=41)
     FBI_ASSETS = 15
