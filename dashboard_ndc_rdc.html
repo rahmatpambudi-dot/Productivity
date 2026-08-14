@@ -4790,8 +4790,8 @@ function openPresentation() {
       return '<span class="bdg '+(up?'up':'dn')+'">'+(d>0?'▲':'▼')+label+'</span>';
     }
     var tripThead='<thead><tr><th style="text-align:left">BU</th>'
-      +'<th style="color:#1a73e8">Customer</th><th style="color:#34a85a">Store</th>'
-      +'<th style="color:#9334e6">Hub</th><th style="color:#e37400">Satelite</th>'
+      +'<th>Customer</th><th>Store</th>'
+      +'<th>Hub</th><th>Satelite</th>'
       +'<th>Other</th><th>Total</th>'
       +'</tr></thead>';
     var tripBody='';
@@ -4812,9 +4812,9 @@ function openPresentation() {
 
     // Demand: CBM Store & DO Customer per BU
     var demandThead='<thead><tr><th style="text-align:left">BU</th>'
-      +'<th style="color:#34a85a">CBM Store</th>'
-      +'<th style="color:#1a73e8">DO Customer</th>'
-      +'<th style="color:#1a73e8">CBM Customer</th>'
+      +'<th>CBM Store</th>'
+      +'<th>DO Customer</th>'
+      +'<th>CBM Customer</th>'
       +'</tr></thead>';
     var demandBody='';
     buList.forEach(function(bu,i){
@@ -4850,7 +4850,7 @@ function openPresentation() {
     function fmtK(v){ return v!=null?Math.round(v/1000).toLocaleString('id-ID')+' rb':'—'; }
     function fmtD(v){ if(v==null) return '—'; if(v>=10000) return Math.round(v/1000).toLocaleString('id-ID')+' rb'; return Math.round(v).toLocaleString('id-ID'); }
     var costThead='<thead><tr><th style="text-align:left">BU</th>'
-      +'<th style="color:#1d4ed8">Total Cost</th><th style="color:#0369a1">UJP</th><th style="color:#0369a1">UJP/Trip</th>'
+      +'<th>Total Cost</th><th>UJP</th><th>UJP/Trip</th>'
       +'<th>Trip</th><th>Cost/Trip</th><th>C/DO Cust</th><th>C/DO Store</th><th>C/DO Hub</th>'
       +'<th>C/CBM Cust</th><th>C/CBM Store</th><th>C/CBM Hub</th>'
       +'</tr></thead>';
