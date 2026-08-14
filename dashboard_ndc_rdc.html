@@ -4431,8 +4431,9 @@ function generatePPT() {
           var d = delta(curV, prvV, m.type, m.hi);
           // Color cur value vs target
           var curColor = CLR_TEXT;
-          if(m.tgt && curV!=null) {
-            var pct = m.hi ? curV/m.tgt : m.tgt/curV;
+          var mTgt = m.key==='ritase' ? ({JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15) : m.tgt;
+          if(mTgt && curV!=null) {
+            var pct = m.hi ? curV/mTgt : mTgt/curV;
             curColor = pct>=1.0?'166534':pct>=0.9?'92400e':'b91c1c';
           }
           row.push(cell(fmtV(prvV,m.type),false,CLR_GRAY));
