@@ -232,12 +232,12 @@ def fetch_utilisasi(service, timestamp):
         raw = fetch_sheet(service, UTIL_SHEET_NAME, range_str="A:Z")
     except Exception as e:
         print(f"  ✗ {UTIL_SHEET_NAME}: {e}")
-        return []
+        return [], {}
 
     rows = raw["data"]
     if len(rows) < 2:
         print(f"  ✗ {UTIL_SHEET_NAME}: not enough rows")
-        return []
+        return [], {}
 
     # Row 0 = group headers, Row 1 = sub-col headers, data starts row 2
     # But fetch_sheet already consumed row[0] as headers and rows[1:] as data
@@ -267,6 +267,23 @@ def fetch_utilisasi(service, timestamp):
         'arm_idle':   24,  # ARMADA Idle
     }
     print(f"  Utilisasi col indices (hardcoded): {IDX}")
+
+    # TEMP DEBUG — verify hardcoded column indices still line up with actual sheet
+    # layout (user reports raw sheet Availability never exceeds 52 for Sidoarjo,
+    # but arm_avail computed here shows 53 on some Aug days — checking for column drift).
+    debug_util = {
+        "sub_headers": sub_headers,
+        "col_at_idx": {str(i): (sub_headers[i] if i < len(sub_headers) else None) for i in IDX.values()},
+        "sample_sda_rows": []
+    }
+    for r in data_rows:
+        if cell(r, IDX['site']).strip().upper() == 'CORP SIDOARJO' or 'SIDOARJO' in cell(r, IDX['site']).upper():
+            d = parse_date_str(cell(r, IDX['date']))
+            if d and '2026-08-01' <= d <= '2026-08-12':
+                debug_util["sample_sda_rows"].append({
+                    "date": d,
+                    "raw_row_T_to_Z": [cell(r, i) for i in range(19, 26)],
+                })
 
     util_rows = []
     for r in data_rows:
@@ -300,7 +317,7 @@ def fetch_utilisasi(service, timestamp):
         })
 
     print(f"  ✓ {UTIL_SHEET_NAME}: {len(util_rows)} rows")
-    return util_rows
+    return util_rows, debug_util
 
 
 def compute_ritase_by_site_date(all_rows):
@@ -779,12 +796,13 @@ def build():
     # data_monthly.json
     monthly = aggregate_monthly(all_rows, timestamp)
     monthly["_debug_build"] = debug_info  # TEMP — remove after diagnosing HCI/KLS JABABEKA 0-row issue
+    monthly["_debug_util"] = debug_util  # TEMP — verify Utilisasi sheet column indices (arm_avail>arm_assets check)
     with open(monthly_path, 'w', encoding='utf-8') as f:
         json.dump(monthly, f, ensure_ascii=False, separators=(',',':'))
     print(f"data_monthly.json: {os.path.getsize(monthly_path)/1024:.1f} KB")
 
     # data_utilisasi.json
-    util_rows = fetch_utilisasi(service, timestamp)
+    util_rows, debug_util = fetch_utilisasi(service, timestamp)
     # Inject ritase_armada & ritase_mpp per site per date from raw trip data
     ritase_map = compute_ritase_by_site_date(all_rows)
     for row in util_rows:
