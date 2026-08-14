@@ -4929,7 +4929,7 @@ function openPresentation() {
       +'</div>'
       +'<div class="prs-kpi prs-kpi-c6"><div class="prs-kpi-label">Ritase Armada</div>'
       +'<div class="prs-kpi-val">'+(uCorp&&uCorp.ritaseArmada!=null?uCorp.ritaseArmada.toFixed(2):'—')+'</div>'
-      +kpiBadgeNum(uCorp?uCorp.ritaseArmada:null, 1.15, 2)
+      +kpiBadgeNum(uCorp?uCorp.ritaseArmada:null, ({JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15), 2)
       +'<div class="prs-kpi-sub">'+kpiArrowNum(uCorp?uCorp.ritaseArmada:null, uCorpP?uCorpP.ritaseArmada:null, 2)+'</div>'
       +'</div>'
       +'</div>';
