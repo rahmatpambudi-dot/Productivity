@@ -4747,45 +4747,28 @@ function openPresentation() {
     }
 
     // ── Section 1: Metrik ──
-    // Sites whose util rows are "synthetic" (derived from trip data, not the real
-    // Utilisasi planning sheet) — for these, build_dashboard.py sets drv_plan = drv_aktual
-    // by construction, so UTL Driver always computes to 100.0% regardless of period.
-    // That number is a data-availability artifact, not real driver utilization — dash it out.
-    var SYNTH_UTIL_SITES = new Set(['JAB_FBI','JAB_KLS','SDA_HCI','SDA_AHI','SDA_FBI',
-      'TALLO_HCI','TALLO_AHI','TALLO_FBI','TAMORA_HCI','TAMORA_AHI','TAMORA_FBI','TAMORA_KLS']);
     function metrikCols(buKey, mo, pmo) {
       var d=getRes(buKey,mo), p=pmo?getRes(buKey,pmo):null, u=getUtil(buKey,mo), up=pmo?getUtil(buKey,pmo):null;
       var isFBIbu = buKey==='JAB_FBI';
-      var isSynthDrv = SYNTH_UTIL_SITES.has(buKey);
-      var dpMixVal  = isFBIbu ? d.dpStore  : d.dpMix;
-      var dpMixPrev = isFBIbu ? (p?p.dpStore:null) : (p?p.dpMix:null);
-      var dpMixFmt  = dpMixVal!=null ? num(dpMixVal,1)+(isFBIbu?'<sup style="font-size:8px;color:#94a3b8">*</sup>':'') : '—';
       return '<td class="'+(!isFBIbu&&d.olf!=null?(d.olf>=0.95?'g':d.olf>=0.85?'y':'r'):'')+'">'+(isFBIbu?'—':pct(d.olf)+badge(d.olf,p?.olf,false,false))+'</td>'
-        +'<td>'+dpMixFmt+badge(dpMixVal,dpMixPrev,false,true,1)+'</td>'
+        +'<td>'+num(d.dpStore,1)+badge(d.dpStore,p?.dpStore,false,true,1)+'</td>'
+        +'<td>'+num(d.dpMix,1)+badge(d.dpMix,p?.dpMix,false,true,1)+'</td>'
         +'<td>'+num(d.dpReg,1)+badge(d.dpReg,p?.dpReg,false,true,1)+'</td>'
         +'<td>'+num(d.cbmDpMix,2)+badge(d.cbmDpMix,p?.cbmDpMix,false,true,2)+'</td>'
         +'<td>'+num(d.doTripAll,1)+badge(d.doTripAll,p?.doTripAll,false,true,1)+'</td>'
         +'<td>'+fmtTAT(d.tatDirect)+badge(d.tatDirect,p?.tatDirect,true,true,1)+'</td>'
         +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?.tatStore,true,true,1)+'</td>'
-        +'<td>'+(isSynthDrv?'—<sup style="font-size:8px;color:#94a3b8">*</sup>':(u?(function(){
-            var cls=(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r');
-            return '<span class="'+cls+'">'+pct(u.drvUtil/100)+(up?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</span>';
-          })():'—'))+'</td>'
+        +'<td class="'+(u?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u?pct(u.drvUtil/100):'—')+(u&&up?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
         +'<td class="'+(u?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u?pct(u.armUtilPct/100):'—')+(u&&up?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
         +'<td>'+(u?num(u.ritaseArmada,2):'—')+'</td>'
         +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>';
     }
     var metrikThead = '<thead><tr><th style="text-align:left">BU</th>'
-      +'<th>OLF</th><th>DP Mix</th><th>DP Reg</th><th>CBM/DP Mix</th><th>DO/Trip Mix</th>'
+      +'<th>OLF</th><th>DP Store</th><th>DP Mix</th><th>DP Reg</th><th>CBM/DP Mix</th><th>DO/Trip Mix</th>'
       +'<th>TAT Direct</th><th>TAT Store</th>'
       +'<th>UTL Driver</th><th>UTL Armada</th><th>Rit.Armada</th><th>Rit.MPP</th>'
       +'</tr></thead>';
-    var hasFBIbu = buList.some(function(b){return b.key==='JAB_FBI';});
-    var hasSynthDrvBu = buList.some(function(b){return SYNTH_UTIL_SITES.has(b.key);});
-    var legendParts = [];
-    if(hasFBIbu) legendParts.push('<sup>*</sup> FBI: DP to Store');
-    if(hasSynthDrvBu) legendParts.push('<sup>*</sup> UTL Driver: data plan driver tidak tersedia (dihitung dari trip data)');
-    var metrikLegend = legendParts.length ? '<div style="font-size:9px;color:#94a3b8;padding:2px 4px">'+legendParts.join(' &nbsp;·&nbsp; ')+'</div>' : '';
+    var metrikLegend = '';
     var metrikBody = '';
     buList.forEach(function(bu,i) {
       if(i>0) metrikBody+='<tr><td colspan="13" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
@@ -4931,11 +4914,11 @@ function openPresentation() {
       +kpiBadge(uCorp?uCorp.armAvailPct:null, 97)
       +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.armAvailPct:null, uCorpP?uCorpP.armAvailPct:null, false)+'</div>'
       +'</div>'
-      +'<div class="prs-kpi prs-kpi-c3"><div class="prs-kpi-label">Fleet Trip Utilization</div>'
+      +'<div class="prs-kpi prs-kpi-c3"><div class="prs-kpi-label">Fleet Utilization</div>'
       +'<div class="prs-kpi-val">'+(uCorp&&uCorp.armUtilPct!=null?uCorp.armUtilPct.toFixed(1)+'%':'—')+'</div>'
       +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.armUtilPct:null, uCorpP?uCorpP.armUtilPct:null, false)+'</div>'
       +'</div>'
-      +'<div class="prs-kpi prs-kpi-c4"><div class="prs-kpi-label">Driver Trip Utilization</div>'
+      +'<div class="prs-kpi prs-kpi-c4"><div class="prs-kpi-label">Driver Utilization</div>'
       +'<div class="prs-kpi-val">'+(uCorp&&uCorp.drvUtil!=null?uCorp.drvUtil.toFixed(1)+'%':'—')+'</div>'
       +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.drvUtil:null, uCorpP?uCorpP.drvUtil:null, false)+'</div>'
       +'</div>'
