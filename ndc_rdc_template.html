@@ -1980,15 +1980,46 @@ function filterUtilRows(start, end, site) {
         ritase_mpp:    (function(){ var vals=dayRows.map(function(r){return r.ritase_mpp;}).filter(function(v){return v!=null&&v>0;}); return vals.length?vals.reduce(function(s,v){return s+v;},0)/vals.length:null; })(),
       });
     });
-    return {rows: merged, allRows: merged};
+    return {rows: merged, allRows: merged, rawRows: rows};
   }
-  return {rows: rows, allRows: allRows};
+  return {rows: rows, allRows: allRows, rawRows: rows};
 }
 
-function computeUtil(rows, allRows, site) {
+function computeUtil(rows, allRows, site, rawRows) {
   if(!rows.length) return null;
-  var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0, drvKehadiran=0, drvUtilize=0, astKehadiran=0, astUtilize=0;
+  var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
   var armAssetsList=[], armAvailList=[], armUtilList=[];
+
+  // ── MPP Utilisasi: formula berbeda per site karena format sumber sheet beda ──
+  //   HCI/AHI JABABEKA, CORP TAMORA, CORP TALLO: kolom "Utilize" di sheet = % langsung
+  //     (bukan headcount) → pakai rata-rata tertimbang (bobot = Aktual harian)
+  //   CORP SIDOARJO, HCI CIKUPA: kolom "Utilize" = headcount (mirror Aktual), tapi
+  //     Kehadiran juga terisi lengkap → pakai Kehadiran ÷ Utilize
+  function siteFormula(s) {
+    s = (s||'').toUpperCase();
+    if(s==='HCI JABABEKA' || s==='AHI JABABEKA' || s==='JABABEKA' || s==='CORP TAMORA' || s==='CORP TALLO') return 'pct';
+    if(s==='CORP SIDOARJO' || s==='HCI CIKUPA') return 'keh_util';
+    return 'plan_aktual'; // fallback default kalau ada site lain tanpa data lengkap
+  }
+  var mppSrc = (rawRows && rawRows.length) ? rawRows : rows;
+  var drvNumW=0, drvDenW=0, astNumW=0, astDenW=0; // weighted-by-aktual accumulators (unit: %)
+  mppSrc.forEach(function(r) {
+    var f = siteFormula(r.site);
+    var dPct=null, aPct=null;
+    if(f==='pct') {
+      if(r.drv_utilize!=null) dPct = r.drv_utilize;
+      if(r.ast_utilize!=null) aPct = r.ast_utilize;
+    } else if(f==='keh_util') {
+      if(r.drv_kehadiran!=null && r.drv_utilize) dPct = r.drv_kehadiran / r.drv_utilize * 100;
+      if(r.ast_kehadiran!=null && r.ast_utilize) aPct = r.ast_kehadiran / r.ast_utilize * 100;
+    } else { // plan_aktual
+      if(r.drv_plan) dPct = (r.drv_aktual||0) / r.drv_plan * 100;
+      if(r.ast_plan) aPct = (r.ast_aktual||0) / r.ast_plan * 100;
+    }
+    var dW = r.drv_aktual || 0, aW = r.ast_aktual || 0;
+    if(dPct!=null && dW>0) { drvNumW += dPct*dW; drvDenW += dW; }
+    if(aPct!=null && aW>0) { astNumW += aPct*aW; astDenW += aW; }
+  });
 
   // Assets untuk DISPLAY: pakai allRows (semua hari, assets = fixed)
   var assetRows = allRows && allRows.length ? allRows : rows;
@@ -2011,10 +2042,6 @@ function computeUtil(rows, allRows, site) {
     drvAkt    += r.drv_aktual || 0;
     astPlan   += r.ast_plan   || 0;
     astAkt    += r.ast_aktual || 0;
-    drvKehadiran += r.drv_kehadiran || 0;
-    drvUtilize   += r.drv_utilize   || 0;
-    astKehadiran += r.ast_kehadiran || 0;
-    astUtilize   += r.ast_utilize   || 0;
     if(hasActivity && assetOk) {
       if(r.arm_assets != null) armAssetsList.push(r.arm_assets);
       if(r.arm_avail  != null) armAvailList.push(r.arm_avail);
@@ -2040,8 +2067,8 @@ function computeUtil(rows, allRows, site) {
   var ritMppVals    = Object.values(ritByDate).map(function(v){ return v.mpp.length   ? v.mpp.reduce(function(s,x){return s+x;},0)/v.mpp.length     : null; }).filter(function(v){ return v!=null; });
 
   return {
-    drvUtil:      drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
-    astUtil:      astPlan  > 0 ? astAkt  / astPlan  * 100 : null,
+    drvUtil:      drvDenW > 0 ? drvNumW / drvDenW : null,
+    astUtil:      astDenW > 0 ? astNumW / astDenW : null,
     armAssets:    displayAssets || avgAssets,
     armAvailAbs:  avgAvail,
     armAvailPct:  (avgAssets && avgAvail) ? avgAvail / avgAssets * 100 : null,
@@ -3053,16 +3080,17 @@ function buildMonthlyUtilTable(container) {
       var groupSites = site==='NDC_RDC' ? SITES : site==='NDC' ? SITES_NDC : site==='RDC' ? SITES_RDC : null;
       if(groupSites) {
         // Aggregate all sites in group
-        var allR = [], filtR = [];
+        var allR = [], filtR = [], rawR = [];
         groupSites.forEach(function(s) {
           var r = filterUtilRows(moD1, moD2, s);
           filtR = filtR.concat(r.rows);
           allR = allR.concat(r.allRows);
+          rawR = rawR.concat(r.rawRows);
         });
-        allData[mo+'|'+site] = filtR.length ? computeUtil(filtR, allR, site) : null;
+        allData[mo+'|'+site] = filtR.length ? computeUtil(filtR, allR, site, rawR) : null;
       } else {
         var result = filterUtilRows(moD1, moD2, site);
-        allData[mo+'|'+site] = result.rows.length ? computeUtil(result.rows, result.allRows, site) : null;
+        allData[mo+'|'+site] = result.rows.length ? computeUtil(result.rows, result.allRows, site, result.rawRows) : null;
       }
     });
   });
@@ -4545,7 +4573,7 @@ function openPresentation() {
     var k=site+'|'+mo; if(_ucache[k]!==undefined) return _ucache[k];
     var {start:d1,end:d2}=getMoMRange(mo);
     var r=filterUtilRows(d1,d2,site);
-    _ucache[k]=r.rows.length?computeUtil(r.rows,r.allRows,site):null; return _ucache[k];
+    _ucache[k]=r.rows.length?computeUtil(r.rows,r.allRows,site,r.rawRows):null; return _ucache[k];
   }
 
   function getCost(site, mo) {
