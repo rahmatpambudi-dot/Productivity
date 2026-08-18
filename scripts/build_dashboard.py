@@ -279,10 +279,10 @@ def fetch_utilisasi(service, timestamp):
     for r in data_rows:
         if cell(r, IDX['site']).strip().upper() == 'CORP SIDOARJO' or 'SIDOARJO' in cell(r, IDX['site']).upper():
             d = parse_date_str(cell(r, IDX['date']))
-            if d and '2026-08-01' <= d <= '2026-08-12':
+            if d and '2026-08-01' <= d <= '2026-08-17':
                 debug_util["sample_sda_rows"].append({
                     "date": d,
-                    "raw_row_T_to_Z": [cell(r, i) for i in range(19, 26)],
+                    "raw_row_C_to_N": [cell(r, i) for i in range(2, 14)],
                 })
 
     util_rows = []
