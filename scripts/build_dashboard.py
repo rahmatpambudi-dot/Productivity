@@ -319,27 +319,18 @@ def fetch_utilisasi(service, timestamp):
     return util_rows, debug_util
 
 
-def compute_ritase_by_site_date(all_rows):
+def build_jababeka_asset_owner_map(master_asset):
     """
-    Compute per-site per-date:
-      ritase_armada = unique LC / unique Nopol
-      ritase_mpp    = unique LC / unique DriverId (non-empty)
-    Returns dict: { (site, date): {'ritase_armada': float, 'ritase_mpp': float} }
-    Site mapping aligns with UTIL_SITE_MAP (same as Sheets sheet names).
-
-    NOTE: Jababeka HCI/AHI ritase_armada dihitung by ASSET OWNER, bukan by sheet/LC owner.
-    Beberapa nopol yang secara fisik milik FBI/KLS ternyata suka ke-log trip-nya di sheet
-    HCI JABABEKA / AHI JABABEKA (owner LC beda dari owner aset). Kalau nggak di-exclude,
-    trip itu ganda kehitung: sekali di HCI/AHI (sheet-based, disini) dan sekali lagi di
-    FBI/KLS punya sendiri (asset-based, via ALL_NOPOL_MAP di compute_fbi_kls_util_by_date).
-    Jadi nopol FBI/KLS di-exclude dari bucket HCI JABABEKA & AHI JABABEKA di bawah ini.
+    nopol -> 'HCI JABABEKA' | 'AHI JABABEKA' | 'JAB_FBI' | 'JAB_KLS'
+    Sumber utama: Master Asset roster (bulan terbaru yang tersedia).
+    Fallback: hardcoded list (buat nopol yang belum ke-update di master, misal armada baru).
     """
-    JBBK_FBI_NOPOL = {
+    JBBK_FBI_NOPOL_FALLBACK = {
         'A8012ZV','A8607WX','A8386VX','A8976XA','B9015SCF','B9018SCF',
         'A8157ZC','A8232ZC','B9747SCE','A8710ZE','A8711ZE','A8709ZE',
         'A8541ZE','A8506ZD','A8088VC',
     }
-    JBBK_KLS_NOPOL = {
+    JBBK_KLS_NOPOL_FALLBACK = {
         'A8437ZH','A8481ZH','A8801XZ','A8537ZF','A8721VB','A8717VB',
         'A8757VB','A8759VB','A8912VB','A8910VB','A8020VC','A8542XB',
         'A8237VD','B9044BRO','B9068BEN','A8876ZX','A8002XW','A8503ZX',
@@ -348,26 +339,63 @@ def compute_ritase_by_site_date(all_rows):
         'A8721ZV','A8553VB','A8961VB','A8983VB','A8017VC','A8373VC',
         'A8304VC','A8476VC','A8486VC','A8505VC','A8520VC',
     }
-    JBBK_EXCLUDE_NOPOL = JBBK_FBI_NOPOL | JBBK_KLS_NOPOL
+    owner_map = {}
+    # 1. Fallback dulu (supaya master asset yang lebih baru bisa override kalau ada konflik)
+    for n in JBBK_FBI_NOPOL_FALLBACK: owner_map[n] = 'JAB_FBI'
+    for n in JBBK_KLS_NOPOL_FALLBACK: owner_map[n] = 'JAB_KLS'
+    # 2. Master asset (sumber utama, prioritas lebih tinggi)
+    if master_asset:
+        latest_month = max(master_asset.keys())
+        site_map = master_asset.get(latest_month, {})
+        MASTER_KEY_TO_OWNER = {
+            'NDC JABABEKA HCI': 'HCI JABABEKA',
+            'NDC JABABEKA AHI': 'AHI JABABEKA',
+            'NDC JABABEKA FBI': 'JAB_FBI',
+            'NDC KLS JABABEKA': 'JAB_KLS',
+        }
+        for master_key, owner in MASTER_KEY_TO_OWNER.items():
+            for jenis, nopols in site_map.get(master_key, {}).items():
+                for n in nopols:
+                    owner_map[n.strip().upper()] = owner
+    return owner_map
+
+
+def compute_ritase_by_site_date(all_rows, master_asset=None):
+    """
+    Compute per-site per-date:
+      ritase_armada = unique LC / unique Nopol
+      ritase_mpp    = unique LC / unique DriverId (non-empty)
+    Returns dict: { (site, date): {'ritase_armada': float, 'ritase_mpp': float} }
+    Site mapping aligns with UTIL_SITE_MAP (same as Sheets sheet names).
+
+    NOTE — Jababeka (HCI/AHI/FBI/KLS): ritase_armada dihitung by ASSET OWNER, bukan by
+    sheet/LC owner. Satu nopol bisa aja hari itu jalan bawa LC punya HCI paginya, terus
+    siangnya bawa LC punya AHI — tapi ritase-nya harus tetap masuk ke owner ASET nopol
+    tsb (misal AHI kalau nopol itu terdaftar sebagai aset AHI), bukan ke BU yang nge-log
+    LC-nya. Makanya untuk Jababeka, ketiga sheet (HCI/AHI/KLS JABABEKA) di-pool jadi satu,
+    lalu di-assign ulang ke owner aset sebenarnya pakai Master Asset roster.
+    """
+    JABABEKA_SHEETS = {'AHI JABABEKA', 'HCI JABABEKA', 'KLS JABABEKA'}
+    asset_owner_map = build_jababeka_asset_owner_map(master_asset)
 
     SHEET_TO_UTIL_SITE = {
         'AHI JABABEKA':  'AHI JABABEKA',
         'HCI JABABEKA':  'HCI JABABEKA',
-        'KLS JABABEKA':  None,           # KLS excluded from utilisasi
+        'KLS JABABEKA':  'JAB_KLS',      # dulu di-skip, sekarang di-pool juga (nopolnya bisa aja punya HCI/AHI)
         'HCI CIKUPA':    'HCI CIKUPA',
         'CORP SIDOARJO': 'CORP SIDOARJO',
         'CORP TALLO':    'CORP TALLO',
         'CORP TAMORA':   'CORP TAMORA',
     }
-    ASSET_OWNER_SITES = {'HCI JABABEKA', 'AHI JABABEKA'}  # sites where ritase dihitung by asset owner (exclude nopol non-owner)
 
     from collections import defaultdict
     # bucket: (util_site, date) -> {lc, nopol, drvid}
     buckets = defaultdict(lambda: {'lc': set(), 'nopol': set(), 'drvid': set()})
 
     for r in all_rows:
-        util_site = SHEET_TO_UTIL_SITE.get(r.get('sheet'))
-        if not util_site: continue
+        sheet_name = r.get('sheet')
+        util_site_fallback = SHEET_TO_UTIL_SITE.get(sheet_name)
+        if not util_site_fallback: continue
         date = r.get('date')
         if not date: continue
         td = (r.get('td') or '').lower()
@@ -377,8 +405,13 @@ def compute_ritase_by_site_date(all_rows):
         nopol = (r.get('nopol') or '').strip().upper()
         drvid = r.get('drvId', '')
 
-        if util_site in ASSET_OWNER_SITES and nopol in JBBK_EXCLUDE_NOPOL:
-            continue  # nopol ini secara aset milik FBI/KLS, bukan HCI/AHI — udah kehitung di bucket FBI/KLS sendiri
+        if sheet_name in JABABEKA_SHEETS:
+            # asset-owner based: siapa pun yang nge-log LC-nya, ritase tetap masuk owner ASET nopol.
+            # Kalau nopol nggak ketemu di master/fallback (armada baru/nggak terdaftar), default ke
+            # owner sheet tempat LC itu di-log (fallback paling aman, nggak kehilangan data).
+            util_site = asset_owner_map.get(nopol, util_site_fallback)
+        else:
+            util_site = util_site_fallback
 
         key = (util_site, date)
         if lc:    buckets[key]['lc'].add(lc)
@@ -823,7 +856,7 @@ def build():
     # data_utilisasi.json — fetch FIRST so debug_util is available for data_monthly.json below
     util_rows, debug_util = fetch_utilisasi(service, timestamp)
     # Inject ritase_armada & ritase_mpp per site per date from raw trip data
-    ritase_map = compute_ritase_by_site_date(all_rows)
+    ritase_map = compute_ritase_by_site_date(all_rows, master_asset)
     for row in util_rows:
         key = (row['site'], row['date'])
         r = ritase_map.get(key, {})
@@ -982,7 +1015,13 @@ def build():
         assets = ASSETS_MAP.get(bu, 0)
         nopol_cnt = v['nopol_aktual']
         crew      = v.get('crew_aktual', 0)
-        rit       = fbi_ritase.get((bu,date), {})
+        # JAB_FBI/JAB_KLS: pakai hasil pooled asset-owner dari compute_ritase_by_site_date
+        # (lebih akurat, udah termasuk cross-attribution HCI<->AHI<->FBI<->KLS).
+        # BU lain (SDA_*, TAMORA_*, TALLO_*) tetap pakai fbi_ritase (hardcoded nopol list, belum direfactor).
+        if bu in ('JAB_FBI', 'JAB_KLS'):
+            rit = ritase_map.get((bu, date)) or fbi_ritase.get((bu, date), {})
+        else:
+            rit = fbi_ritase.get((bu, date), {})
         util_rows.append({
             'site':          bu,
             'date':          date,
