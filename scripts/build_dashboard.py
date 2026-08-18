@@ -100,6 +100,7 @@ def map_cols(headers):
         "totalCost":   find("TOTAL COST"),
         "profFee":     find("PROF FEE"),
         "sewaArmada":  find("SEWA ARMADA"),
+        "jarak":       find("JARAK"),
         "drvId":       find("DRIVERID", "DRIVER ID", "DRIVER_ID"),
         "crewId":      find("CREW1ID", "CREW 1 ID", "CREW1 ID", "CREW_1_ID"),
         "sla":         find("SLA CHECK IN", "SLA CHECKIN"),
@@ -172,6 +173,7 @@ def slim_row(r, cols, sheet_name, site):
         "cost":  to_float(cell(r, cols["totalCost"])) if cols.get("totalCost",-1) >= 0 else None,
         "pf":    to_float(cell(r, cols["profFee"])) if cols.get("profFee",-1) >= 0 else None,
         "sewa":  to_float(cell(r, cols["sewaArmada"])) if cols.get("sewaArmada",-1) >= 0 else None,
+        "jarak": to_float(cell(r, cols["jarak"])) if cols.get("jarak",-1) >= 0 else None,
         "drvId":  cell(r, cols["drvId"]).upper()  if cols.get("drvId",-1)  >= 0 else "",
         "crewId": cell(r, cols["crewId"]).upper() if cols.get("crewId",-1) >= 0 else "",
         "sla":    cell(r, cols["sla"]).strip().upper() if cols.get("sla",-1) >= 0 else "",
@@ -696,6 +698,7 @@ def build():
             # sample first 3 raw date cells (before parsing) to catch format issues
             sheet_debug["sample_date_cells"] = [cell(r, cols["date"]) for r in raw["data"][:3]]
             sheet_debug["sample_parsed_dates"] = [parse_date_str(cell(r, cols["date"])) for r in raw["data"][:3]]
+            sheet_debug["sample_jarak_cells"] = [cell(r, cols["jarak"]) for r in raw["data"][:5]] if cols.get("jarak",-1)>=0 else []
 
             for r in raw["data"]:
                 row = slim_row(r, cols, s["name"], s["site"])
