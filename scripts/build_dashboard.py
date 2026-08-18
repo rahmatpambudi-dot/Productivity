@@ -256,10 +256,14 @@ def fetch_utilisasi(service, timestamp):
     IDX = {
         'site':       0,
         'date':       1,
-        'drv_plan':   3,   # DRIVER Plan
-        'drv_aktual': 4,   # DRIVER Aktual
-        'ast_plan':   9,   # AST.DRIVER Plan
-        'ast_aktual': 10,  # AST.DRIVER Aktual
+        'drv_plan':      3,   # DRIVER Plan
+        'drv_aktual':    4,   # DRIVER Aktual
+        'drv_kehadiran': 6,   # DRIVER Kehadiran
+        'drv_utilize':   7,   # DRIVER Utilize
+        'ast_plan':      9,   # AST.DRIVER Plan
+        'ast_aktual':    10,  # AST.DRIVER Aktual
+        'ast_kehadiran': 12,  # AST.DRIVER Kehadiran
+        'ast_utilize':   13,  # AST.DRIVER Utilize
         'arm_assets': 19,  # ARMADA Assets
         'arm_avail':  20,  # ARMADA Availibility
         'arm_util':   21,  # ARMADA Utilisasi
@@ -268,22 +272,7 @@ def fetch_utilisasi(service, timestamp):
     }
     print(f"  Utilisasi col indices (hardcoded): {IDX}")
 
-    # TEMP DEBUG — verify hardcoded column indices still line up with actual sheet
-    # layout (user reports raw sheet Availability never exceeds 52 for Sidoarjo,
-    # but arm_avail computed here shows 53 on some Aug days — checking for column drift).
-    debug_util = {
-        "sub_headers": sub_headers,
-        "col_at_idx": {str(i): (sub_headers[i] if i < len(sub_headers) else None) for i in IDX.values()},
-        "sample_sda_rows": []
-    }
-    for r in data_rows:
-        if cell(r, IDX['site']).strip().upper() == 'CORP SIDOARJO' or 'SIDOARJO' in cell(r, IDX['site']).upper():
-            d = parse_date_str(cell(r, IDX['date']))
-            if d and '2026-08-01' <= d <= '2026-08-17':
-                debug_util["sample_sda_rows"].append({
-                    "date": d,
-                    "raw_row_C_to_N": [cell(r, i) for i in range(2, 14)],
-                })
+    debug_util = {"sub_headers": sub_headers}
 
     util_rows = []
     for r in data_rows:
@@ -292,10 +281,14 @@ def fetch_utilisasi(service, timestamp):
         if not site or not date:
             continue
 
-        drv_plan   = to_num(cell(r, IDX['drv_plan']))
-        drv_aktual = to_num(cell(r, IDX['drv_aktual']))
-        ast_plan   = to_num(cell(r, IDX['ast_plan']))
-        ast_aktual = to_num(cell(r, IDX['ast_aktual']))
+        drv_plan      = to_num(cell(r, IDX['drv_plan']))
+        drv_aktual    = to_num(cell(r, IDX['drv_aktual']))
+        drv_kehadiran = to_num(cell(r, IDX['drv_kehadiran']))
+        drv_utilize   = to_num(cell(r, IDX['drv_utilize']))
+        ast_plan      = to_num(cell(r, IDX['ast_plan']))
+        ast_aktual    = to_num(cell(r, IDX['ast_aktual']))
+        ast_kehadiran = to_num(cell(r, IDX['ast_kehadiran']))
+        ast_utilize   = to_num(cell(r, IDX['ast_utilize']))
         arm_assets = to_num(cell(r, IDX['arm_assets']))
         arm_avail  = to_num(cell(r, IDX['arm_avail']))
         arm_util   = to_num(cell(r, IDX['arm_util']))
@@ -305,10 +298,14 @@ def fetch_utilisasi(service, timestamp):
         util_rows.append({
             'site':       site,
             'date':       date,
-            'drv_plan':   drv_plan,
-            'drv_aktual': drv_aktual,
-            'ast_plan':   ast_plan,
-            'ast_aktual': ast_aktual,
+            'drv_plan':      drv_plan,
+            'drv_aktual':    drv_aktual,
+            'drv_kehadiran': drv_kehadiran,
+            'drv_utilize':   drv_utilize,
+            'ast_plan':      ast_plan,
+            'ast_aktual':    ast_aktual,
+            'ast_kehadiran': ast_kehadiran,
+            'ast_utilize':   ast_utilize,
             'arm_assets': arm_assets,
             'arm_avail':  arm_avail,
             'arm_util':   arm_util,
