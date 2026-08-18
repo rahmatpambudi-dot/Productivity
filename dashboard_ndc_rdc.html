@@ -4631,8 +4631,8 @@ function openPresentation() {
       +'<td>'+num(d.doTrip,1)+badge(d.doTrip,prev?.doTrip,false,true,1)+'</td>'
       +'<td>'+fmtTAT(d.tatDirect)+badge(d.tatDirect,prev?.tatDirect,true,true,1)+'</td>'
       +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,prev?.tatStore,true,true,1)+'</td>'
-      +'<td class="'+(u?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+( u?pct(u.drvUtil/100):'—')+(u&&up?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
-      +'<td class="'+(u?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+( u?pct(u.armUtilPct/100):'—')+(u&&up?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
+      +'<td class="'+(u&&u.drvUtil!=null?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u&&u.drvUtil!=null?pct(u.drvUtil/100):'—')+(u&&up&&u.drvUtil!=null&&up.drvUtil!=null?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
+      +'<td class="'+(u&&u.armUtilPct!=null?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u&&u.armUtilPct!=null?pct(u.armUtilPct/100):'—')+(u&&up&&u.armUtilPct!=null&&up.armUtilPct!=null?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
       +'<td>'+(u?num(u.ritaseArmada,2):'—')+'</td>'
       +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>'
       +'</tr>';
@@ -4805,8 +4805,8 @@ function openPresentation() {
         +'<td>'+num(d.doTripAll,1)+badge(d.doTripAll,p?.doTripAll,false,true,1)+'</td>'
         +'<td>'+fmtTAT(d.tatDirect)+badge(d.tatDirect,p?.tatDirect,true,true,1)+'</td>'
         +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?.tatStore,true,true,1)+'</td>'
-        +'<td class="'+(u?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u?pct(u.drvUtil/100):'—')+(u&&up?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
-        +'<td class="'+(u?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u?pct(u.armUtilPct/100):'—')+(u&&up?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
+        +'<td class="'+(u&&u.drvUtil!=null?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u&&u.drvUtil!=null?pct(u.drvUtil/100):'—')+(u&&up&&u.drvUtil!=null&&up.drvUtil!=null?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
+        +'<td class="'+(u&&u.armUtilPct!=null?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u&&u.armUtilPct!=null?pct(u.armUtilPct/100):'—')+(u&&up&&u.armUtilPct!=null&&up.armUtilPct!=null?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
         +'<td>'+(u?num(u.ritaseArmada,2):'—')+'</td>'
         +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>';
     }
