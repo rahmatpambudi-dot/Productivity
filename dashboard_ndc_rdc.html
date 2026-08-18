@@ -2058,15 +2058,21 @@ function computeUtil(rows, allRows, site, rawRows) {
   var avgUtil   = avg(armUtilList);
 
   // Ritase Armada & MPP: aggregate per tanggal dari semua rows (hindari double count)
+  // Ritase Armada per-owner (HCI/AHI dst) di-timbang jumlah armada masing-masing (arm_assets),
+  // bukan rata-rata biasa — biar owner dgn fleet lebih besar proporsional pengaruhnya.
   var ritSrc = allRows && allRows.length ? allRows : rows;
   var ritByDate = {};
   ritSrc.forEach(function(r) {
     if(!r.date) return;
-    if(!ritByDate[r.date]) ritByDate[r.date] = {armada:[], mpp:[]};
-    if(r.ritase_armada != null && r.ritase_armada > 0) ritByDate[r.date].armada.push(r.ritase_armada);
+    if(!ritByDate[r.date]) ritByDate[r.date] = {armadaNum:0, armadaWt:0, mpp:[]};
+    if(r.ritase_armada != null && r.ritase_armada > 0) {
+      var w = r.arm_assets || 1; // fallback bobot 1 kalau assets nggak ada
+      ritByDate[r.date].armadaNum += r.ritase_armada * w;
+      ritByDate[r.date].armadaWt  += w;
+    }
     if(r.ritase_mpp    != null && r.ritase_mpp    > 0) ritByDate[r.date].mpp.push(r.ritase_mpp);
   });
-  var ritArmadaVals = Object.values(ritByDate).map(function(v){ return v.armada.length ? v.armada.reduce(function(s,x){return s+x;},0)/v.armada.length : null; }).filter(function(v){ return v!=null; });
+  var ritArmadaVals = Object.values(ritByDate).map(function(v){ return v.armadaWt > 0 ? v.armadaNum / v.armadaWt : null; }).filter(function(v){ return v!=null; });
   var ritMppVals    = Object.values(ritByDate).map(function(v){ return v.mpp.length   ? v.mpp.reduce(function(s,x){return s+x;},0)/v.mpp.length     : null; }).filter(function(v){ return v!=null; });
 
   return {
