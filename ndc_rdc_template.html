@@ -1806,8 +1806,8 @@ function buildTrendline(results, summary, s, e) {
 //   CORP TALLO → TALLO
 //   CORP TAMORA → TAMORA
 // Formulae:
-//   Utilisasi MPP Driver    = sum(drv_kehadiran) / sum(drv_utilize) * 100
-//   Utilisasi MPP Ast.Driver= sum(ast_kehadiran) / sum(ast_utilize) * 100
+//   Utilisasi MPP Driver    = sum(drv_aktual) / sum(drv_plan) * 100
+//   Utilisasi MPP Ast.Driver= sum(ast_aktual) / sum(ast_plan) * 100
 //   Utilisasi Armada        = sum(arm_util)   / sum(arm_avail) * 100
 //   Availability Armada     = sum(arm_avail)  / sum(arm_assets) * 100
 
@@ -2040,8 +2040,8 @@ function computeUtil(rows, allRows, site) {
   var ritMppVals    = Object.values(ritByDate).map(function(v){ return v.mpp.length   ? v.mpp.reduce(function(s,x){return s+x;},0)/v.mpp.length     : null; }).filter(function(v){ return v!=null; });
 
   return {
-    drvUtil:      drvUtilize > 0 ? drvKehadiran / drvUtilize * 100 : null,
-    astUtil:      astUtilize > 0 ? astKehadiran / astUtilize * 100 : null,
+    drvUtil:      drvPlan  > 0 ? drvAkt  / drvPlan  * 100 : null,
+    astUtil:      astPlan  > 0 ? astAkt  / astPlan  * 100 : null,
     armAssets:    displayAssets || avgAssets,
     armAvailAbs:  avgAvail,
     armAvailPct:  (avgAssets && avgAvail) ? avgAvail / avgAssets * 100 : null,
