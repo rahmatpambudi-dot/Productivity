@@ -326,7 +326,30 @@ def compute_ritase_by_site_date(all_rows):
       ritase_mpp    = unique LC / unique DriverId (non-empty)
     Returns dict: { (site, date): {'ritase_armada': float, 'ritase_mpp': float} }
     Site mapping aligns with UTIL_SITE_MAP (same as Sheets sheet names).
+
+    NOTE: Jababeka HCI/AHI ritase_armada dihitung by ASSET OWNER, bukan by sheet/LC owner.
+    Beberapa nopol yang secara fisik milik FBI/KLS ternyata suka ke-log trip-nya di sheet
+    HCI JABABEKA / AHI JABABEKA (owner LC beda dari owner aset). Kalau nggak di-exclude,
+    trip itu ganda kehitung: sekali di HCI/AHI (sheet-based, disini) dan sekali lagi di
+    FBI/KLS punya sendiri (asset-based, via ALL_NOPOL_MAP di compute_fbi_kls_util_by_date).
+    Jadi nopol FBI/KLS di-exclude dari bucket HCI JABABEKA & AHI JABABEKA di bawah ini.
     """
+    JBBK_FBI_NOPOL = {
+        'A8012ZV','A8607WX','A8386VX','A8976XA','B9015SCF','B9018SCF',
+        'A8157ZC','A8232ZC','B9747SCE','A8710ZE','A8711ZE','A8709ZE',
+        'A8541ZE','A8506ZD','A8088VC',
+    }
+    JBBK_KLS_NOPOL = {
+        'A8437ZH','A8481ZH','A8801XZ','A8537ZF','A8721VB','A8717VB',
+        'A8757VB','A8759VB','A8912VB','A8910VB','A8020VC','A8542XB',
+        'A8237VD','B9044BRO','B9068BEN','A8876ZX','A8002XW','A8503ZX',
+        'A8048ZX','A8288YX','A8976XY','A8908XY','B9190SDB','B9642SCE',
+        'A8098ZH','A8504ZX','A8339ZS','A8432ZS','A8159ZC','B9320SCE',
+        'A8721ZV','A8553VB','A8961VB','A8983VB','A8017VC','A8373VC',
+        'A8304VC','A8476VC','A8486VC','A8505VC','A8520VC',
+    }
+    JBBK_EXCLUDE_NOPOL = JBBK_FBI_NOPOL | JBBK_KLS_NOPOL
+
     SHEET_TO_UTIL_SITE = {
         'AHI JABABEKA':  'AHI JABABEKA',
         'HCI JABABEKA':  'HCI JABABEKA',
@@ -336,6 +359,8 @@ def compute_ritase_by_site_date(all_rows):
         'CORP TALLO':    'CORP TALLO',
         'CORP TAMORA':   'CORP TAMORA',
     }
+    ASSET_OWNER_SITES = {'HCI JABABEKA', 'AHI JABABEKA'}  # sites where ritase dihitung by asset owner (exclude nopol non-owner)
+
     from collections import defaultdict
     # bucket: (util_site, date) -> {lc, nopol, drvid}
     buckets = defaultdict(lambda: {'lc': set(), 'nopol': set(), 'drvid': set()})
@@ -349,8 +374,11 @@ def compute_ritase_by_site_date(all_rows):
         if td == 'satelite': continue  # same exclusion as existing ritase logic
 
         lc    = r.get('lc', '')
-        nopol = r.get('nopol', '')
+        nopol = (r.get('nopol') or '').strip().upper()
         drvid = r.get('drvId', '')
+
+        if util_site in ASSET_OWNER_SITES and nopol in JBBK_EXCLUDE_NOPOL:
+            continue  # nopol ini secara aset milik FBI/KLS, bukan HCI/AHI — udah kehitung di bucket FBI/KLS sendiri
 
         key = (util_site, date)
         if lc:    buckets[key]['lc'].add(lc)
@@ -698,7 +726,6 @@ def build():
             # sample first 3 raw date cells (before parsing) to catch format issues
             sheet_debug["sample_date_cells"] = [cell(r, cols["date"]) for r in raw["data"][:3]]
             sheet_debug["sample_parsed_dates"] = [parse_date_str(cell(r, cols["date"])) for r in raw["data"][:3]]
-            sheet_debug["sample_jarak_cells"] = [cell(r, cols["jarak"]) for r in raw["data"][:5]] if cols.get("jarak",-1)>=0 else []
 
             for r in raw["data"]:
                 row = slim_row(r, cols, s["name"], s["site"])
