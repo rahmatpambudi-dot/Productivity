@@ -3165,7 +3165,7 @@ function momCost(cur, prev) {
 
 function computeCost(rows) {
   if(!rows.length) return null;
-  var ujp=0, cost=0, pf=0, sewa=0, cbm=0, doSum=0, ot=0, insentif=0;
+  var ujp=0, cost=0, pf=0, sewa=0, cbm=0, doSum=0, ot=0, insentif=0, km=0;
   var lcSet = new Set();
   var byTd = {customer:{cost:0,do:0,cbm:0,dp:0}, store:{cost:0,do:0,cbm:0}, hub:{cost:0,do:0,cbm:0}, satelite:{cost:0,do:0,cbm:0}};
   rows.forEach(function(r) {
@@ -3173,6 +3173,7 @@ function computeCost(rows) {
     if(r.pf)   pf   += r.pf;
     if(r.sewa) sewa += r.sewa;
     if(r.cbm)  cbm  += parseFloat(r.cbm)||0;
+    if(r.jarak) km  += parseFloat(r.jarak)||0;
     if(r.lc)   lcSet.add(r.lc);
     if(r.do)   doSum += parseFloat(r.do)||0;
     var io = r.lc ? INSENTIF_OT_MAP[r.lc] : null;
@@ -3192,12 +3193,13 @@ function computeCost(rows) {
   });
   var trip = lcSet.size;
   return {
-    ujp, cost, pf, sewa, ot, insentif, trip, cbm,
+    ujp, cost, pf, sewa, ot, insentif, trip, cbm, km,
     costTrip:    trip>0               ? cost/trip                   : null,
     costDoCust:  byTd.customer.do>0   ? byTd.customer.cost/byTd.customer.do   : null,
     costDoStore: byTd.store.do>0      ? byTd.store.cost/byTd.store.do         : null,
     costDoHub:   byTd.hub.do>0        ? byTd.hub.cost/byTd.hub.do             : null,
     costCbm:     cbm>0                ? cost/cbm                   : null,
+    costKm:      km>0                 ? cost/km                    : null,
     doSum:       doSum,
     costCbmCust:  byTd.customer.cbm>0  ? byTd.customer.cost/byTd.customer.cbm  : null,
     costCbmStore: byTd.store.cbm>0     ? byTd.store.cost/byTd.store.cbm        : null,
@@ -3413,6 +3415,7 @@ function buildCostTable(container) {
       +'<th style="text-align:right;color:#374151">DO</th>'
       +'<th style="text-align:right;color:#374151">DP</th>'
       +'<th style="text-align:right;color:#374151">CBM</th>'
+      +'<th style="text-align:right;color:#374151">KM</th>'
       +'<th style="text-align:right;color:#374151">Cost/Trip</th>'
       +'<th style="text-align:right;color:#374151">Cost/DO Cust</th>'
       +'<th style="text-align:right;color:#374151">Cost/DO Store</th>'
@@ -3422,6 +3425,7 @@ function buildCostTable(container) {
       +'<th style="text-align:right;color:#374151">Cost/CBM Cust</th>'
       +'<th style="text-align:right;color:#374151">Cost/CBM Store</th>'
       +'<th style="text-align:right;color:#374151">Cost/CBM Hub</th>'
+      +'<th style="text-align:right;color:#374151">Cost/KM</th>'
       +'<th style="text-align:right;color:#374151">% of Total</th>'
       +'</tr>';
 
@@ -3442,6 +3446,7 @@ function buildCostTable(container) {
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+Math.round(e.doSum).toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(e.dpCust>0?Math.round(e.dpCust).toLocaleString('id-ID'):'—')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.cbm)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(e.km>0?Math.round(e.km).toLocaleString('id-ID'):'—')+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costTrip)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDoCust)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costDoStore)+'</td>'
@@ -3451,6 +3456,7 @@ function buildCostTable(container) {
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costCbmCust)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costCbmStore)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costCbmHub)+'</td>'
+        +'<td style="text-align:right;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(e.costKm)+'</td>'
         +'<td style="text-align:right;font-size:11px;font-weight:700;color:#64748b;font-family:\'JetBrains Mono\',monospace">'+pct+'%</td>'
         +'</tr>';
     });
@@ -3470,6 +3476,7 @@ function buildCostTable(container) {
     var gtCbmCust  = jalurEntries.reduce(function(s,e){return s+(e.cbmCust||0);},0);
     var gtCbmStore = jalurEntries.reduce(function(s,e){return s+(e.cbmStore||0);},0);
     var gtCbmHub   = jalurEntries.reduce(function(s,e){return s+(e.cbmHub||0);},0);
+    var gtKm       = jalurEntries.reduce(function(s,e){return s+(e.km||0);},0);
     var gtCostTrip     = gtTrip>0     ? gtCost/gtTrip     : 0;
     var gtCostDoCust   = gtDoCust>0   ? gtCost/gtDoCust   : 0;
     var gtCostDoStore  = gtDoStore>0  ? gtCost/gtDoStore  : 0;
@@ -3477,6 +3484,7 @@ function buildCostTable(container) {
     var gtCostCbmCust  = gtCbmCust>0  ? gtCost/gtCbmCust  : 0;
     var gtCostCbmStore = gtCbmStore>0 ? gtCost/gtCbmStore : 0;
     var gtCostCbmHub   = gtCbmHub>0   ? gtCost/gtCbmHub   : 0;
+    var gtCostKm       = gtKm>0       ? gtCost/gtKm       : 0;
     var tdS="text-align:right;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace;padding:7px 10px;border-top:2px solid #cbd5e1";
     var jalurTfoot='<tr style="background:#f0f4f8">'
       +'<td colspan="2" style="font-size:11px;font-weight:800;color:#0f172a;padding:7px 10px;border-top:2px solid #cbd5e1;letter-spacing:.5px">TOTAL</td>'
@@ -3488,6 +3496,7 @@ function buildCostTable(container) {
       +'<td style="'+tdS+'">'+Math.round(gtDo).toLocaleString('id-ID')+'</td>'
       +'<td style="'+tdS+'">'+(gtDp>0?Math.round(gtDp).toLocaleString('id-ID'):'—')+'</td>'
       +'<td style="'+tdS+'">'+fmtRp(gtCbm)+'</td>'
+      +'<td style="'+tdS+'">'+(gtKm>0?Math.round(gtKm).toLocaleString('id-ID'):'—')+'</td>'
       +'<td style="'+tdS+'">'+fmtRp(gtCostTrip)+'</td>'
       +'<td style="'+tdS+'">'+fmtRp(gtCostDoCust)+'</td>'
       +'<td style="'+tdS+'">'+fmtRp(gtCostDoStore)+'</td>'
@@ -3497,6 +3506,7 @@ function buildCostTable(container) {
       +'<td style="'+tdS+'">'+fmtRp(gtCostCbmCust)+'</td>'
       +'<td style="'+tdS+'">'+fmtRp(gtCostCbmStore)+'</td>'
       +'<td style="'+tdS+'">'+fmtRp(gtCostCbmHub)+'</td>'
+      +'<td style="'+tdS+'">'+fmtRp(gtCostKm)+'</td>'
       +'<td style="'+tdS+';color:#64748b">100%</td>'
       +'</tr>';
 
@@ -4860,17 +4870,18 @@ function openPresentation() {
     var costThead='<thead><tr><th style="text-align:left">BU</th>'
       +'<th>Total Cost</th><th>UJP</th><th>UJP/Trip</th>'
       +'<th>Trip</th><th>Cost/Trip</th><th>C/DO Cust</th><th>C/DO Store</th><th>C/DO Hub</th>'
-      +'<th>C/CBM Cust</th><th>C/CBM Store</th><th>C/CBM Hub</th>'
+      +'<th>C/CBM Cust</th><th>C/CBM Store</th><th>C/CBM Hub</th><th>KM</th><th>Cost/KM</th>'
       +'</tr></thead>';
     var costBody='';
     buList.forEach(function(bu,i){
-      if(i>0) costBody+='<tr><td colspan="12" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      if(i>0) costBody+='<tr><td colspan="14" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       var cc=getCost(bu.key,curMo), cp=prevMo?getCost(bu.key,prevMo):null;
       if(prevMo&&cp) costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
         +'<td>'+fmtM(cp.cost)+'</td><td>'+fmtM(cp.ujp)+'</td><td>'+fmtK(cp.ujpTrip)+'</td><td>'+cp.trip+'</td>'
         +'<td>'+fmtK(cp.costTrip)+'</td><td>'+fmtK(cp.costDoCust)+'</td><td>'+fmtK(cp.costDoStore)+'</td><td>'+fmtK(cp.costDoHub)+'</td>'
-        +'<td>'+fmtK(cp.costCbmCust)+'</td><td>'+fmtK(cp.costCbmStore)+'</td><td>'+fmtK(cp.costCbmHub)+'</td></tr>';
+        +'<td>'+fmtK(cp.costCbmCust)+'</td><td>'+fmtK(cp.costCbmStore)+'</td><td>'+fmtK(cp.costCbmHub)+'</td>'
+        +'<td>'+(cp.km>0?Math.round(cp.km).toLocaleString('id-ID'):'—')+'</td><td>'+fmtK(cp.costKm)+'</td></tr>';
       costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
         +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,false,'jt'):'')+'</td>'
         +'<td>'+fmtM(cc?.ujp)+'</td>'
@@ -4882,7 +4893,9 @@ function openPresentation() {
         +'<td>'+fmtK(cc?.costDoHub)+(cp?bdgN(cc?.costDoHub,cp?.costDoHub,true,'rb'):'')+'</td>'
         +'<td>'+fmtK(cc?.costCbmCust)+(cp?bdgN(cc?.costCbmCust,cp?.costCbmCust,true,'rb'):'')+'</td>'
         +'<td>'+fmtK(cc?.costCbmStore)+(cp?bdgN(cc?.costCbmStore,cp?.costCbmStore,true,'rb'):'')+'</td>'
-        +'<td>'+fmtK(cc?.costCbmHub)+(cp?bdgN(cc?.costCbmHub,cp?.costCbmHub,true,'rb'):'')+'</td></tr>';
+        +'<td>'+fmtK(cc?.costCbmHub)+(cp?bdgN(cc?.costCbmHub,cp?.costCbmHub,true,'rb'):'')+'</td>'
+        +'<td>'+(cc&&cc.km>0?Math.round(cc.km).toLocaleString('id-ID'):'—')+'</td>'
+        +'<td>'+fmtK(cc?.costKm)+(cp?bdgN(cc?.costKm,cp?.costKm,true,'rb'):'')+'</td></tr>';
     });
 
     // ── KPI Achievement cards (Slide 1): Corporate-level ──
@@ -4971,6 +4984,7 @@ function openPresentation() {
       +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb', 'prs-kpi-c6')
       +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb', 'prs-kpi-c7')
       +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb', 'prs-kpi-c8')
+      +costCard('Cost / KM', ccCorp?.costKm, ccCorpP?.costKm, fmtK, true, 'rb', 'prs-kpi-c9')
       +'</div>';
 
     var headerHTML = '<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">'
@@ -5072,6 +5086,7 @@ function openPresentation() {
     +'.prs-kpi-c6{border-left-color:#ef4444}'
     +'.prs-kpi-c7{border-left-color:#eab308}'
     +'.prs-kpi-c8{border-left-color:#ec4899}'
+    +'.prs-kpi-c9{border-left-color:#14b8a6}'
     +'.prs-kpi-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}'
     +'.prs-kpi-val{font-size:24px;font-weight:800;color:#0f172a}'
     +'.prs-kpi-sub{font-size:10px;margin-top:4px;font-weight:600}'
