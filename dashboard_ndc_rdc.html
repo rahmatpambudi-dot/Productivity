@@ -2237,22 +2237,26 @@ function normalizeArmadaType(ja) {
 }
 const ARMADA_TYPE_COLORS = ['#1a73e8','#34a85a','#e37400','#a142f4','#d93025','#00acc1','#8B4513','#c2185b','#7cb342','#5c6bc0','#f9a825','#546e7a'];
 
-// CONT-40 (TH & Container digabung jadi 1 type armada di sistem) dipecah per Jenis
-// Kiriman (kolom Type Deliver di Master LC): Satelite / Hub / Other Delivery.
-// Langsir ga punya tag terpisah di data — kebagian masuk Other Delivery.
-function tdBucket3(td) {
+// Breakdown per Jenis Kiriman (kolom Type Deliver di Master LC) — dipakai buat pecah
+// tiap baris type armada di tabel Detail Metrik. 5 kategori (bukan cuma 3): Customer &
+// Store itu justru yang PALING besar volumenya (dominan buat armada kecil CDELC dst),
+// sebelumnya sempat kelumping ke "Other Delivery" — udah dibenerin, sekarang dipisah
+// sendiri. Langsir ga ada tag terpisah di data — kebagian masuk Other Delivery.
+function tdBucketLabel(td) {
   td = (td || '').toString().toLowerCase().trim();
   if (td === 'satelite') return 'Satelite';
   if (td === 'hub' || td === 'customer via hub') return 'Hub';
-  return 'Other Delivery'; // other delivery, other delivery/cikande, store, customer, ndc/rdc/sdc, #n/a, dll (termasuk Langsir)
+  if (td === 'customer') return 'Customer';
+  if (td === 'store') return 'Store';
+  return 'Other Delivery'; // other delivery, other delivery/cikande, ndc/rdc/sdc, #n/a, dll (termasuk Langsir)
 }
-const TD_BUCKET_COLOR = { 'Satelite':'#0a7d3f', 'Hub':'#7a3fd6', 'Other Delivery':'#b5590a' };
+const TD_BUCKET_COLOR = { 'Customer':'#1a73e8', 'Store':'#34a85a', 'Satelite':'#0a7d3f', 'Hub':'#7a3fd6', 'Other Delivery':'#b5590a' };
 
 var ARM_TREND_STATE = { filter: 'ALL', gran: 'daily', type: 'ALL', container: null };
 function setArmTrendFilter(v) { ARM_TREND_STATE.filter = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
 function setArmTrendGranularity(v) { ARM_TREND_STATE.gran = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
 function setArmTrendType(v) { ARM_TREND_STATE.type = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
-// Expand/collapse breakdown per Jenis Kiriman (Satelite/Hub/Other Delivery) di bawah
+// Expand/collapse breakdown per Jenis Kiriman (Customer/Store/Satelite/Hub/Other Delivery) di bawah
 // baris type armada — dipanggil dari onclick tombol ▸/▾ di tabel Detail Metrik.
 function toggleTdBreakdown(btn, cls) {
   var rows = document.getElementsByClassName(cls);
@@ -2858,7 +2862,7 @@ function buildArmadaTypeTrend(container) {
     if (!r.date || !r.nopol) return;
     var t = normalizeArmadaType(r.ja);
     var bd = bucketDate(r.date, gran);
-    var tb = tdBucket3(r.td);
+    var tb = tdBucketLabel(r.td);
     var key = bd + '|' + t + '|' + tb;
     if (!tdAgg[key]) tdAgg[key] = { nopol:new Set(), nopolByDay:{}, trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
     var a = tdAgg[key];
@@ -2878,7 +2882,7 @@ function buildArmadaTypeTrend(container) {
     var th = parseTAT(r.tat);
     if (th != null && th >= 0 && th <= 24) { a.tatSum += th; a.tatCnt++; }
   });
-  var TD_BUCKETS = ['Satelite', 'Hub', 'Other Delivery'];
+  var TD_BUCKETS = ['Customer', 'Store', 'Satelite', 'Hub', 'Other Delivery'];
 
   var thead = '<tr>'
     +'<th style="text-align:left">Periode</th>'
@@ -2926,7 +2930,7 @@ function buildArmadaTypeTrend(container) {
       var rowSlug = 'tdbk-'+d.replace(/[^a-zA-Z0-9]/g,'')+'-'+t.replace(/[^a-zA-Z0-9]/g,'');
       var tdSubRows = TD_BUCKETS.map(function(tb){ return { tb: tb, a: tdAgg[d+'|'+t+'|'+tb] }; }).filter(function(x){ return !!x.a; });
       var toggleBtn = tdSubRows.length
-        ? ' <button onclick="toggleTdBreakdown(this,\''+rowSlug+'\')" title="Lihat breakdown per Jenis Kiriman (Satelite/Hub/Other Delivery)" style="border:none;background:transparent;cursor:pointer;color:var(--t3);font-size:9px;padding:0 3px;vertical-align:middle">▸</button>'
+        ? ' <button onclick="toggleTdBreakdown(this,\''+rowSlug+'\')" title="Lihat breakdown per Jenis Kiriman (Customer/Store/Satelite/Hub/Other Delivery)" style="border:none;background:transparent;cursor:pointer;color:var(--t3);font-size:9px;padding:0 3px;vertical-align:middle">▸</button>'
         : '';
       tbody += '<tr>'
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
@@ -3129,10 +3133,10 @@ function buildArmadaTypeTrend(container) {
     +'<span>UTL Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>UTL Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
     +'<span>Di-exclude dari chart/insight "per type" (bukan dari tabel): BIG MAMA &amp; MOTOR BOX (ga ada di Master Asset), LAINNYA (ja kosong, data belum lengkap) — CONT-40 sekarang punya UTL Armada sendiri (roster Tractor Head), tampil sebagai baris tersendiri &amp; tetap kehitung di TOTAL</span>'
-    +'<span>Baris CONT-40 = TH &amp; Container (1 type armada di sistem), dipecah per Jenis Kiriman (kolom Type Deliver Master LC): Satelite / Hub / Other Delivery — Langsir ga ada tag terpisah, kebagian masuk Other Delivery</span>'
+    +'<span>Baris CONT-40 = TH &amp; Container (1 type armada di sistem), dipecah per Jenis Kiriman (kolom Type Deliver Master LC): Customer / Store / Satelite / Hub / Other Delivery — Langsir ga ada tag terpisah, kebagian masuk Other Delivery</span>'
     +'<span>UTL Armada CONT-40 = nopol Tractor Head (bukan trailer/container) vs roster Master Asset \'TRACTOR HEAD\' — 1 angka gabungan dipakai di ke-3 baris breakdown (TH yang sama bisa jalan &gt;1 jenis kiriman di hari yang sama)</span>'
     +'<span>Armada Digunakan = jumlah trip &amp; jumlah unit nopol unik yang jalan di periode+type itu ("X trip/Y armada") — beda sama UTL Armada (persentase vs roster Master Asset)</span>'
-    +'<span>Klik ▸ di sebelah nama Type Armada buat lihat breakdown per Jenis Kiriman (Satelite/Hub/Other Delivery) — UTL Armada breakdown-nya pakai denominator yang sama kayak baris utama (1 armada bisa jalan &gt;1 jenis kiriman di hari yang sama)</span>'
+    +'<span>Klik ▸ di sebelah nama Type Armada buat lihat breakdown per Jenis Kiriman (Customer/Store/Satelite/Hub/Other Delivery) — UTL Armada breakdown-nya pakai denominator yang sama kayak baris utama (1 armada bisa jalan &gt;1 jenis kiriman di hari yang sama)</span>'
     +'<span>Baris TOTAL = UTL Armada &amp; Unutilized dari sheet Utilisasi apa adanya (Idle asli), Ritase dari computeSite() (sama kayak panel Utilisasi MPP & Armada) — dijamin identik; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
