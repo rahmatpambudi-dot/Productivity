@@ -2846,9 +2846,11 @@ function buildArmadaTypeTrend(container) {
     var bd = bucketDate(r.date, gran);
     var tb = tdBucket3(r.td);
     var key = bd + '|' + tb;
-    if (!contAgg[key]) contAgg[key] = { nopol:new Set(), trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
+    if (!contAgg[key]) contAgg[key] = { nopol:new Set(), nopolByDay:{}, trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
     var a = contAgg[key];
     a.nopol.add(r.nopol);
+    if (!a.nopolByDay[r.date]) a.nopolByDay[r.date] = new Set();
+    a.nopolByDay[r.date].add(r.nopol);
     if (r.lc) a.trip.add(r.lc);
     var tdRaw = (r.td || '').toLowerCase().trim();
     if (tdRaw === 'customer') a.cust += parseFloat(r.do) || 0;
@@ -2962,6 +2964,8 @@ function buildArmadaTypeTrend(container) {
       var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
       var contUtilPct = contAssets ? (a.nopol.size/contAssets*100) : null;
       var contUnutilized = contAssets ? Math.max(0, Math.round(contAssets - a.nopol.size)) : null;
+      var contNopolDays = Object.keys(a.nopolByDay).reduce(function(s,dt){ return s + a.nopolByDay[dt].size; }, 0);
+      var contRitase = contNopolDays ? (a.trip.size/contNopolDays) : null;
       var tbBadge = '<span style="font-size:10px;font-weight:700;color:'+(TD_BUCKET_COLOR[tb]||'#666')+';background:'+(TD_BUCKET_COLOR[tb]||'#666')+'1a;border-radius:8px;padding:2px 8px">'+tb+'</span>';
       tbody += '<tr>'
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
@@ -2969,7 +2973,7 @@ function buildArmadaTypeTrend(container) {
         +'<td style="text-align:left">'+tbBadge+'</td>'
         +'<td class="'+utilCls(contUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace" title="Dihitung dari nopol Tractor Head (bukan trailer/container) vs roster Master Asset \'TRACTOR HEAD\' — denominator gabungan semua jenis kiriman di periode ini">'+(contUtilPct!=null?contUtilPct.toFixed(1)+'%':'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:'+(contUnutilized>0?'#dc2626':'#94a3b8')+'">'+(contUnutilized!=null?contUnutilized.toLocaleString('id-ID'):'—')+'</td>'
-        +'<td style="text-align:center;font-size:11px;color:var(--t3)">—</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(contRitase!=null?contRitase.toFixed(2):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+a.trip.size.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:center;font-size:10.5px;font-family:\'JetBrains Mono\',monospace;color:#c2410c">'+a.trip.size.toLocaleString('id-ID')+' trip/'+a.nopol.size.toLocaleString('id-ID')+' armada</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+a.cust.toLocaleString('id-ID')+'</td>'
