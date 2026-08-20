@@ -3357,7 +3357,7 @@ function fmtRpFull(v) {
 function momCost(cur, prev) {
   if(cur==null||prev==null) return '';
   var d=cur-prev; if(Math.abs(d)<1000) return '';
-  var color=d>0?'#b91c1c':'#166534'; // cost naik = merah, turun = hijau
+  var color=d>0?'#d97706':'#166534'; // cost naik = kuning/amber, turun = hijau
   return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+fmtRp(Math.abs(d))+'</span>';
 }
 
@@ -4995,7 +4995,7 @@ function openPresentation() {
     });
 
     // ── Section 2: Trip per Type + Demand ──
-    function bdgN(cur,prev,isLow,fmt){
+    function bdgN(cur,prev,isLow,fmt,isCost){
       if(cur==null||prev==null) return '';
       var d=cur-prev; if(d===0) return '';
       var up=isLow?d<0:d>0;
@@ -5003,7 +5003,8 @@ function openPresentation() {
       if(fmt==='jt') label=(Math.abs(d)/1e6).toFixed(1)+' jt';
       else if(fmt==='rb') label=Math.round(Math.abs(d)/1000).toLocaleString('id-ID')+' rb';
       else label=Math.abs(Math.round(d)).toLocaleString('id-ID');
-      return '<span class="bdg '+(up?'up':'dn')+'">'+(d>0?'▲':'▼')+label+'</span>';
+      var cls = up ? 'up' : (isCost ? 'warn' : 'dn');
+      return '<span class="bdg '+cls+'">'+(d>0?'▲':'▼')+label+'</span>';
     }
     var tripThead='<thead><tr><th style="text-align:left">BU</th>'
       +'<th>Customer</th><th>Store</th>'
@@ -5081,19 +5082,19 @@ function openPresentation() {
         +'<td>'+fmtK(cp.costCbmCust)+'</td><td>'+fmtK(cp.costCbmStore)+'</td><td>'+fmtK(cp.costCbmHub)+'</td>'
         +'<td>'+(cp.km>0?Math.round(cp.km).toLocaleString('id-ID'):'—')+'</td><td>'+fmtK(cp.costKm)+'</td></tr>';
       costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
-        +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,false,'jt'):'')+'</td>'
+        +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,true,'jt',true):'')+'</td>'
         +'<td>'+fmtM(cc?.ujp)+'</td>'
-        +'<td>'+fmtK(cc?.ujpTrip)+(cp?bdgN(cc?.ujpTrip,cp?.ujpTrip,true,'rb'):'')+'</td>'
+        +'<td>'+fmtK(cc?.ujpTrip)+(cp?bdgN(cc?.ujpTrip,cp?.ujpTrip,true,'rb',true):'')+'</td>'
         +'<td>'+(cc?cc.trip:'—')+'</td>'
-        +'<td>'+fmtK(cc?.costTrip)+(cp?bdgN(cc?.costTrip,cp?.costTrip,true,'rb'):'')+'</td>'
-        +'<td>'+fmtK(cc?.costDoCust)+(cp?bdgN(cc?.costDoCust,cp?.costDoCust,true,'rb'):'')+'</td>'
-        +'<td>'+fmtK(cc?.costDoStore)+(cp?bdgN(cc?.costDoStore,cp?.costDoStore,true,'rb'):'')+'</td>'
-        +'<td>'+fmtK(cc?.costDoHub)+(cp?bdgN(cc?.costDoHub,cp?.costDoHub,true,'rb'):'')+'</td>'
-        +'<td>'+fmtK(cc?.costCbmCust)+(cp?bdgN(cc?.costCbmCust,cp?.costCbmCust,true,'rb'):'')+'</td>'
-        +'<td>'+fmtK(cc?.costCbmStore)+(cp?bdgN(cc?.costCbmStore,cp?.costCbmStore,true,'rb'):'')+'</td>'
-        +'<td>'+fmtK(cc?.costCbmHub)+(cp?bdgN(cc?.costCbmHub,cp?.costCbmHub,true,'rb'):'')+'</td>'
+        +'<td>'+fmtK(cc?.costTrip)+(cp?bdgN(cc?.costTrip,cp?.costTrip,true,'rb',true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costDoCust)+(cp?bdgN(cc?.costDoCust,cp?.costDoCust,true,'rb',true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costDoStore)+(cp?bdgN(cc?.costDoStore,cp?.costDoStore,true,'rb',true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costDoHub)+(cp?bdgN(cc?.costDoHub,cp?.costDoHub,true,'rb',true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costCbmCust)+(cp?bdgN(cc?.costCbmCust,cp?.costCbmCust,true,'rb',true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costCbmStore)+(cp?bdgN(cc?.costCbmStore,cp?.costCbmStore,true,'rb',true):'')+'</td>'
+        +'<td>'+fmtK(cc?.costCbmHub)+(cp?bdgN(cc?.costCbmHub,cp?.costCbmHub,true,'rb',true):'')+'</td>'
         +'<td>'+(cc&&cc.km>0?Math.round(cc.km).toLocaleString('id-ID'):'—')+'</td>'
-        +'<td>'+fmtK(cc?.costKm)+(cp?bdgN(cc?.costKm,cp?.costKm,true,'rb'):'')+'</td></tr>';
+        +'<td>'+fmtK(cc?.costKm)+(cp?bdgN(cc?.costKm,cp?.costKm,true,'rb',true):'')+'</td></tr>';
     });
 
     // ── KPI Achievement cards (Slide 1): Corporate-level ──
@@ -5293,7 +5294,7 @@ function openPresentation() {
     +'.prs-tbl td.y{color:#854d0e;font-weight:700;background:#fef9c3!important}'
     +'.prs-tbl td.r{color:#991b1b;font-weight:700;background:#fee2e2!important}'
     +'.bdg{display:inline-block;font-size:9px;font-weight:700;margin-left:3px}'
-    +'.bdg.up{color:#16a34a}.bdg.dn{color:#dc2626}'
+    +'.bdg.up{color:#16a34a}.bdg.dn{color:#dc2626}.bdg.warn{color:#d97706}'
     +'.prs-nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;background:rgba(0,0,0,.75);padding:8px 18px;border-radius:99px;z-index:100}'
     +'.prs-btn{background:#fff;color:#0f172a;border:none;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}'
     +'.prs-btn:hover{background:#e2e8f0}'
