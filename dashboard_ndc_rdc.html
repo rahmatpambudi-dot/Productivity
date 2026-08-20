@@ -5083,7 +5083,7 @@ function openPresentation() {
         +'<td>'+(cp.km>0?Math.round(cp.km).toLocaleString('id-ID'):'—')+'</td><td>'+fmtK(cp.costKm)+'</td></tr>';
       costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
         +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,true,'jt',true):'')+'</td>'
-        +'<td>'+fmtM(cc?.ujp)+'</td>'
+        +'<td>'+fmtM(cc?.ujp)+(cp?bdgN(cc?.ujp,cp?.ujp,true,'jt',true):'')+'</td>'
         +'<td>'+fmtK(cc?.ujpTrip)+(cp?bdgN(cc?.ujpTrip,cp?.ujpTrip,true,'rb',true):'')+'</td>'
         +'<td>'+(cc?cc.trip:'—')+'</td>'
         +'<td>'+fmtK(cc?.costTrip)+(cp?bdgN(cc?.costTrip,cp?.costTrip,true,'rb',true):'')+'</td>'
