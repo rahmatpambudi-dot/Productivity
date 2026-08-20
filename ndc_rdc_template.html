@@ -2237,6 +2237,17 @@ function normalizeArmadaType(ja) {
 }
 const ARMADA_TYPE_COLORS = ['#1a73e8','#34a85a','#e37400','#a142f4','#d93025','#00acc1','#8B4513','#c2185b','#7cb342','#5c6bc0','#f9a825','#546e7a'];
 
+// CONT-40 (TH & Container digabung jadi 1 type armada di sistem) dipecah per Jenis
+// Kiriman (kolom Type Deliver di Master LC): Satelite / Hub / Other Delivery.
+// Langsir ga punya tag terpisah di data — kebagian masuk Other Delivery.
+function tdBucket3(td) {
+  td = (td || '').toString().toLowerCase().trim();
+  if (td === 'satelite') return 'Satelite';
+  if (td === 'hub' || td === 'customer via hub') return 'Hub';
+  return 'Other Delivery'; // other delivery, other delivery/cikande, store, customer, ndc/rdc/sdc, #n/a, dll (termasuk Langsir)
+}
+const TD_BUCKET_COLOR = { 'Satelite':'#0a7d3f', 'Hub':'#7a3fd6', 'Other Delivery':'#b5590a' };
+
 var ARM_TREND_STATE = { filter: 'ALL', gran: 'daily', type: 'ALL', container: null };
 function setArmTrendFilter(v) { ARM_TREND_STATE.filter = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
 function setArmTrendGranularity(v) { ARM_TREND_STATE.gran = v; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
@@ -2817,6 +2828,36 @@ function buildArmadaTypeTrend(container) {
   }
 
   // ── Table: satu baris per bucket+type (yang ada aktivitas), terbaru dulu ──
+  // ── CONT-40 (TH & Container digabung) dipecah per Jenis Kiriman (Satelite/Hub/
+  // Other Delivery) buat baris tersendiri di tabel Detail Metrik — sebelumnya CONT-40
+  // cuma nyumbang ke TOTAL, ga pernah tampil sendiri. Aggregasi terpisah & sederhana
+  // (ga ikut kalkulasi kalibrasi Master Asset / imputasi transit multi-hari LK, karena
+  // nopol trailer CONT-40 emang ga reliable buat UTL Armada — lihat catatan N/A* di bawah).
+  var contAgg = {}; // key: bucketDate|Satelite|Hub|Other Delivery
+  rows.forEach(function(r) {
+    if (!r.date || !r.nopol) return;
+    if (normalizeArmadaType(r.ja) !== 'CONT-40') return;
+    var bd = bucketDate(r.date, gran);
+    var tb = tdBucket3(r.td);
+    var key = bd + '|' + tb;
+    if (!contAgg[key]) contAgg[key] = { nopol:new Set(), trip:new Set(), cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0 };
+    var a = contAgg[key];
+    a.nopol.add(r.nopol);
+    if (r.lc) a.trip.add(r.lc);
+    var tdRaw = (r.td || '').toLowerCase().trim();
+    if (tdRaw === 'customer') a.cust += parseFloat(r.do) || 0;
+    if (tdRaw === 'store') a.store += parseFloat(r.cbm) || 0;
+    if (r.drvId) a.drv.add(r.drvId);
+    if (r.crewId) a.crew.add(r.crewId);
+    var io = r.lc ? INSENTIF_OT_MAP[r.lc] : null;
+    var rowCost = (r.cost || 0) + (io ? (io.ot || 0) : 0) + (io ? (io.insentif || 0) : 0);
+    a.cost += rowCost;
+    if (r.ujp) a.ujp += r.ujp;
+    var th = parseTAT(r.tat);
+    if (th != null && th >= 0 && th <= 24) { a.tatSum += th; a.tatCnt++; }
+  });
+  var CONT40_TD_BUCKETS = ['Satelite', 'Hub', 'Other Delivery'];
+
   var thead = '<tr>'
     +'<th style="text-align:left">Periode</th>'
     +'<th style="text-align:left">Type Armada</th>'
@@ -2824,6 +2865,7 @@ function buildArmadaTypeTrend(container) {
     +'<th style="text-align:center;color:#94a3b8">Unutilized Armada</th>'
     +'<th style="text-align:center;color:#7c3aed">Ritase</th>'
     +'<th style="text-align:center">Trip</th>'
+    +'<th style="text-align:center;color:#c2410c">Armada Digunakan</th>'
     +'<th style="text-align:center;color:#1a73e8">Demand Cust (DO)</th>'
     +'<th style="text-align:center;color:#34a85a">Demand Store (CBM)</th>'
     +'<th style="text-align:center;color:#8B4513">Driver</th>'
@@ -2836,7 +2878,7 @@ function buildArmadaTypeTrend(container) {
   var tbody = '';
   var rowCount = 0;
   allDates.slice().reverse().forEach(function(d) {
-    var tot = { activeCalib:0, asset:0, trip:new Set(), nopolDays:0, cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0, hasRow:false, sheetDates:new Set() };
+    var tot = { activeCalib:0, asset:0, trip:new Set(), nopolDays:0, cust:0, store:0, drv:new Set(), crew:new Set(), cost:0, ujp:0, tatSum:0, tatCnt:0, hasRow:false, sheetDates:new Set(), armadaUsed:0 };
     allTypes.forEach(function(t) {
       var key = d+'|'+t;
       var a = agg[key];
@@ -2865,6 +2907,7 @@ function buildArmadaTypeTrend(container) {
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:'+(unutilizedCount>0?'#dc2626':'#94a3b8')+'">'+(isContNA?'—':(unutilizedCount!=null?unutilizedCount.toLocaleString('id-ID'):'—'))+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(ritaseVal!=null?ritaseVal.toFixed(2):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+a.trip.size.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:10.5px;font-family:\'JetBrains Mono\',monospace;color:#c2410c">'+a.trip.size.toLocaleString('id-ID')+' trip/'+a.nopol.size.toLocaleString('id-ID')+' armada</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+a.cust.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#34a85a">'+a.store.toFixed(1)+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#8B4513">'+(a.drv.size?a.drv.size.toLocaleString('id-ID'):'—')+'</td>'
@@ -2887,6 +2930,35 @@ function buildArmadaTypeTrend(container) {
       a.crew.forEach(function(x){ tot.crew.add(x); });
       tot.cost += a.cost; tot.ujp += a.ujp;
       tot.tatSum += a.tatSum; tot.tatCnt += a.tatCnt;
+      tot.armadaUsed += a.nopol.size;
+    });
+    // CONT-40 (TH & Container) breakdown per Jenis Kiriman — baris tambahan, tampil
+    // di bawah type armada reguler. Ga ditambahin lagi ke tot di sini karena kontribusi
+    // CONT-40 ke TOTAL udah kehandle di blok EXCLUDED_ARMADA_TYPES.forEach di bawah
+    // (pakai agregat flat, biar ga double count nopol yang sama across 2+ jenis kiriman).
+    CONT40_TD_BUCKETS.forEach(function(tb) {
+      var key = d + '|' + tb;
+      var a = contAgg[key];
+      if (!a) return;
+      rowCount++;
+      var avgTat = a.tatCnt ? a.tatSum/a.tatCnt : null;
+      var tbBadge = '<span style="font-size:9.5px;font-weight:700;color:'+(TD_BUCKET_COLOR[tb]||'#666')+';background:'+(TD_BUCKET_COLOR[tb]||'#666')+'1a;border-radius:8px;padding:1px 7px;margin-left:5px">'+tb+'</span>';
+      tbody += '<tr>'
+        +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
+        +'<td style="font-size:11px;font-weight:600">CONT-40'+tbBadge+'</td>'
+        +'<td style="text-align:center;font-size:11px;color:var(--t3)" title="LC CONT-40 ngiket ke Tractor Head, bukan nopol trailer — nopol trailer ga pernah muncul di trip data, jadi UTL Armada belum bisa dihitung valid">N/A*</td>'
+        +'<td style="text-align:center;font-size:11px;color:var(--t3)">—</td>'
+        +'<td style="text-align:center;font-size:11px;color:var(--t3)">—</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+a.trip.size.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:10.5px;font-family:\'JetBrains Mono\',monospace;color:#c2410c">'+a.trip.size.toLocaleString('id-ID')+' trip/'+a.nopol.size.toLocaleString('id-ID')+' armada</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+a.cust.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#34a85a">'+a.store.toFixed(1)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#8B4513">'+(a.drv.size?a.drv.size.toLocaleString('id-ID'):'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#c2185b">'+(a.crew.size?a.crew.size.toLocaleString('id-ID'):'—')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(a.cost)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+fmtRp(a.ujp)+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(avgTat!=null?tatStr(avgTat):'—')+'</td>'
+        +'</tr>';
     });
     // Excluded types (CONT-40/BIG MAMA/MOTOR BOX/LAINNYA) masih valid buat Trip/Cost/
     // Demand/Ritase (ga butuh Master Asset) — cuma UTL Armada mereka yang ga reliable.
@@ -2906,6 +2978,7 @@ function buildArmadaTypeTrend(container) {
       a.crew.forEach(function(x){ tot.crew.add(x); });
       tot.cost += a.cost; tot.ujp += a.ujp;
       tot.tatSum += a.tatSum; tot.tatCnt += a.tatCnt;
+      tot.armadaUsed += a.nopol.size;
     });
     if (tot.hasRow) {
       var totUtilPct = tot.asset ? (tot.activeCalib/tot.asset*100) : null;
@@ -2963,6 +3036,7 @@ function buildArmadaTypeTrend(container) {
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:'+(totUnutilized>0?'#dc2626':'#94a3b8')+'">'+(totUnutilized!=null?totUnutilized.toLocaleString('id-ID'):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(totRitase!=null?totRitase.toFixed(2):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+tot.trip.size.toLocaleString('id-ID')+'</td>'
+        +'<td style="text-align:center;font-size:10.5px;font-family:\'JetBrains Mono\',monospace;color:#c2410c">'+tot.trip.size.toLocaleString('id-ID')+' trip/'+tot.armadaUsed.toLocaleString('id-ID')+' armada</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+tot.cust.toLocaleString('id-ID')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#34a85a">'+tot.store.toFixed(1)+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#8B4513">'+(tot.drv.size?tot.drv.size.toLocaleString('id-ID'):'—')+'</td>'
@@ -2977,7 +3051,9 @@ function buildArmadaTypeTrend(container) {
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
     +'<span>UTL Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>UTL Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
-    +'<span>Di-exclude dari panel ini: CONT-40 (LC ngiket ke Tractor Head, bukan trailer), BIG MAMA &amp; MOTOR BOX (ga ada di Master Asset), LAINNYA (ja kosong, data belum lengkap)</span>'
+    +'<span>Di-exclude dari kalkulasi UTL Armada: CONT-40 (LC ngiket ke Tractor Head, bukan trailer), BIG MAMA &amp; MOTOR BOX (ga ada di Master Asset), LAINNYA (ja kosong, data belum lengkap) — tapi tetap tampil sebagai baris tersendiri (CONT-40) &amp; tetap kehitung di TOTAL (Trip/Cost/Demand/Armada Digunakan)</span>'
+    +'<span>Baris CONT-40 = TH &amp; Container (1 type armada di sistem), dipecah per Jenis Kiriman (kolom Type Deliver Master LC): Satelite / Hub / Other Delivery — Langsir ga ada tag terpisah, kebagian masuk Other Delivery</span>'
+    +'<span>Armada Digunakan = jumlah trip &amp; jumlah unit nopol unik yang jalan di periode+type itu ("X trip/Y armada") — beda sama UTL Armada (persentase vs roster Master Asset)</span>'
     +'<span>Baris TOTAL = UTL Armada &amp; Unutilized dari sheet Utilisasi apa adanya (Idle asli), Ritase dari computeSite() (sama kayak panel Utilisasi MPP & Armada) — dijamin identik; breakdown per type tetap estimasi proporsional</span>'
     +'<span>Badge kuning "N pengganti" = nopol aktif tapi ga ada di Master Asset (bulan itu/carry-forward)</span>'
     +'<span>Tanggal merah &amp; Minggu di-exclude dari perhitungan aktif (asset tetap dihitung)</span>'
