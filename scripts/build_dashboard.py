@@ -148,6 +148,15 @@ def safe_float(v, default=0):
     try: return float(str(v).replace(',','').replace('%','').strip())
     except: return default
 
+def clean_jarak(v):
+    """Sanity bound for Jarak (KM) column. Source sheet occasionally has corrupt
+    lookup values (negative, or absurdly large e.g. hundreds of thousands of km)
+    that blow up KM/Cost-per-KM totals. Valid domestic trip distance is 0-3000km;
+    outside that range we null it out (row/trip itself is still kept, just KM excluded)."""
+    if v is None: return None
+    if v < 0 or v > 3000: return None
+    return v
+
 def slim_row(r, cols, sheet_name, site):
     return {
         "sheet": sheet_name,
@@ -173,7 +182,7 @@ def slim_row(r, cols, sheet_name, site):
         "cost":  to_float(cell(r, cols["totalCost"])) if cols.get("totalCost",-1) >= 0 else None,
         "pf":    to_float(cell(r, cols["profFee"])) if cols.get("profFee",-1) >= 0 else None,
         "sewa":  to_float(cell(r, cols["sewaArmada"])) if cols.get("sewaArmada",-1) >= 0 else None,
-        "jarak": to_float(cell(r, cols["jarak"])) if cols.get("jarak",-1) >= 0 else None,
+        "jarak": clean_jarak(to_float(cell(r, cols["jarak"]))) if cols.get("jarak",-1) >= 0 else None,
         "drvId":  cell(r, cols["drvId"]).upper()  if cols.get("drvId",-1)  >= 0 else "",
         "crewId": cell(r, cols["crewId"]).upper() if cols.get("crewId",-1) >= 0 else "",
         "sla":    cell(r, cols["sla"]).strip().upper() if cols.get("sla",-1) >= 0 else "",
