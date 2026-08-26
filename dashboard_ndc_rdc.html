@@ -2449,19 +2449,34 @@ function buildDailyCalibScale(rows, agg) {
   Object.keys(ownersByDate).forEach(function(date) {
     var targetUtil = 0, targetAvail = 0, masterTotal = 0, idleSum = 0;
     var allCovered = true, allIdleCovered = true;
+    // Dedup: owner variants AHI/NKA/TGI (dan lain-lain) semuanya resolve ke sheet key &
+    // Master Asset site key yang SAMA (1 BU fisik). Kalau trip data hari itu ada >1 owner
+    // variant (misal AHI & TGI keduanya muncul), tanpa dedup ini bakal double/triple-count
+    // arm_util/arm_avail/arm_idle/masterTotal — nyebabin Unutilized Armada TOTAL keliatan
+    // lebih gede dari angka sheet aslinya.
+    var seenSk = {}, seenMasterKey = {};
     ownersByDate[date].forEach(function(siteOwner) {
       var parts = siteOwner.split('|');
       var sk = getUtilSheetSiteKey(parts[0], parts[1]);
-      var row = sk ? idx[sk + '|' + date] : null;
-      if (!sk || !row || row.arm_util == null || row.arm_avail == null) {
-        allCovered = false;
-      } else {
-        targetUtil += row.arm_util;
-        targetAvail += row.arm_avail;
+      if (!sk) {
+        allCovered = false; allIdleCovered = false;
+      } else if (!seenSk[sk]) {
+        seenSk[sk] = true;
+        var row = idx[sk + '|' + date];
+        if (!row || row.arm_util == null || row.arm_avail == null) {
+          allCovered = false;
+        } else {
+          targetUtil += row.arm_util;
+          targetAvail += row.arm_avail;
+        }
+        if (!row || row.arm_idle == null) allIdleCovered = false;
+        else idleSum += row.arm_idle;
       }
-      if (!sk || !row || row.arm_idle == null) allIdleCovered = false;
-      else idleSum += row.arm_idle;
-      masterTotal += getMasterAssetTotalCount(date, parts[0], parts[1]);
+      var masterKey = getMasterSiteKey(parts[0], parts[1]);
+      if (masterKey && !seenMasterKey[masterKey]) {
+        seenMasterKey[masterKey] = true;
+        masterTotal += getMasterAssetTotalCount(date, parts[0], parts[1]);
+      }
     });
     var tripActiveTotal = dateActiveTotal[date] ? dateActiveTotal[date].size : 0;
     if (allCovered && tripActiveTotal > 0) activeScale[date] = targetUtil / tripActiveTotal;
