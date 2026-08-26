@@ -2888,6 +2888,7 @@ function buildArmadaTypeTrend(container) {
     +'<th style="text-align:left">Periode</th>'
     +'<th style="text-align:left">Type Armada</th>'
     +'<th style="text-align:left">Jenis Kiriman</th>'
+    +'<th style="text-align:center;color:#0891b2" title="Jumlah unit armada di roster Master Asset (denominator UTL Armada)">Aset Armada</th>'
     +'<th style="text-align:center;color:#e37400">UTL Armada</th>'
     +'<th style="text-align:center;color:#94a3b8">Unutilized Armada</th>'
     +'<th style="text-align:center;color:#7c3aed">Ritase</th>'
@@ -2936,6 +2937,7 @@ function buildArmadaTypeTrend(container) {
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
         +'<td style="font-size:11px;font-weight:600">'+t+toggleBtn+pengBadge+'</td>'
         +'<td style="text-align:left;font-size:11px;color:var(--t3)">—</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#0891b2">'+(isContNA?'—':(calibAssetRow?Math.round(calibAssetRow).toLocaleString('id-ID'):'—'))+'</td>'
         +(isContNA
           ? '<td style="text-align:center;font-size:11px;color:var(--t3)" title="LC CONT-40 ngiket ke Tractor Head, bukan nopol trailer — nopol trailer ga pernah muncul di trip data, jadi UTL Armada belum bisa dihitung valid">N/A*</td>'
           : '<td class="'+utilCls(utilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(utilPct!=null?utilPct.toFixed(1)+'%':'—')+'</td>')
@@ -2967,6 +2969,7 @@ function buildArmadaTypeTrend(container) {
           +'<td></td>'
           +'<td style="font-size:10.5px;color:var(--t3);padding-left:20px">↳ '+t+'</td>'
           +'<td style="text-align:left">'+subBadge+'</td>'
+          +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#0891b2">'+(calibAssetRow?Math.round(calibAssetRow).toLocaleString('id-ID'):'—')+'</td>'
           +'<td class="'+utilCls(subUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(subUtilPct!=null?subUtilPct.toFixed(1)+'%':'—')+'</td>'
           +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:'+(subUnutilized>0?'#dc2626':'#94a3b8')+'">'+(subUnutilized!=null?subUnutilized.toLocaleString('id-ID'):'—')+'</td>'
           +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(subRitase!=null?subRitase.toFixed(2):'—')+'</td>'
@@ -3026,6 +3029,7 @@ function buildArmadaTypeTrend(container) {
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
         +'<td style="font-size:11px;font-weight:600">CONT-40</td>'
         +'<td style="text-align:left">'+tbBadge+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#0891b2">'+(contAssets?Math.round(contAssets).toLocaleString('id-ID'):'—')+'</td>'
         +'<td class="'+utilCls(contUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace" title="Dihitung dari nopol Tractor Head (bukan trailer/container) vs roster Master Asset \'TRACTOR HEAD\' — denominator gabungan semua jenis kiriman di periode ini">'+(contUtilPct!=null?contUtilPct.toFixed(1)+'%':'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:'+(contUnutilized>0?'#dc2626':'#94a3b8')+'">'+(contUnutilized!=null?contUnutilized.toLocaleString('id-ID'):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(contRitase!=null?contRitase.toFixed(2):'—')+'</td>'
@@ -3113,6 +3117,7 @@ function buildArmadaTypeTrend(container) {
         +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+bucketLabel(d, gran)+'</td>'
         +'<td style="font-size:11px">TOTAL</td>'
         +'<td style="text-align:left;font-size:11px;color:var(--t3)">—</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#0891b2">'+(tot.asset?Math.round(tot.asset).toLocaleString('id-ID'):'—')+'</td>'
         +'<td class="'+utilCls(totUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+(totUtilPct!=null?totUtilPct.toFixed(1)+'%':'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:'+(totUnutilized>0?'#dc2626':'#94a3b8')+'">'+(totUnutilized!=null?totUnutilized.toLocaleString('id-ID'):'—')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#7c3aed">'+(totRitase!=null?totRitase.toFixed(2):'—')+'</td>'
@@ -3130,6 +3135,7 @@ function buildArmadaTypeTrend(container) {
   });
 
   var legendHtml = '<div style="display:flex;flex-wrap:wrap;gap:14px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg);font-size:11px;color:var(--t3)">'
+    +'<span>Aset Armada = jumlah unit di roster Master Asset per Type Armada (denominator UTL Armada) — dikalibrasi ke MAX(Master Asset, nopol aktif) biar UTL Armada ga pernah &gt;100%</span>'
     +'<span>UTL Armada = nopol aktif (dikalibrasi harian ke sheet Utilisasi) / MAX(Master Asset roster, nopol aktif) &mdash; bulan tanpa data roster otomatis pake roster bulan terakhir yang tersedia</span>'
     +'<span>UTL Armada per type = nopol aktif / MAX(Master Asset, aktif) &mdash; angka riil, ga dikalibrasi (biar variasi antar-type kelihatan jelas)</span>'
     +'<span>Di-exclude dari chart/insight "per type" (bukan dari tabel): BIG MAMA &amp; MOTOR BOX (ga ada di Master Asset), LAINNYA (ja kosong, data belum lengkap) — CONT-40 sekarang punya UTL Armada sendiri (roster Tractor Head), tampil sebagai baris tersendiri &amp; tetap kehitung di TOTAL</span>'
