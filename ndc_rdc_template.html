@@ -5024,13 +5024,20 @@ function openPresentation() {
     });
 
     // ── Section 2: Trip per Type + Demand ──
+    // Badge dihitung dari SELISIH ANGKA YANG SUDAH DIBULATIN (bukan delta mentah),
+    // biar konsisten sama angka yang keliatan di layar (mis. "6 rb"→"7 rb" = ▲1 rb,
+    // bukan ▲0 rb walau delta mentahnya cuma ratusan). Kalau setelah dibulatin
+    // ternyata sama, badge disembunyikan (gak ada perubahan yang keliatan).
     function bdgN(cur,prev,isLow,fmt,isCost){
       if(cur==null||prev==null) return '';
-      var d=cur-prev; if(d===0) return '';
+      var d;
+      if(fmt==='jt') { d = Math.round(cur/1e5)/10 - Math.round(prev/1e5)/10; if(Math.abs(d)<0.05) return ''; }
+      else if(fmt==='rb') { d = Math.round(cur/1000) - Math.round(prev/1000); if(d===0) return ''; }
+      else { d = cur-prev; if(d===0) return ''; }
       var up=isLow?d<0:d>0;
       var label;
-      if(fmt==='jt') label=(Math.abs(d)/1e6).toFixed(1)+' jt';
-      else if(fmt==='rb') label=Math.round(Math.abs(d)/1000).toLocaleString('id-ID')+' rb';
+      if(fmt==='jt') label=Math.abs(d).toFixed(1)+' jt';
+      else if(fmt==='rb') label=Math.abs(d).toLocaleString('id-ID')+' rb';
       else label=Math.abs(Math.round(d)).toLocaleString('id-ID');
       var cls = up ? 'up' : (isCost ? 'warn' : 'dn');
       return '<span class="bdg '+cls+'">'+(d>0?'▲':'▼')+label+'</span>';
@@ -5188,13 +5195,18 @@ function openPresentation() {
     var ccCorp = getCost(site, curMo), ccCorpP = prevMo?getCost(site,prevMo):null;
     // isCost=true → metrik biaya: turun = bagus (hijau), naik = kuning (bukan merah)
     // isCost=false → metrik non-biaya (mis. Total Trip): tetap pakai skema lama (naik=hijau/turun=merah sesuai isLow)
+    // Sama kayak bdgN: badge dari selisih angka yang SUDAH dibulatin, biar gak ada
+    // kasus "6 rb → 7 rb" tapi badge-nya bilang ▲0 rb.
     function costArrow(cur, prev, isLow, fmt, isCost) {
       if(cur==null||prev==null) return '';
-      var d = cur-prev; if(d===0) return '';
+      var d;
+      if(fmt==='jt') { d = Math.round(cur/1e5)/10 - Math.round(prev/1e5)/10; if(Math.abs(d)<0.05) return ''; }
+      else if(fmt==='rb') { d = Math.round(cur/1000) - Math.round(prev/1000); if(d===0) return ''; }
+      else { d = cur-prev; if(d===0) return ''; }
       var good = isLow ? d<0 : d>0;
       var label;
-      if(fmt==='jt') label=(Math.abs(d)/1e6).toFixed(1)+' jt';
-      else if(fmt==='rb') label=Math.round(Math.abs(d)/1000).toLocaleString('id-ID')+' rb';
+      if(fmt==='jt') label=Math.abs(d).toFixed(1)+' jt';
+      else if(fmt==='rb') label=Math.abs(d).toLocaleString('id-ID')+' rb';
       else label=Math.abs(Math.round(d)).toLocaleString('id-ID');
       var color = good ? '#166534' : (isCost ? '#b45309' : '#991b1b');
       return '<span style="color:'+color+'">'+(d>0?'▲':'▼')+label+' vs '+mnPrev+'</span>';
