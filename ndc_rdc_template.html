@@ -5186,7 +5186,9 @@ function openPresentation() {
 
     // ── Cost KPI cards (Slide 2): Corporate-level ──
     var ccCorp = getCost(site, curMo), ccCorpP = prevMo?getCost(site,prevMo):null;
-    function costArrow(cur, prev, isLow, fmt) {
+    // isCost=true → metrik biaya: turun = bagus (hijau), naik = kuning (bukan merah)
+    // isCost=false → metrik non-biaya (mis. Total Trip): tetap pakai skema lama (naik=hijau/turun=merah sesuai isLow)
+    function costArrow(cur, prev, isLow, fmt, isCost) {
       if(cur==null||prev==null) return '';
       var d = cur-prev; if(d===0) return '';
       var good = isLow ? d<0 : d>0;
@@ -5194,25 +5196,26 @@ function openPresentation() {
       if(fmt==='jt') label=(Math.abs(d)/1e6).toFixed(1)+' jt';
       else if(fmt==='rb') label=Math.round(Math.abs(d)/1000).toLocaleString('id-ID')+' rb';
       else label=Math.abs(Math.round(d)).toLocaleString('id-ID');
-      return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+label+' vs '+mnPrev+'</span>';
+      var color = good ? '#166534' : (isCost ? '#b45309' : '#991b1b');
+      return '<span style="color:'+color+'">'+(d>0?'▲':'▼')+label+' vs '+mnPrev+'</span>';
     }
-    function costCard(label, val, prev, fmtFn, isLow, fmt, colorCls) {
+    function costCard(label, val, prev, fmtFn, isLow, fmt, colorCls, isCost) {
       return '<div class="prs-kpi '+colorCls+'"><div class="prs-kpi-label">'+label+'</div>'
         +'<div class="prs-kpi-val" style="font-size:18px">'+fmtFn(val)+'</div>'
-        +'<div class="prs-kpi-sub">'+costArrow(val, prev, isLow, fmt)+'</div>'
+        +'<div class="prs-kpi-sub">'+costArrow(val, prev, isLow, fmt, isCost)+'</div>'
         +'</div>';
     }
     var costKpiHTML = '<div class="prs-kpi-row">'
-      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, false, 'jt', 'prs-kpi-c1')
-      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, function(v){return v!=null?v:'—';}, false, 'n', 'prs-kpi-c2')
-      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb', 'prs-kpi-c3')
-      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb', 'prs-kpi-c4')
+      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, true, 'jt', 'prs-kpi-c1', true)
+      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, function(v){return v!=null?v:'—';}, false, 'n', 'prs-kpi-c2', false)
+      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb', 'prs-kpi-c3', true)
+      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb', 'prs-kpi-c4', true)
       +'</div><div class="prs-kpi-row">'
-      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb', 'prs-kpi-c5')
-      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb', 'prs-kpi-c6')
-      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb', 'prs-kpi-c7')
-      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb', 'prs-kpi-c8')
-      +costCard('Cost / KM', ccCorp?.costKm, ccCorpP?.costKm, fmtK, true, 'rb', 'prs-kpi-c9')
+      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb', 'prs-kpi-c5', true)
+      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb', 'prs-kpi-c6', true)
+      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb', 'prs-kpi-c7', true)
+      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb', 'prs-kpi-c8', true)
+      +costCard('Cost / KM', ccCorp?.costKm, ccCorpP?.costKm, fmtK, true, 'rb', 'prs-kpi-c9', true)
       +'</div>';
 
     var headerHTML = '<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">'
