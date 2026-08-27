@@ -4064,7 +4064,10 @@ function buildMonthlyTripTypeTable(container) {
   if (!container) return;
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const {start: fs, end: fe} = getRange();
-  const allMonths = [...new Set(ROWS.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))].sort();
+  const fsMonth = fs.slice(0,7), feMonth = fe.slice(0,7);
+  const allMonths = [...new Set(ROWS.map(r => r.date ? r.date.slice(0,7) : null).filter(Boolean))]
+    .filter(mo => mo >= fsMonth && mo <= feMonth)
+    .sort();
   const SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : currentSite.startsWith('BU_') ? SITES : [currentSite];
 
   // ── 1. Discover all unique r.td values present in data ──
@@ -4072,6 +4075,10 @@ function buildMonthlyTripTypeTable(container) {
   ROWS.forEach(r => { if (r.td) tdSet.add((r.td+'').toLowerCase().trim()); });
 
   // ── 2. Compute COUNTUNIQUE r.lc per month per site per td ──
+  // NOTE: allMonths is now restricted to the active filter's month span (above),
+  // and getMonthRange() already clamps day boundaries to fs/fe in range mode
+  // (fullMonthMode=false) — so this now matches Cost Delivery / Present slide
+  // instead of always showing every calendar month ever present in the dataset.
   var allData = {}; // key: mo+'|'+site → { td: Set<lc>, _total: Set<lc> }
   allMonths.forEach(function(mo) {
     var {start:moD1,end:moD2}=getMonthRange(mo);
