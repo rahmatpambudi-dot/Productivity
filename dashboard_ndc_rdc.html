@@ -3296,13 +3296,13 @@ function buildMonthlyUtilTable(container) {
   function pfN(v) { return v!=null ? Math.round(v).toLocaleString('id-ID') : '—'; }
   function momBadge(cur, prev) {
     if(cur==null||prev==null) return '';
-    var d=cur-prev; if(Math.abs(d)<0.05) return '';
+    var d=(+cur.toFixed(1))-(+prev.toFixed(1)); if(Math.abs(d)<0.05) return '';
     var color=d>0?'#0f9d58':'#d93025';
     return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(1)+'%</span>';
   }
   function momBadgeRaw(cur, prev, dec) {
     if(cur==null||prev==null) return '';
-    var d=cur-prev; if(Math.abs(d)<0.005) return '';
+    var dd=dec||2; var d=(+cur.toFixed(dd))-(+prev.toFixed(dd)); if(Math.abs(d)<Math.pow(10,-dd)/2) return '';
     var color=d>0?'#0f9d58':'#d93025';
     return '<br><span style="font-size:9px;font-weight:700;color:'+color+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+'</span>';
   }
@@ -4805,9 +4805,14 @@ function openPresentation() {
   function pct(v)   { return v!=null?(v*100).toFixed(1)+'%':'—'; }
   function num(v,d) { return v!=null?(+v.toFixed(d||1)).toLocaleString('id-ID'):'—'; }
   function fmtTAT(h){ if(h==null)return '—'; var hh=Math.floor(h),mm=Math.round((h-hh)*60); return hh+':'+(mm<10?'0':'')+mm; }
+  // Delta dihitung dari selisih angka yang UDAH dibulatin (match presisi num()/pct()),
+  // biar konsisten sama yang ditampilkan (mis. 1,7->1,9 = +0,2, bukan +0,1 dari raw delta).
   function badge(cur,prev,isLow,isRaw,dec){
     if(cur==null||prev==null) return '';
-    var d=cur-prev; if(Math.abs(d)<0.001) return '';
+    var d;
+    if(isRaw) { var dd=dec||1; d = (+cur.toFixed(dd)) - (+prev.toFixed(dd)); }
+    else { d = ((+((cur*100).toFixed(1))) - (+((prev*100).toFixed(1))))/100; }
+    if(Math.abs(d) < 1e-9) return '';
     var up=isLow?d<0:d>0;
     var label=isRaw?Math.abs(d).toFixed(dec||1):(Math.abs(d)*100).toFixed(1)+'%';
     return '<span class="bdg '+(up?'up':'dn')+'">'+(d>0?'▲':'▼')+label+'</span>';
@@ -5136,7 +5141,7 @@ function openPresentation() {
     // ── KPI Achievement cards (Slide 1): Corporate-level ──
     function kpiArrow(cur, prev, isLow) {
       if(cur==null||prev==null) return '';
-      var d = cur-prev; if(Math.abs(d)<0.05) return '';
+      var d = (+cur.toFixed(1)) - (+prev.toFixed(1)); if(Math.abs(d)<0.05) return '';
       var good = isLow ? d<0 : d>0;
       return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(1)+' pts vs '+mnPrev+'</span>';
     }
@@ -5156,7 +5161,7 @@ function openPresentation() {
     }
     function kpiArrowNum(cur, prev, dec) {
       if(cur==null||prev==null) return '';
-      var d = cur-prev; if(Math.abs(d)<0.005) return '';
+      var dd=dec||2; var d = (+cur.toFixed(dd)) - (+prev.toFixed(dd)); if(Math.abs(d)<Math.pow(10,-dd)/2) return '';
       var good = d>0;
       return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+' vs '+mnPrev+'</span>';
     }
