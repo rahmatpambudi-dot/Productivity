@@ -3265,6 +3265,29 @@ function buildMonthlyUtilTable(container) {
   var SITES_LIST = currentSite==='ALL' ? SITES : currentSite==='NDC_RDC' ? ['NDC_RDC'] : currentSite==='NDC' ? ['NDC'] : currentSite==='RDC' ? ['RDC'] : currentSite.startsWith('BU_') ? SITES : [currentSite];
 
   // Compute per month per site
+  // Ritase Armada: pakai computeSite() (fungsi otoritatif yang sama dipake Overview
+  // KPI card & Present slide) buat "Ritase" di kolom ini, bukan formula mean-of-daily-
+  // ratio bawaan computeUtil() — biar exact-match ke seluruh dashboard, ga ada versi beda-beda.
+  // Di-cache per (tanggal, site) shared sama cache yang dipake panel Armada Kecil.
+  if (!window._ritaseExactCache) window._ritaseExactCache = {};
+  function getExactRitase(moD1, moD2, site, groupSites) {
+    var key = moD1+'|'+moD2+'|'+site;
+    var cached = window._ritaseExactCache[key];
+    if (cached !== undefined) return cached;
+    var val;
+    if (groupSites) {
+      var vals = groupSites.map(function(s){
+        var r = computeSite(filterRows(ROWS, moD1, moD2, s), s);
+        return r && r.ritase != null ? r.ritase : null;
+      }).filter(function(v){ return v != null; });
+      val = vals.length ? vals.reduce(function(a,b){return a+b;},0)/vals.length : null;
+    } else {
+      var res = computeSite(filterRows(ROWS, moD1, moD2, site), site);
+      val = (res && res.ritase != null) ? res.ritase : null;
+    }
+    window._ritaseExactCache[key] = val;
+    return val;
+  }
   var allData = {};
   allMonths.forEach(function(mo) {
     var {start:moD1,end:moD2}=getMonthRange(mo);
@@ -3283,6 +3306,9 @@ function buildMonthlyUtilTable(container) {
       } else {
         var result = filterUtilRows(moD1, moD2, site);
         allData[mo+'|'+site] = result.rows.length ? computeUtil(result.rows, result.allRows, site, result.rawRows) : null;
+      }
+      if (allData[mo+'|'+site]) {
+        allData[mo+'|'+site].ritaseExact = getExactRitase(moD1, moD2, site, groupSites);
       }
     });
   });
@@ -3335,7 +3361,7 @@ function buildMonthlyUtilTable(container) {
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:var(--t2)">'+pfN(d.armAssets)+'</td>'
         +'<td class="'+utilCls(d.armAvailPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+pf(d.armAvailPct)+momBadge(d.armAvailPct, prev?prev.armAvailPct:null)+'</td>'
         +'<td class="'+utilCls(d.armUtilPct)+'" style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace">'+pf(d.armUtilPct)+momBadge(d.armUtilPct, prev?prev.armUtilPct:null)+'</td>'
-        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:var(--t2)">'+(d.ritaseArmada!=null?d.ritaseArmada.toFixed(2):'—')+(prev&&prev.ritaseArmada!=null&&d.ritaseArmada!=null?momBadgeRaw(d.ritaseArmada,prev.ritaseArmada,2):'')+'</td>'
+        +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:var(--t2)">'+(d.ritaseExact!=null?d.ritaseExact.toFixed(2):'—')+(prev&&prev.ritaseExact!=null&&d.ritaseExact!=null?momBadgeRaw(d.ritaseExact,prev.ritaseExact,2):'')+'</td>'
         +'<td style="text-align:center;font-size:11px;font-family:\'JetBrains Mono\',monospace;color:#1a73e8">'+(d.ritaseMpp!=null?d.ritaseMpp.toFixed(2):'—')+(prev&&prev.ritaseMpp!=null&&d.ritaseMpp!=null?momBadgeRaw(d.ritaseMpp,prev.ritaseMpp,2):'')+'</td>'
         +'</tr>';
       tbody += tr;
@@ -4837,7 +4863,7 @@ function openPresentation() {
       +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,prev?.tatStore,true,true,1)+'</td>'
       +'<td class="'+(u&&u.drvUtil!=null?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u&&u.drvUtil!=null?pct(u.drvUtil/100):'—')+(u&&up&&u.drvUtil!=null&&up.drvUtil!=null?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
       +'<td class="'+(u&&u.armUtilPct!=null?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u&&u.armUtilPct!=null?pct(u.armUtilPct/100):'—')+(u&&up&&u.armUtilPct!=null&&up.armUtilPct!=null?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
-      +'<td>'+(u?num(u.ritaseArmada,2):'—')+'</td>'
+      +'<td>'+num(d.ritase,2)+'</td>'
       +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>'
       +'</tr>';
   }
@@ -5011,7 +5037,7 @@ function openPresentation() {
         +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?.tatStore,true,true,1)+'</td>'
         +'<td class="'+(u&&u.drvUtil!=null?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u&&u.drvUtil!=null?pct(u.drvUtil/100):'—')+(u&&up&&u.drvUtil!=null&&up.drvUtil!=null?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
         +'<td class="'+(u&&u.armUtilPct!=null?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u&&u.armUtilPct!=null?pct(u.armUtilPct/100):'—')+(u&&up&&u.armUtilPct!=null&&up.armUtilPct!=null?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
-        +'<td>'+(u?num(u.ritaseArmada,2):'—')+'</td>'
+        +'<td>'+num(d.ritase,2)+'</td>'
         +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>';
     }
     var metrikThead = '<thead><tr><th style="text-align:left">BU</th>'
@@ -5190,9 +5216,9 @@ function openPresentation() {
       +'<div class="prs-kpi-sub">'+kpiArrow(olfCorp, olfCorpP, false)+'</div>'
       +'</div>'
       +'<div class="prs-kpi prs-kpi-c6"><div class="prs-kpi-label">Ritase Armada</div>'
-      +'<div class="prs-kpi-val">'+(uCorp&&uCorp.ritaseArmada!=null?uCorp.ritaseArmada.toFixed(2):'—')+'</div>'
-      +kpiBadgeNum(uCorp?uCorp.ritaseArmada:null, ({JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15), 2)
-      +'<div class="prs-kpi-sub">'+kpiArrowNum(uCorp?uCorp.ritaseArmada:null, uCorpP?uCorpP.ritaseArmada:null, 2)+'</div>'
+      +'<div class="prs-kpi-val">'+(dCorp&&dCorp.ritase!=null?dCorp.ritase.toFixed(2):'—')+'</div>'
+      +kpiBadgeNum(dCorp?dCorp.ritase:null, ({JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15), 2)
+      +'<div class="prs-kpi-sub">'+kpiArrowNum(dCorp?dCorp.ritase:null, dCorpP?dCorpP.ritase:null, 2)+'</div>'
       +'</div>'
       +'</div>';
 
