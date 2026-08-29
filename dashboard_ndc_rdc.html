@@ -3413,7 +3413,10 @@ function computeCost(rows) {
   if(!rows.length) return null;
   var ujp=0, cost=0, pf=0, sewa=0, cbm=0, doSum=0, ot=0, insentif=0, km=0;
   var lcSet = new Set();
-  var byTd = {customer:{cost:0,do:0,cbm:0,dp:0}, store:{cost:0,do:0,cbm:0}, hub:{cost:0,do:0,cbm:0}, satelite:{cost:0,do:0,cbm:0}};
+  var dkCost=0, lkCost=0, dkKm=0, lkKm=0;
+  var dkLcSet = new Set(), lkLcSet = new Set();
+  function tdBucket(){ return {cost:0,do:0,cbm:0, dk:{cost:0,do:0,cbm:0}, lk:{cost:0,do:0,cbm:0}}; }
+  var byTd = {customer:Object.assign(tdBucket(),{dp:0}), store:tdBucket(), hub:tdBucket(), satelite:{cost:0,do:0,cbm:0}};
   rows.forEach(function(r) {
     if(r.ujp)  ujp  += r.ujp;
     if(r.pf)   pf   += r.pf;
@@ -3429,27 +3432,53 @@ function computeCost(rows) {
     insentif += rowIns;
     var rowCost = (r.cost||0) + rowOt + rowIns;
     cost += rowCost;
+    var sa = effectiveSA(r);
+    var isDK = sa === 'DALAM KOTA';
+    var isLK = sa === 'LUAR KOTA';
+    if(isDK) { dkCost += rowCost; if(r.jarak) dkKm += parseFloat(r.jarak)||0; if(r.lc) dkLcSet.add(r.lc); }
+    else if(isLK) { lkCost += rowCost; if(r.jarak) lkKm += parseFloat(r.jarak)||0; if(r.lc) lkLcSet.add(r.lc); }
     var td = (r.td||'').toLowerCase().trim();
     if(byTd[td]) {
       byTd[td].cost += rowCost;
       byTd[td].do   += parseFloat(r.do)||0;
       byTd[td].cbm  += parseFloat(r.cbm)||0;
       if(td==='customer') byTd[td].dp += parseFloat(r.dp)||0;
+      var bucket = byTd[td].dk ? (isDK ? byTd[td].dk : isLK ? byTd[td].lk : null) : null;
+      if(bucket) {
+        bucket.cost += rowCost;
+        bucket.do   += parseFloat(r.do)||0;
+        bucket.cbm  += parseFloat(r.cbm)||0;
+      }
     }
   });
-  var trip = lcSet.size;
+  var trip = lcSet.size, dkTrip = dkLcSet.size, lkTrip = lkLcSet.size;
   return {
     ujp, cost, pf, sewa, ot, insentif, trip, cbm, km,
+    dkCost, lkCost, dkTrip, lkTrip, dkKm, lkKm,
+    costTripDK: dkTrip>0 ? dkCost/dkTrip : null,
+    costTripLK: lkTrip>0 ? lkCost/lkTrip : null,
+    costKmDK: dkKm>0 ? dkCost/dkKm : null,
+    costKmLK: lkKm>0 ? lkCost/lkKm : null,
     costTrip:    trip>0               ? cost/trip                   : null,
     costDoCust:  byTd.customer.do>0   ? byTd.customer.cost/byTd.customer.do   : null,
+    costDoCustDK: byTd.customer.dk.do>0 ? byTd.customer.dk.cost/byTd.customer.dk.do : null,
+    costDoCustLK: byTd.customer.lk.do>0 ? byTd.customer.lk.cost/byTd.customer.lk.do : null,
     costDoStore: byTd.store.do>0      ? byTd.store.cost/byTd.store.do         : null,
+    costDoStoreDK: byTd.store.dk.do>0 ? byTd.store.dk.cost/byTd.store.dk.do : null,
+    costDoStoreLK: byTd.store.lk.do>0 ? byTd.store.lk.cost/byTd.store.lk.do : null,
     costDoHub:   byTd.hub.do>0        ? byTd.hub.cost/byTd.hub.do             : null,
     costCbm:     cbm>0                ? cost/cbm                   : null,
     costKm:      km>0                 ? cost/km                    : null,
     doSum:       doSum,
     costCbmCust:  byTd.customer.cbm>0  ? byTd.customer.cost/byTd.customer.cbm  : null,
+    costCbmCustDK: byTd.customer.dk.cbm>0 ? byTd.customer.dk.cost/byTd.customer.dk.cbm : null,
+    costCbmCustLK: byTd.customer.lk.cbm>0 ? byTd.customer.lk.cost/byTd.customer.lk.cbm : null,
     costCbmStore: byTd.store.cbm>0     ? byTd.store.cost/byTd.store.cbm        : null,
+    costCbmStoreDK: byTd.store.dk.cbm>0 ? byTd.store.dk.cost/byTd.store.dk.cbm : null,
+    costCbmStoreLK: byTd.store.lk.cbm>0 ? byTd.store.lk.cost/byTd.store.lk.cbm : null,
     costCbmHub:   byTd.hub.cbm>0       ? byTd.hub.cost/byTd.hub.cbm            : null,
+    costCbmHubDK: byTd.hub.dk.cbm>0 ? byTd.hub.dk.cost/byTd.hub.dk.cbm : null,
+    costCbmHubLK: byTd.hub.lk.cbm>0 ? byTd.hub.lk.cost/byTd.hub.lk.cbm : null,
     ujpTrip:     trip>0               ? ujp/trip                   : null,
     doCust:   byTd.customer.do,
     doStore:  byTd.store.do,
@@ -5242,23 +5271,32 @@ function openPresentation() {
       var color = good ? '#166534' : (isCost ? '#b45309' : '#991b1b');
       return '<span style="color:'+color+'">'+(d>0?'▲':'▼')+label+' vs '+mnPrev+'</span>';
     }
-    function costCard(label, val, prev, fmtFn, isLow, fmt, colorCls, isCost) {
+    function costCard(label, val, prev, fmtFn, isLow, fmt, colorCls, isCost, dkVal, lkVal) {
+      var dklkHTML = '';
+      if(dkVal!=null || lkVal!=null) {
+        dklkHTML = '<div class="prs-kpi-dklk">'
+          +'<span><i>DK</i> '+fmtFn(dkVal)+'</span>'
+          +'<span><i>LK</i> '+fmtFn(lkVal)+'</span>'
+          +'</div>';
+      }
       return '<div class="prs-kpi '+colorCls+'"><div class="prs-kpi-label">'+label+'</div>'
         +'<div class="prs-kpi-val" style="font-size:18px">'+fmtFn(val)+'</div>'
         +'<div class="prs-kpi-sub">'+costArrow(val, prev, isLow, fmt, isCost)+'</div>'
+        +dklkHTML
         +'</div>';
     }
+    var fmtN = function(v){ return v!=null?v.toLocaleString('id-ID'):'—'; };
     var costKpiHTML = '<div class="prs-kpi-row">'
-      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, true, 'jt', 'prs-kpi-c1', true)
-      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, function(v){return v!=null?v:'—';}, false, 'n', 'prs-kpi-c2', false)
-      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb', 'prs-kpi-c3', true)
-      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb', 'prs-kpi-c4', true)
+      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, true, 'jt', 'prs-kpi-c1', true, ccCorp?.dkCost, ccCorp?.lkCost)
+      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, fmtN, false, 'n', 'prs-kpi-c2', false, ccCorp?.dkTrip, ccCorp?.lkTrip)
+      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb', 'prs-kpi-c3', true, ccCorp?.costTripDK, ccCorp?.costTripLK)
+      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb', 'prs-kpi-c4', true, ccCorp?.costDoCustDK, ccCorp?.costDoCustLK)
       +'</div><div class="prs-kpi-row">'
-      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb', 'prs-kpi-c5', true)
-      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb', 'prs-kpi-c6', true)
-      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb', 'prs-kpi-c7', true)
-      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb', 'prs-kpi-c8', true)
-      +costCard('Cost / KM', ccCorp?.costKm, ccCorpP?.costKm, fmtK, true, 'rb', 'prs-kpi-c9', true)
+      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb', 'prs-kpi-c5', true, ccCorp?.costDoStoreDK, ccCorp?.costDoStoreLK)
+      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb', 'prs-kpi-c6', true, ccCorp?.costCbmCustDK, ccCorp?.costCbmCustLK)
+      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb', 'prs-kpi-c7', true, ccCorp?.costCbmStoreDK, ccCorp?.costCbmStoreLK)
+      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb', 'prs-kpi-c8', true, ccCorp?.costCbmHubDK, ccCorp?.costCbmHubLK)
+      +costCard('Cost / KM', ccCorp?.costKm, ccCorpP?.costKm, fmtK, true, 'rb', 'prs-kpi-c9', true, ccCorp?.costKmDK, ccCorp?.costKmLK)
       +'</div>';
 
     var headerHTML = '<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">'
@@ -5364,6 +5402,8 @@ function openPresentation() {
     +'.prs-kpi-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}'
     +'.prs-kpi-val{font-size:24px;font-weight:800;color:#0f172a}'
     +'.prs-kpi-sub{font-size:10px;margin-top:4px;font-weight:600}'
+    +'.prs-kpi-dklk{display:flex;gap:10px;font-size:10px;color:#64748b;margin-top:6px;padding-top:6px;border-top:1px dashed #e2e8f0;font-weight:600}'
+    +'.prs-kpi-dklk i{font-style:normal;color:#94a3b8;font-weight:700;margin-right:2px}'
     +'.prs-kpi-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;margin-top:5px}'
     +'.prs-tbl td.g{color:#166534;font-weight:700;background:#dcfce7!important}'
     +'.prs-tbl td.y{color:#854d0e;font-weight:700;background:#fef9c3!important}'
