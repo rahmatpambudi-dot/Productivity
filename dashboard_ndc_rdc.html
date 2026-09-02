@@ -1326,6 +1326,10 @@ function buildMonthlyTrendTable(container) {
   const {start:fs, end:fe} = getRange();
   const allMonths = [...new Set(ROWS.map(r=>r.date?r.date.slice(0,7):null).filter(Boolean))].sort();
   const COLS = [
+    { key:'slaHitPct',label:'On Time Fulfillment',fmt:v=>v!=null?v.toFixed(1)+'%':'—',tgt:function(){return 99.6;},hi:true },
+    { key:'armAvailPct',label:'Availability Armada',fmt:v=>v!=null?v.toFixed(1)+'%':'—',tgt:function(){return 97;},hi:true },
+    { key:'armUtilPct',label:'Fleet Utilization',fmt:v=>v!=null?v.toFixed(1)+'%':'—',tgt:null,hi:true },
+    { key:'drvUtil',label:'Driver Utilization',fmt:v=>v!=null?v.toFixed(1)+'%':'—',tgt:null,hi:true },
     { key:'ritase',label:'Ritase',fmt:v=>v!=null?v.toFixed(2):'—',tgt:function(site){return {JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15;},hi:true },
     { key:'olf',label:'OLF (Store)',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—',tgt:function(){return 0.85;},hi:true },
     { key:'dpStore',label:'DP (Store)',fmt:v=>v!=null?v.toFixed(1):'—',tgt:null,hi:true },
@@ -1370,6 +1374,15 @@ function buildMonthlyTrendTable(container) {
         moResult = subResults.length ? {...makeSummary(subResults), site:site, label:SL[site]||site} : null;
       } else {
         moResult = moFiltered.length?(computeSite(moFiltered,site)||{}):null;
+        if(moResult) {
+          var uRes = filterUtilRows(moD1, moD2, site);
+          var uCalc = uRes.rows && uRes.rows.length ? computeUtil(uRes.rows, uRes.allRows, site, uRes.rawRows) : null;
+          if(uCalc) {
+            moResult.armAvailPct = uCalc.armAvailPct;
+            moResult.armUtilPct  = uCalc.armUtilPct;
+            moResult.drvUtil     = uCalc.drvUtil;
+          }
+        }
       }
       allResults[mo+'|'+site]=moResult;
     });
