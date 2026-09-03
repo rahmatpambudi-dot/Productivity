@@ -2830,7 +2830,7 @@ function buildArmadaTypeTrend(container) {
       if (!asset) return null;
       var a = agg[key];
       var calibAsset = a ? calibratedAsset(a, asset, t) : asset;
-      return +((a ? calibratedActive(a, calibAsset, t) : 0) / calibAsset * 100).toFixed(1);
+      return +Math.min(100, (a ? calibratedActive(a, calibAsset, t) : 0) / calibAsset * 100).toFixed(1);
     });
     return {
       label: t+' ('+lastAsset+' unit)',
@@ -2861,7 +2861,7 @@ function buildArmadaTypeTrend(container) {
       }
     });
     if (coverage !== dates.length || sumAvail <= 0) return null;
-    return +(sumUtil / sumAvail * 100).toFixed(1);
+    return +Math.min(100, sumUtil / sumAvail * 100).toFixed(1);
   });
   if (totalSheetData.some(function(v){ return v != null; })) {
     chartDatasets.push({
@@ -3185,6 +3185,7 @@ function buildArmadaTypeTrend(container) {
   container.innerHTML =
     '<div class="panel">'
     + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
+    + '<span style="font-size:9.5px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:2px 7px;letter-spacing:.2px;margin-left:8px">🔧 ON DEVELOPMENT</span>'
     + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' '+bucketUnitLabel(gran)+'</span></div>'
     + controlBar()
     + buGapHtml
