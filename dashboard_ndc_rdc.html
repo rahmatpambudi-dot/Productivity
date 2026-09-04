@@ -834,6 +834,23 @@ function computeSite(rows, site) {
   const totalDoCust = ssum(drAll.map(r=>parseFloat(r.do)||0));
   const totalDpCust = ssum(drAll.map(r=>parseFloat(r.dp)||0));
 
+  // Total Trip breakdown by td — total unique LC, total to total (base sr, semua tipe delivery)
+  const tripSets = {customer:new Set(), store:new Set(), hub:new Set(), other:new Set(), total:new Set()};
+  sr.forEach(r => {
+    if(!r.lc) return;
+    const td = (r.td||'').toLowerCase().trim();
+    tripSets.total.add(r.lc);
+    if(td==='customer') tripSets.customer.add(r.lc);
+    else if(td==='store') tripSets.store.add(r.lc);
+    else if(td==='hub' || td==='customer via hub') tripSets.hub.add(r.lc);
+    else tripSets.other.add(r.lc);
+  });
+  const totalTrip         = tripSets.total.size;
+  const totalTripCustomer = tripSets.customer.size;
+  const totalTripStore    = tripSets.store.size;
+  const totalTripHub      = tripSets.hub.size;
+  const totalTripOther    = tripSets.other.size;
+
   // On Time Fleet Fulfillment by Batch — % row dgn SLA Check In = HIT dari semua trip yang punya data sla
   // (normalisasi: "MIS" & "MISS" dua-duanya dianggap Mis, biar gak kesenggol variasi input di sheet)
   const slaRows = sr.filter(r => r.sla === 'HIT' || r.sla === 'MIS' || r.sla === 'MISS');
@@ -859,6 +876,7 @@ function computeSite(rows, site) {
     tatStoreOver8: tatS.length ? tatS.filter(function(v){return v>8;}).length/tatS.length*100 : null,
     tatStoreUnder8: tatS.length ? tatS.filter(function(v){return v<=8;}).length/tatS.length*100 : null,
     totalCbmStore, totalDoCust, totalDpCust,
+    totalTrip, totalTripCustomer, totalTripStore, totalTripHub, totalTripOther,
     doTripAll, slaHitPct,
     rowCount: sr.length,
   };
@@ -867,7 +885,7 @@ function computeSite(rows, site) {
 function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(Boolean); }
 function makeSummary(results) {
   const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDoMix','cbmDp','cbmDpMix','doTripMix','tatDirect','tatStore','doTripAll','tatDirectOver8','tatDirectUnder8','tatStoreOver8','tatStoreUnder8','slaHitPct'];
-  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust'];
+  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust','totalTrip','totalTripCustomer','totalTripStore','totalTripHub','totalTripOther'];
   return {
     site:'NDC & RDC', label:'NDC & RDC',
     ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])),
@@ -1451,6 +1469,11 @@ function renderDetail(results, summary, start, end) {
     { key:'tatStoreUnder8',label:'TAT Store (% &le;8 jam)',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'totalCbmStore',label:'Demand CBM Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
     { key:'totalDoCust',label:'Demand DO Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTrip',label:'Total Trip',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTripCustomer',label:'Total Trip Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTripStore',label:'Total Trip Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTripHub',label:'Total Trip Hub',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTripOther',label:'Total Trip Type Other',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
   ];
   const achMetrics = [
     { key:'olf',label:'OLF Store',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—',tgtFmt:'Target ≥85%'},
