@@ -1531,7 +1531,7 @@ function renderDetail(results, summary, start, end) {
       </div>
       <div style="display:flex;flex-direction:column;gap:14px">
         <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
-        <div class="panel"><div class="ph"><h3>Total Trip per Site</h3><span class="tag">Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dTripType"></canvas></div></div></div>
+        <div class="panel"><div class="ph"><h3>Total Trip per Site</h3><span class="tag">Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:260px;position:relative"><canvas id="dTripType"></canvas></div></div></div>
       </div>
     </div>
     <div class="g2">
@@ -1594,11 +1594,11 @@ function renderDetail(results, summary, start, end) {
   };
   charts.dOLF=new Chart(document.getElementById('dOLF').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[{label:'OLF',data:results.map(r=>r.olf!=null?+(r.olf*100).toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4}]},options:{...co,scales:{...co.scales,y:{...co.scales.y,min:0,max:100}}}});
   charts.dTripType=new Chart(document.getElementById('dTripType').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
-    {label:'Customer',data:results.map(r=>r.totalTripCustomer),backgroundColor:'rgba(26,115,232,.7)',borderColor:'#1a73e8',borderWidth:1},
-    {label:'Store',data:results.map(r=>r.totalTripStore),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1},
-    {label:'Hub',data:results.map(r=>r.totalTripHub),backgroundColor:'rgba(161,66,244,.7)',borderColor:'#a142f4',borderWidth:1},
-    {label:'Other',data:results.map(r=>r.totalTripOther),backgroundColor:'rgba(227,116,0,.7)',borderColor:'#e37400',borderWidth:1},
-  ]},options:{...co,scales:{x:{...co.scales.x,stacked:true},y:{...co.scales.y,stacked:true}}}});
+    {label:'Customer',data:results.map(r=>r.totalTripCustomer),backgroundColor:'rgba(26,115,232,.7)',borderColor:'#1a73e8',borderWidth:1,datalabels:{display:false}},
+    {label:'Store',data:results.map(r=>r.totalTripStore),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,datalabels:{display:false}},
+    {label:'Hub',data:results.map(r=>r.totalTripHub),backgroundColor:'rgba(161,66,244,.7)',borderColor:'#a142f4',borderWidth:1,datalabels:{display:false}},
+    {label:'Other',data:results.map(r=>r.totalTripOther),backgroundColor:'rgba(227,116,0,.7)',borderColor:'#e37400',borderWidth:1,datalabels:{anchor:'end',align:'right',color:'#1a1d23',font:{family:'Inter',size:9,weight:'600'},padding:4,formatter:(v,ctx)=>{const i=ctx.dataIndex;const tot=ctx.chart.data.datasets.reduce((s,ds)=>s+(ds.data[i]||0),0);return tot?tot.toLocaleString('id-ID'):'';}}},
+  ]},options:{...co,indexAxis:'y',plugins:{...co.plugins,tooltip:{callbacks:{label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.x.toLocaleString('id-ID')}}},scales:{x:{...co.scales.x,stacked:true},y:{...co.scales.y,stacked:true}}}});
   setTimeout(function(){buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));},50);
   charts.dTAT=new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'TAT Direct',data:results.map(r=>r.tatDirect!=null?+r.tatDirect.toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
