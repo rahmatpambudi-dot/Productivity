@@ -2130,14 +2130,14 @@ function computeUtil(rows, allRows, site, rawRows) {
   var ritMppVals    = Object.values(ritByDate).map(function(v){ return v.mpp.length   ? v.mpp.reduce(function(s,x){return s+x;},0)/v.mpp.length     : null; }).filter(function(v){ return v!=null; });
 
   return {
-    drvUtil:      drvDenW > 0 ? drvNumW / drvDenW : null,
-    astUtil:      astDenW > 0 ? astNumW / astDenW : null,
+    drvUtil:      drvDenW > 0 ? Math.min(100, drvNumW / drvDenW) : null,
+    astUtil:      astDenW > 0 ? Math.min(100, astNumW / astDenW) : null,
     drvAktAvg:    drvAktDays > 0 ? drvAktSum / drvAktDays : null,
     astAktAvg:    astAktDays > 0 ? astAktSum / astAktDays : null,
     armAssets:    displayAssets || avgAssets,
     armAvailAbs:  avgAvail,
     armAvailPct:  (avgAssets && avgAvail) ? avgAvail / avgAssets * 100 : null,
-    armUtilPct:   (avgAvail  && avgUtil)  ? avgUtil  / avgAvail  * 100 : null,
+    armUtilPct:   (avgAvail  && avgUtil)  ? Math.min(100, avgUtil  / avgAvail  * 100) : null,
     ritaseArmada: avg(ritArmadaVals),
     ritaseMpp:    avg(ritMppVals),
   };
