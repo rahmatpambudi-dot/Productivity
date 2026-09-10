@@ -1390,6 +1390,15 @@ function buildMonthlyTrendTable(container) {
         var subSites = site==='NDC' ? SITES_NDC : site==='RDC' ? SITES_RDC : SITES;
         var subResults = subSites.map(function(s){ return computeSite(filterRows(ROWS,moD1,moD2,s),s); }).filter(Boolean);
         moResult = subResults.length ? {...makeSummary(subResults), site:site, label:SL[site]||site} : null;
+        if(moResult) {
+          var uResC = filterUtilRows(moD1, moD2, site);
+          var uCalcC = uResC.rows && uResC.rows.length ? computeUtil(uResC.rows, uResC.allRows, site, uResC.rawRows) : null;
+          if(uCalcC) {
+            moResult.armAvailPct = uCalcC.armAvailPct;
+            moResult.armUtilPct  = uCalcC.armUtilPct;
+            moResult.drvUtil     = uCalcC.drvUtil;
+          }
+        }
       } else {
         moResult = moFiltered.length?(computeSite(moFiltered,site)||{}):null;
         if(moResult) {
