@@ -2044,33 +2044,16 @@ function computeUtil(rows, allRows, site, rawRows) {
   var drvPlan=0, drvAkt=0, astPlan=0, astAkt=0;
   var armAssetsList=[], armAvailList=[], armUtilList=[];
 
-  // ── MPP Utilisasi: formula berbeda per site karena format sumber sheet beda ──
-  //   HCI/AHI JABABEKA, CORP TAMORA, CORP TALLO: kolom "Utilize" di sheet = % langsung
-  //     (bukan headcount) → pakai rata-rata tertimbang (bobot = Aktual harian)
-  //   CORP SIDOARJO, HCI CIKUPA: kolom "Utilize" = headcount (mirror Aktual), tapi
-  //     Kehadiran juga terisi lengkap → pakai Kehadiran ÷ Utilize
-  function siteFormula(s) {
-    s = (s||'').toUpperCase();
-    if(s==='HCI JABABEKA' || s==='AHI JABABEKA' || s==='JABABEKA' || s==='CORP TAMORA' || s==='CORP TALLO') return 'pct';
-    if(s==='CORP SIDOARJO' || s==='HCI CIKUPA') return 'keh_util';
-    return 'plan_aktual'; // fallback default kalau ada site lain tanpa data lengkap
-  }
+  // ── MPP Utilisasi: formula SERAGAM semua site — Aktual ÷ Kehadiran ──
+  //   (konfirmasi 10 Sep 2026: semua site punya kolom Kehadiran & Aktual di sheet
+  //   Utilisasi, jadi dipakein rasio yang sama utk semua, bukan branch per site lagi)
   var mppSrc = (rawRows && rawRows.length) ? rawRows : rows;
   var drvNumW=0, drvDenW=0, astNumW=0, astDenW=0; // weighted-by-aktual accumulators (unit: %)
   var drvAktSum=0, drvAktDays=0, astAktSum=0, astAktDays=0; // raw headcount avg (dipakai utk FBI, dsb — Plan=Aktual by construction jadi % nggak bermakna)
   mppSrc.forEach(function(r) {
-    var f = siteFormula(r.site);
     var dPct=null, aPct=null;
-    if(f==='pct') {
-      if(r.drv_utilize!=null) dPct = r.drv_utilize;
-      if(r.ast_utilize!=null) aPct = r.ast_utilize;
-    } else if(f==='keh_util') {
-      if(r.drv_kehadiran!=null && r.drv_utilize) dPct = r.drv_kehadiran / r.drv_utilize * 100;
-      if(r.ast_kehadiran!=null && r.ast_utilize) aPct = r.ast_kehadiran / r.ast_utilize * 100;
-    } else { // plan_aktual
-      if(r.drv_plan) dPct = (r.drv_aktual||0) / r.drv_plan * 100;
-      if(r.ast_plan) aPct = (r.ast_aktual||0) / r.ast_plan * 100;
-    }
+    if(r.drv_kehadiran) dPct = (r.drv_aktual||0) / r.drv_kehadiran * 100;
+    if(r.ast_kehadiran) aPct = (r.ast_aktual||0) / r.ast_kehadiran * 100;
     var dW = r.drv_aktual || 0, aW = r.ast_aktual || 0;
     if(dPct!=null && dW>0) { drvNumW += dPct*dW; drvDenW += dW; }
     if(aPct!=null && aW>0) { astNumW += aPct*aW; astDenW += aW; }
