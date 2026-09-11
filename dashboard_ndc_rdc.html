@@ -728,7 +728,6 @@ function computeSite(rows, site) {
     // JAB_FBI & JAB_KLS: time-aware nopol->BU lookup (nopol bisa mutasi antar BU antar bulan)
     if(site === 'JAB_FBI') return getNopolBU(r.nopol, r.date) === 'FBI';
     if(site === 'JAB_KLS') return getNopolBU(r.nopol, r.date) === 'KLS';
-    if(site === 'TAMORA_KLS') return KLS_NOPOL_SET.has((r.nopol||'').toUpperCase()); // preserved as-is, di luar scope perubahan ini
     if(site === 'SDA_HCI') return HCI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
     if(site === 'SDA_AHI') return AHI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
     if(site === 'SDA_FBI') return FBI_SDA_NOPOL_SET.has((r.nopol||'').toUpperCase());
