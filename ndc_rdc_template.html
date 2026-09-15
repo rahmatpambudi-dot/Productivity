@@ -425,7 +425,7 @@ function exportCostJalurCSV() {
 let ROWS = [];
 let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
 let MASTER_ASSET = {}; // { 'YYYY-MM': { site: { type: [nopol,...] } } } from data_master_asset.json
-let JABABEKA_NOPOL_STATUS = null; // per-NOPOL per-day status from data_jababeka_nopol_status.json (Sept 2026 pilot)
+let PILOT_DATA = { JABABEKA: null, CIKUPA: null }; // per-site NOPOL-level pilot status (data_<site>_nopol_status.json). Add a new key here + a fetch in Step 3c when a new site's pilot sheet arrives.
 let currentNav  = 'overview';
 let currentSite = 'ALL';
 let currentBU = '_all';
@@ -578,11 +578,20 @@ async function loadData() {
       if(maRes.ok) { const maJson = await maRes.json(); MASTER_ASSET = maJson.months || {}; }
     } catch(e3b) { MASTER_ASSET = {}; }
 
-    // Step 3c: Load Jababeka NOPOL-level status pilot (heatmap: utilized/not-available/empty per day)
-    try {
-      const jnsRes = await fetch('data_jababeka_nopol_status.json?t=' + Date.now());
-      if(jnsRes.ok) { JABABEKA_NOPOL_STATUS = await jnsRes.json(); applyJababekaLKTransitImputation(); }
-    } catch(e3c) { JABABEKA_NOPOL_STATUS = null; }
+    // Step 3c: Load per-site NOPOL-level status pilots (heatmap: utilized/not-available/empty
+    // per day). Each site's PIC-tracked sheet loads independently — a missing file for one
+    // site doesn't block another. Add a new { key, file } pair here when a new site's pilot
+    // sheet arrives (also add the key to PILOT_DATA above).
+    const PILOT_SITE_FILES = [
+      { key: 'JABABEKA', file: 'data_jababeka_nopol_status.json' },
+      { key: 'CIKUPA', file: 'data_cikupa_nopol_status.json' }
+    ];
+    for (const ps of PILOT_SITE_FILES) {
+      try {
+        const psRes = await fetch(ps.file + '?t=' + Date.now());
+        if (psRes.ok) { PILOT_DATA[ps.key] = await psRes.json(); applyPilotLKTransitImputation(ps.key); }
+      } catch (e3c) { PILOT_DATA[ps.key] = null; }
+    }
 
     // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
     try {
@@ -2579,28 +2588,33 @@ function waterFillAllocate(items, target) {
 // exact per-NOPOL per-day status derived from data_jababeka_nopol_status.json
 // (s: 'UTIL'|'NA'|'EMPTY', d: detail/reason text). Other sites still use the
 // legacy buildArmadaTypeTrend() below untouched.
-var JABABEKA_UTIL_STATE = { type: null };
+var PILOT_UTIL_STATE = { type: null };
 var GENERIC_UTIL_STATE = { type: null }; // per-site heatmap type selector for non-pilot sites (Cikupa/Tallo/Tamora/SDA), keyed loosely — resets are fine since it's just a display default
 function setGenericUtilType(t) { GENERIC_UTIL_STATE.type = t; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
-function setJabUtilType(t) { JABABEKA_UTIL_STATE.type = t; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
-function jabUtilApplies() {
+function setJabUtilType(t) { PILOT_UTIL_STATE.type = t; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
+// Returns the pilot site key (e.g. 'JABABEKA', 'CIKUPA') that applies to the currently
+// selected site/sub-BU, or null if this site has no PIC-tracked pilot sheet yet.
+function pilotSiteKey() {
   var eff = SUB_SITES[currentSite] ? SUB_SITES[currentSite].baseSite : (currentSite === 'ALL' ? null : currentSite);
-  return eff === 'JABABEKA' && JABABEKA_NOPOL_STATUS && JABABEKA_NOPOL_STATUS.dates && JABABEKA_NOPOL_STATUS.dates.length;
+  if (!eff) return null;
+  var data = PILOT_DATA[eff];
+  return (data && data.dates && data.dates.length) ? eff : null;
 }
 // Pairs real Luar Kota trips from the master LC data (ROWS) against LEADTIME_MAP so
 // multi-day LK trips (e.g. Jababeka->Lampung 2 hari, ->Bali 5 hari) mark the vehicle
 // Utilized for the whole transit/kembali window, not just the departure day — mirrors
 // the legacy expandActiveDates() imputation used elsewhere in the dashboard. Runs once
-// per data load (idempotent: only ever promotes a cell to UTIL, never demotes).
-function applyJababekaLKTransitImputation() {
-  if (!JABABEKA_NOPOL_STATUS || !JABABEKA_NOPOL_STATUS.dates || !JABABEKA_NOPOL_STATUS.dates.length) return;
+// per data load per site (idempotent: only ever promotes a cell to UTIL, never demotes).
+function applyPilotLKTransitImputation(siteKey) {
+  var data = PILOT_DATA[siteKey];
+  if (!data || !data.dates || !data.dates.length) return;
   if (!ROWS || !ROWS.length) return;
-  var dates = JABABEKA_NOPOL_STATUS.dates;
+  var dates = data.dates;
   var dateIdx = {};
   dates.forEach(function(d,i){ dateIdx[d] = i; });
   var nopolRow = {};
-  Object.keys(JABABEKA_NOPOL_STATUS.types).forEach(function(t) {
-    JABABEKA_NOPOL_STATUS.types[t].forEach(function(r) { nopolRow[r.nopol] = r; });
+  Object.keys(data.types).forEach(function(t) {
+    data.types[t].forEach(function(r) { nopolRow[r.nopol] = r; });
   });
   var maxDate = dates[dates.length-1];
   var scanMin = new Date(dates[0]+'T00:00:00'); scanMin.setDate(scanMin.getDate()-10);
@@ -2608,7 +2622,7 @@ function applyJababekaLKTransitImputation() {
   var fixed = 0;
   ROWS.forEach(function(r) {
     if (!r.date || r.date < scanMinStr || r.date > maxDate) return;
-    if (r.site !== 'JABABEKA') return;
+    if (r.site !== siteKey) return;
     if (effectiveSA(r) !== 'LUAR KOTA' || !r.jalur || r.jalur === '#N/A') return;
     var row = nopolRow[r.nopol];
     if (!row) return;
@@ -2627,23 +2641,25 @@ function applyJababekaLKTransitImputation() {
   });
   return fixed;
 }
-function buildJababekaHeatmapHtml() {
+function buildPilotHeatmapHtml(siteKey) {
+  var nopolStatus = PILOT_DATA[siteKey];
+  var siteLabel = (SL && SL[siteKey]) ? SL[siteKey] : siteKey;
   var ownerFilter = SUB_SITES[currentSite] ? SUB_SITES[currentSite].owners : null; // null = Corporate (semua BU)
   var buLabel = ownerFilter ? ownerFilter.join('/') : 'Corporate (semua BU)';
-  var dates = JABABEKA_NOPOL_STATUS.dates; // ISO yyyy-mm-dd, ascending
+  var dates = nopolStatus.dates; // ISO yyyy-mm-dd, ascending
   var types = {};
-  Object.keys(JABABEKA_NOPOL_STATUS.types).forEach(function(t) {
-    var rs = JABABEKA_NOPOL_STATUS.types[t];
+  Object.keys(nopolStatus.types).forEach(function(t) {
+    var rs = nopolStatus.types[t];
     var filtered = ownerFilter ? rs.filter(function(r){ return ownerFilter.indexOf(r.owner) !== -1; }) : rs;
     if (filtered.length) types[t] = filtered;
   });
   var typeNames = Object.keys(types).sort(function(a,b){ return types[b].length - types[a].length; });
   if (!typeNames.length) {
-    return '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3><span class="tag">Jababeka &middot; '+buLabel+'</span></div>'
+    return '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3><span class="tag">'+siteLabel+' &middot; '+buLabel+'</span></div>'
       + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Belum ada data NOPOL untuk BU '+buLabel+' di sheet pilot ini.</p></div>';
   }
-  if (!JABABEKA_UTIL_STATE.type || typeNames.indexOf(JABABEKA_UTIL_STATE.type) === -1) JABABEKA_UTIL_STATE.type = typeNames[0];
-  var selType = JABABEKA_UTIL_STATE.type;
+  if (!PILOT_UTIL_STATE.type || typeNames.indexOf(PILOT_UTIL_STATE.type) === -1) PILOT_UTIL_STATE.type = typeNames[0];
+  var selType = PILOT_UTIL_STATE.type;
 
   function dayLabel(iso) { return iso.slice(8,10); }
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
@@ -2731,7 +2747,7 @@ function buildJababekaHeatmapHtml() {
 
   return '<div class="panel">'
     + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
-    + '<span class="tag">Jababeka &middot; '+buLabel+' &middot; '+dates[0]+' s/d '+dates[dates.length-1]+'</span></div>'
+    + '<span class="tag">'+siteLabel+' &middot; '+buLabel+' &middot; '+dates[0]+' s/d '+dates[dates.length-1]+'</span></div>'
     + typeBar
     + summaryHtml
     + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail LC / alasan Not Available &middot; kotak abu = Unutilized (armada available, idle, ga ada LC/status apapun) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
@@ -2743,7 +2759,7 @@ function buildJababekaHeatmapHtml() {
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;border:1px dashed var(--border);vertical-align:-1px;margin-right:6px"></span>Minggu/libur (excluded)</span>'
     + '</div>'
     + '<div style="border-top:1px solid var(--border)">' + problemHtml + '</div>'
-    + '<div style="padding:10px 16px;font-size:10.5px;color:var(--t3);border-top:1px solid var(--border)">Sumber: sheet NOPOL_PAIRED_LC (PIC Jababeka) &middot; pilot Sept 2026, site lain masih pakai perhitungan estimasi lama</div>'
+    + '<div style="padding:10px 16px;font-size:10.5px;color:var(--t3);border-top:1px solid var(--border)">Sumber: sheet NOPOL_PAIRED_LC (PIC '+siteLabel+') &middot; pilot Sept 2026, site lain masih pakai perhitungan estimasi lama</div>'
     + '</div>';
 }
 
@@ -2879,8 +2895,8 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
 
 function buildArmadaTypeTrend(container) {
   if (!container) return;
-  var jabaMode = jabUtilApplies();
-  var jabaHtml = jabaMode ? buildJababekaHeatmapHtml() : '';
+  var jabaMode = pilotSiteKey();
+  var jabaHtml = jabaMode ? buildPilotHeatmapHtml(jabaMode) : '';
   ARM_TREND_STATE.container = container;
   var filterSA = ARM_TREND_STATE.filter, gran = ARM_TREND_STATE.gran, filterType = ARM_TREND_STATE.type || 'ALL';
   var { start: s, end: e } = getRange();
