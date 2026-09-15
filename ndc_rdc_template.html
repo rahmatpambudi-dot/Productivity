@@ -2620,13 +2620,23 @@ function buildJababekaUtilHeatmap(container) {
 
   var rows = types[selType];
   var statusColor = { UTIL:'#22c55e', NA:'#ef4444', EMPTY:'#e2e8f0' };
-  var dateHeaders = dates.map(function(d){ return '<th style="font-size:11px;color:var(--t3);font-weight:600;padding:4px 0;width:30px">'+dayLabel(d)+'</th>'; }).join('');
+  function isExcludedDate(iso) {
+    return (new Date(iso+'T00:00:00').getDay() === 0) || HOLIDAYS_2026.has(iso);
+  }
+  var excludedIdx = dates.map(function(d){ return isExcludedDate(d); });
+  var dateHeaders = dates.map(function(d,idx){
+    var sunday = excludedIdx[idx];
+    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'transparent')+'" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'">'+dayLabel(d)+'</th>';
+  }).join('');
 
   var heatRows = '';
   var problemAgg = []; // {nopol, naCount, reasons:{}}
   rows.forEach(function(r) {
     var naCount = 0, reasons = {};
     var cellsHtml = r.cells.map(function(c, idx) {
+      if (excludedIdx[idx]) {
+        return '<td style="padding:0;text-align:center"><div title="Minggu/libur \u2014 di-exclude dari perhitungan" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:var(--bg);border:1px dashed var(--border)"></div></td>';
+      }
       var color = statusColor[c.s] || '#e2e8f0';
       var title = c.d ? esc(c.d) : (c.s==='EMPTY' ? 'Unutilized (idle, tidak ada catatan LC/status)' : c.s);
       if (c.s === 'NA') { naCount++; if (!reasons[c.d]) reasons[c.d] = []; reasons[c.d].push(dayLabel(dates[idx])); }
@@ -2638,7 +2648,7 @@ function buildJababekaUtilHeatmap(container) {
   problemAgg.sort(function(a,b){ return b.naCount - a.naCount; });
 
   var util=0, na=0, empty=0, total=0;
-  rows.forEach(function(r){ r.cells.forEach(function(c){ total++; if(c.s==='UTIL') util++; else if(c.s==='NA') na++; else empty++; }); });
+  rows.forEach(function(r){ r.cells.forEach(function(c, idx){ if (excludedIdx[idx]) return; total++; if(c.s==='UTIL') util++; else if(c.s==='NA') na++; else empty++; }); });
   var denom = total - na;
   var utlPct = denom > 0 ? (100*util/denom) : null;
 
@@ -2681,12 +2691,13 @@ function buildJababekaUtilHeatmap(container) {
     + '<span class="tag">Jababeka &middot; '+buLabel+' &middot; '+dates[0]+' s/d '+dates[dates.length-1]+'</span></div>'
     + typeBar
     + summaryHtml
-    + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail LC / alasan Not Available &middot; kotak abu = Unutilized (armada available, idle, ga ada LC/status apapun)</div>'
+    + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail LC / alasan Not Available &middot; kotak abu = Unutilized (armada available, idle, ga ada LC/status apapun) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
     + '<div style="overflow-x:auto;padding:4px 16px 16px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 12px">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
     + '<div style="display:flex;gap:18px;padding:4px 16px 16px;font-size:12px;color:var(--t3);border-top:1px solid var(--border);flex-wrap:wrap">'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#22c55e;vertical-align:-1px;margin-right:6px"></span>Utilized</span>'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ef4444;vertical-align:-1px;margin-right:6px"></span>Not Available</span>'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#e2e8f0;vertical-align:-1px;margin-right:6px"></span>Unutilized (idle, no LC/status)</span>'
+    + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;border:1px dashed var(--border);vertical-align:-1px;margin-right:6px"></span>Minggu/libur (excluded)</span>'
     + '</div>'
     + '<div style="border-top:1px solid var(--border)">' + problemHtml + '</div>'
     + '<div style="padding:10px 16px;font-size:10.5px;color:var(--t3);border-top:1px solid var(--border)">Sumber: sheet NOPOL_PAIRED_LC (PIC Jababeka) &middot; pilot Sept 2026, site lain masih pakai perhitungan estimasi lama</div>'
