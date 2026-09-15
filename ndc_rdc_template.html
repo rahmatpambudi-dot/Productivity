@@ -2586,10 +2586,21 @@ function jabUtilApplies() {
   return eff === 'JABABEKA' && JABABEKA_NOPOL_STATUS && JABABEKA_NOPOL_STATUS.dates && JABABEKA_NOPOL_STATUS.dates.length;
 }
 function buildJababekaUtilHeatmap(container) {
-  var data = JABABEKA_NOPOL_STATUS;
-  var dates = data.dates; // ISO yyyy-mm-dd, ascending
-  var types = data.types; // { TYPE: [{nopol, cells:[{s,d}...]}] }
+  var ownerFilter = SUB_SITES[currentSite] ? SUB_SITES[currentSite].owners : null; // null = Corporate (semua BU)
+  var buLabel = ownerFilter ? ownerFilter.join('/') : 'Corporate (semua BU)';
+  var dates = JABABEKA_NOPOL_STATUS.dates; // ISO yyyy-mm-dd, ascending
+  var types = {};
+  Object.keys(JABABEKA_NOPOL_STATUS.types).forEach(function(t) {
+    var rs = JABABEKA_NOPOL_STATUS.types[t];
+    var filtered = ownerFilter ? rs.filter(function(r){ return ownerFilter.indexOf(r.owner) !== -1; }) : rs;
+    if (filtered.length) types[t] = filtered;
+  });
   var typeNames = Object.keys(types).sort(function(a,b){ return types[b].length - types[a].length; });
+  if (!typeNames.length) {
+    container.innerHTML = '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3><span class="tag">Jababeka &middot; '+buLabel+'</span></div>'
+      + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Belum ada data NOPOL untuk BU '+buLabel+' di sheet pilot ini.</p></div>';
+    return;
+  }
   if (!JABABEKA_UTIL_STATE.type || typeNames.indexOf(JABABEKA_UTIL_STATE.type) === -1) JABABEKA_UTIL_STATE.type = typeNames[0];
   var selType = JABABEKA_UTIL_STATE.type;
 
@@ -2663,7 +2674,7 @@ function buildJababekaUtilHeatmap(container) {
 
   container.innerHTML = '<div class="panel">'
     + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
-    + '<span class="tag">Jababeka &middot; '+dates[0]+' s/d '+dates[dates.length-1]+'</span></div>'
+    + '<span class="tag">Jababeka &middot; '+buLabel+' &middot; '+dates[0]+' s/d '+dates[dates.length-1]+'</span></div>'
     + typeBar
     + summaryHtml
     + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail LC / alasan Not Available &middot; kotak abu = Unutilized (armada available, idle, ga ada LC/status apapun)</div>'
