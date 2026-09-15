@@ -2615,10 +2615,10 @@ function buildJababekaUtilHeatmap(container) {
   var problemAgg = []; // {nopol, naCount, reasons:{}}
   rows.forEach(function(r) {
     var naCount = 0, reasons = {};
-    var cellsHtml = r.cells.map(function(c) {
+    var cellsHtml = r.cells.map(function(c, idx) {
       var color = statusColor[c.s] || '#e2e8f0';
       var title = c.d ? esc(c.d) : (c.s==='EMPTY' ? 'Unutilized (idle, tidak ada catatan LC/status)' : c.s);
-      if (c.s === 'NA') { naCount++; reasons[c.d] = (reasons[c.d]||0) + 1; }
+      if (c.s === 'NA') { naCount++; if (!reasons[c.d]) reasons[c.d] = []; reasons[c.d].push(dayLabel(dates[idx])); }
       return '<td style="padding:0;text-align:center"><div title="'+title+'" style="width:18px;height:18px;margin:2px auto;border-radius:3px;background:'+color+'"></div></td>';
     }).join('');
     heatRows += '<tr><td style="font-family:\'JetBrains Mono\',monospace;font-size:11px;padding:3px 10px;white-space:nowrap;color:var(--t2);border-right:1px solid var(--border)">'+r.nopol+'</td>'+cellsHtml+'</tr>';
@@ -2643,7 +2643,11 @@ function buildJababekaUtilHeatmap(container) {
     problemHtml += '<p style="color:var(--t3);font-size:12px;padding:6px 16px 14px">Tidak ada armada '+selType+' dengan status Not Available di periode ini.</p>';
   } else {
     problemAgg.slice(0,10).forEach(function(p) {
-      var reasonStr = Object.keys(p.reasons).slice(0,3).map(function(k){ return p.reasons[k]+'x '+esc(k.length>32?k.slice(0,32)+'…':k); }).join(', ');
+      var reasonStr = Object.keys(p.reasons).slice(0,3).map(function(k){
+        var ds = p.reasons[k];
+        var dsStr = ds.length>5 ? ds.slice(0,5).join('/')+'+'+(ds.length-5) : ds.join('/');
+        return esc(k.length>32?k.slice(0,32)+'…':k)+' (tgl '+dsStr+')';
+      }).join('; ');
       problemHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border)">'
         + '<div><span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12px">'+p.nopol+'</span><span style="font-size:11px;color:var(--t3);margin-left:6px">'+selType+'</span></div>'
         + '<div style="text-align:right"><span style="font-size:11px;font-weight:700;color:#dc2626">'+p.naCount+' hari NA</span><div style="font-size:10.5px;color:var(--t3);max-width:340px">'+reasonStr+'</div></div>'
