@@ -2664,9 +2664,11 @@ function buildJababekaUtilHeatmap(container) {
     return (new Date(iso+'T00:00:00').getDay() === 0) || HOLIDAYS_2026.has(iso);
   }
   var excludedIdx = dates.map(function(d){ return isExcludedDate(d); });
+  var DOW_ID = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  function dowLabel(iso) { return DOW_ID[new Date(iso+'T00:00:00').getDay()]; }
   var dateHeaders = dates.map(function(d,idx){
     var sunday = excludedIdx[idx];
-    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'transparent')+'" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'">'+dayLabel(d)+'</th>';
+    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'transparent')+'" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'"><div style="font-size:9px;font-weight:500;color:var(--t3);margin-bottom:1px">'+dowLabel(d)+'</div>'+dayLabel(d)+'</th>';
   }).join('');
 
   var heatRows = '';
