@@ -581,7 +581,7 @@ async function loadData() {
     // Step 3c: Load Jababeka NOPOL-level status pilot (heatmap: utilized/not-available/empty per day)
     try {
       const jnsRes = await fetch('data_jababeka_nopol_status.json?t=' + Date.now());
-      if(jnsRes.ok) { JABABEKA_NOPOL_STATUS = await jnsRes.json(); }
+      if(jnsRes.ok) { JABABEKA_NOPOL_STATUS = await jnsRes.json(); applyJababekaLKTransitImputation(); }
     } catch(e3c) { JABABEKA_NOPOL_STATUS = null; }
 
     // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
@@ -2584,6 +2584,46 @@ function setJabUtilType(t) { JABABEKA_UTIL_STATE.type = t; if (ARM_TREND_STATE.c
 function jabUtilApplies() {
   var eff = SUB_SITES[currentSite] ? SUB_SITES[currentSite].baseSite : (currentSite === 'ALL' ? null : currentSite);
   return eff === 'JABABEKA' && JABABEKA_NOPOL_STATUS && JABABEKA_NOPOL_STATUS.dates && JABABEKA_NOPOL_STATUS.dates.length;
+}
+// Pairs real Luar Kota trips from the master LC data (ROWS) against LEADTIME_MAP so
+// multi-day LK trips (e.g. Jababeka->Lampung 2 hari, ->Bali 5 hari) mark the vehicle
+// Utilized for the whole transit/kembali window, not just the departure day — mirrors
+// the legacy expandActiveDates() imputation used elsewhere in the dashboard. Runs once
+// per data load (idempotent: only ever promotes a cell to UTIL, never demotes).
+function applyJababekaLKTransitImputation() {
+  if (!JABABEKA_NOPOL_STATUS || !JABABEKA_NOPOL_STATUS.dates || !JABABEKA_NOPOL_STATUS.dates.length) return;
+  if (!ROWS || !ROWS.length) return;
+  var dates = JABABEKA_NOPOL_STATUS.dates;
+  var dateIdx = {};
+  dates.forEach(function(d,i){ dateIdx[d] = i; });
+  var nopolRow = {};
+  Object.keys(JABABEKA_NOPOL_STATUS.types).forEach(function(t) {
+    JABABEKA_NOPOL_STATUS.types[t].forEach(function(r) { nopolRow[r.nopol] = r; });
+  });
+  var maxDate = dates[dates.length-1];
+  var scanMin = new Date(dates[0]+'T00:00:00'); scanMin.setDate(scanMin.getDate()-10);
+  var scanMinStr = scanMin.toISOString().slice(0,10);
+  var fixed = 0;
+  ROWS.forEach(function(r) {
+    if (!r.date || r.date < scanMinStr || r.date > maxDate) return;
+    if (r.site !== 'JABABEKA') return;
+    if (effectiveSA(r) !== 'LUAR KOTA' || !r.jalur || r.jalur === '#N/A') return;
+    var row = nopolRow[r.nopol];
+    if (!row) return;
+    var lt = getLeadTimeDays(r.site, r.jalur);
+    if (lt <= 1) return;
+    expandActiveDates(r.date, lt).slice(1).forEach(function(ed) {
+      var idx = dateIdx[ed];
+      if (idx === undefined) return;
+      var cell = row.cells[idx];
+      if (cell.s !== 'UTIL') {
+        cell.s = 'UTIL';
+        cell.d = 'Transit LK ke ' + r.jalur + ' (lead time ' + lt + ' hari, berangkat ' + r.date + ')';
+        fixed++;
+      }
+    });
+  });
+  return fixed;
 }
 function buildJababekaUtilHeatmap(container) {
   var ownerFilter = SUB_SITES[currentSite] ? SUB_SITES[currentSite].owners : null; // null = Corporate (semua BU)
