@@ -2617,7 +2617,7 @@ function buildJababekaUtilHeatmap(container) {
     var naCount = 0, reasons = {};
     var cellsHtml = r.cells.map(function(c) {
       var color = statusColor[c.s] || '#e2e8f0';
-      var title = c.d ? esc(c.d) : (c.s==='EMPTY' ? 'Belum ada data' : c.s);
+      var title = c.d ? esc(c.d) : (c.s==='EMPTY' ? 'Unutilized (idle, tidak ada catatan LC/status)' : c.s);
       if (c.s === 'NA') { naCount++; reasons[c.d] = (reasons[c.d]||0) + 1; }
       return '<td style="padding:0;text-align:center"><div title="'+title+'" style="width:18px;height:18px;margin:2px auto;border-radius:3px;background:'+color+'"></div></td>';
     }).join('');
@@ -2634,7 +2634,7 @@ function buildJababekaUtilHeatmap(container) {
   var summaryHtml = '<div style="display:flex;gap:14px;padding:10px 16px;flex-wrap:wrap">'
     + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">UTL Armada ('+selType+')</div><div style="font-size:17px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
     + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">Not Available (total hari)</div><div style="font-size:17px;font-weight:700;color:#dc2626">'+na+'</div></div>'
-    + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">Belum ada data</div><div style="font-size:17px;font-weight:700;color:var(--t3)">'+empty+'</div></div>'
+    + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">Unutilized (idle)</div><div style="font-size:17px;font-weight:700;color:#d97706">'+empty+'</div></div>'
     + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">Armada</div><div style="font-size:17px;font-weight:700">'+rows.length+' unit</div></div>'
     + '</div>';
 
@@ -2656,12 +2656,12 @@ function buildJababekaUtilHeatmap(container) {
     + '<span class="tag">Jababeka &middot; '+dates[0]+' s/d '+dates[dates.length-1]+'</span></div>'
     + typeBar
     + summaryHtml
-    + '<div style="padding:6px 16px 4px;font-size:10.5px;color:var(--t3)">Hover kotak buat lihat detail LC / alasan Not Available &middot; kotak abu = belum ada data dari sheet PIC</div>'
+    + '<div style="padding:6px 16px 4px;font-size:10.5px;color:var(--t3)">Hover kotak buat lihat detail LC / alasan Not Available &middot; kotak abu = Unutilized (armada available, idle, ga ada LC/status apapun)</div>'
     + '<div style="overflow-x:auto;padding:4px 16px 12px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:10px;color:var(--t3);padding:4px 10px">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
     + '<div style="display:flex;gap:16px;padding:4px 16px 12px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
     + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#22c55e;vertical-align:-1px;margin-right:5px"></span>Utilized</span>'
     + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#ef4444;vertical-align:-1px;margin-right:5px"></span>Not Available</span>'
-    + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#e2e8f0;vertical-align:-1px;margin-right:5px"></span>Belum ada data</span>'
+    + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#e2e8f0;vertical-align:-1px;margin-right:5px"></span>Unutilized (idle, no LC/status)</span>'
     + '</div>'
     + '<div style="border-top:1px solid var(--border)">' + problemHtml + '</div>'
     + '<div style="padding:8px 16px;font-size:10px;color:var(--t3);border-top:1px solid var(--border)">Sumber: sheet NOPOL_PAIRED_LC (PIC Jababeka) &middot; pilot Sept 2026, site lain masih pakai perhitungan estimasi lama</div>'
