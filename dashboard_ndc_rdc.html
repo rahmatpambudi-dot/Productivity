@@ -2625,7 +2625,7 @@ function applyJababekaLKTransitImputation() {
   });
   return fixed;
 }
-function buildJababekaUtilHeatmap(container) {
+function buildJababekaHeatmapHtml() {
   var ownerFilter = SUB_SITES[currentSite] ? SUB_SITES[currentSite].owners : null; // null = Corporate (semua BU)
   var buLabel = ownerFilter ? ownerFilter.join('/') : 'Corporate (semua BU)';
   var dates = JABABEKA_NOPOL_STATUS.dates; // ISO yyyy-mm-dd, ascending
@@ -2637,9 +2637,8 @@ function buildJababekaUtilHeatmap(container) {
   });
   var typeNames = Object.keys(types).sort(function(a,b){ return types[b].length - types[a].length; });
   if (!typeNames.length) {
-    container.innerHTML = '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3><span class="tag">Jababeka &middot; '+buLabel+'</span></div>'
+    return '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3><span class="tag">Jababeka &middot; '+buLabel+'</span></div>'
       + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Belum ada data NOPOL untuk BU '+buLabel+' di sheet pilot ini.</p></div>';
-    return;
   }
   if (!JABABEKA_UTIL_STATE.type || typeNames.indexOf(JABABEKA_UTIL_STATE.type) === -1) JABABEKA_UTIL_STATE.type = typeNames[0];
   var selType = JABABEKA_UTIL_STATE.type;
@@ -2728,7 +2727,7 @@ function buildJababekaUtilHeatmap(container) {
     problemHtml += '</tbody></table></div>';
   }
 
-  container.innerHTML = '<div class="panel">'
+  return '<div class="panel">'
     + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
     + '<span class="tag">Jababeka &middot; '+buLabel+' &middot; '+dates[0]+' s/d '+dates[dates.length-1]+'</span></div>'
     + typeBar
@@ -2748,7 +2747,8 @@ function buildJababekaUtilHeatmap(container) {
 
 function buildArmadaTypeTrend(container) {
   if (!container) return;
-  if (jabUtilApplies()) { buildJababekaUtilHeatmap(container); ARM_TREND_STATE.container = container; return; }
+  var jabaMode = jabUtilApplies();
+  var jabaHtml = jabaMode ? buildJababekaHeatmapHtml() : '';
   ARM_TREND_STATE.container = container;
   var filterSA = ARM_TREND_STATE.filter, gran = ARM_TREND_STATE.gran, filterType = ARM_TREND_STATE.type || 'ALL';
   var { start: s, end: e } = getRange();
@@ -2813,6 +2813,12 @@ function buildArmadaTypeTrend(container) {
   }
 
   if (!rows.length) {
+    if (jabaMode) {
+      container.innerHTML = jabaHtml
+        + '<div class="panel" style="margin-top:16px"><div class="ph"><h3>Detail Tabel per Type Armada</h3></div>'
+        + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data tabel untuk periode &amp; filter trip ini.</p></div>';
+      return;
+    }
     container.innerHTML = '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3></div>'
       + controlBar()
       + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data untuk periode, site, &amp; filter trip ini.</p></div>';
@@ -3399,6 +3405,23 @@ function buildArmadaTypeTrend(container) {
     +'<span>Driver/Ast. Driver = unique DriverId/Crew1Id yang jalanin type armada tsb</span>'
     +'<span>Cost = cost + OT + Insentif &middot; TAT = rata-rata durasi bongkar (0-24 jam, outlier checkout kosong dibuang)</span>'
     +'</div>';
+
+  if (jabaMode) {
+    container.innerHTML = jabaHtml
+      + '<div class="panel" style="margin-top:16px">'
+      + '<div class="ph"><h3>Detail Tabel per Type Armada</h3>'
+      + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' '+bucketUnitLabel(gran)+'</span></div>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
+      + '<span>Data: <b>'+bucketLabel(allDates[0],gran)+'</b> s/d <b>'+bucketLabel(allDates[allDates.length-1],gran)+'</b> ('+allDates.length+' '+bucketUnitLabel(gran)+', '+rowCount+' baris)</span>'
+      + '<span>&#8595; scroll di dalam tabel untuk lihat semua periode</span>'
+      + '</div>'
+      + '<div style="overflow-x:auto;max-height:480px;overflow-y:auto;border-top:1px solid var(--border)">'
+      + '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
+      + '</div>'
+      + legendHtml
+      + '</div>';
+    return;
+  }
 
   container.innerHTML =
     '<div class="panel">'
