@@ -425,6 +425,7 @@ function exportCostJalurCSV() {
 let ROWS = [];
 let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
 let MASTER_ASSET = {}; // { 'YYYY-MM': { site: { type: [nopol,...] } } } from data_master_asset.json
+let JABABEKA_NOPOL_STATUS = null; // per-NOPOL per-day status from data_jababeka_nopol_status.json (Sept 2026 pilot)
 let currentNav  = 'overview';
 let currentSite = 'ALL';
 let currentBU = '_all';
@@ -576,6 +577,12 @@ async function loadData() {
       const maRes = await fetch('data_master_asset.json?t=' + Date.now());
       if(maRes.ok) { const maJson = await maRes.json(); MASTER_ASSET = maJson.months || {}; }
     } catch(e3b) { MASTER_ASSET = {}; }
+
+    // Step 3c: Load Jababeka NOPOL-level status pilot (heatmap: utilized/not-available/empty per day)
+    try {
+      const jnsRes = await fetch('data_jababeka_nopol_status.json?t=' + Date.now());
+      if(jnsRes.ok) { JABABEKA_NOPOL_STATUS = await jnsRes.json(); }
+    } catch(e3c) { JABABEKA_NOPOL_STATUS = null; }
 
     // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
     try {
@@ -2567,8 +2574,103 @@ function waterFillAllocate(items, target) {
   return alloc;
 }
 
+// ── Jababeka NOPOL-level utilization heatmap (real data from PIC sheet) ──
+// Sept 2026 pilot: replaces the estimate-based per-type chart/insights with an
+// exact per-NOPOL per-day status derived from data_jababeka_nopol_status.json
+// (s: 'UTIL'|'NA'|'EMPTY', d: detail/reason text). Other sites still use the
+// legacy buildArmadaTypeTrend() below untouched.
+var JABABEKA_UTIL_STATE = { type: null };
+function setJabUtilType(t) { JABABEKA_UTIL_STATE.type = t; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
+function jabUtilApplies() {
+  var eff = SUB_SITES[currentSite] ? SUB_SITES[currentSite].baseSite : (currentSite === 'ALL' ? null : currentSite);
+  return eff === 'JABABEKA' && JABABEKA_NOPOL_STATUS && JABABEKA_NOPOL_STATUS.dates && JABABEKA_NOPOL_STATUS.dates.length;
+}
+function buildJababekaUtilHeatmap(container) {
+  var data = JABABEKA_NOPOL_STATUS;
+  var dates = data.dates; // ISO yyyy-mm-dd, ascending
+  var types = data.types; // { TYPE: [{nopol, cells:[{s,d}...]}] }
+  var typeNames = Object.keys(types).sort(function(a,b){ return types[b].length - types[a].length; });
+  if (!JABABEKA_UTIL_STATE.type || typeNames.indexOf(JABABEKA_UTIL_STATE.type) === -1) JABABEKA_UTIL_STATE.type = typeNames[0];
+  var selType = JABABEKA_UTIL_STATE.type;
+
+  function dayLabel(iso) { return iso.slice(8,10); }
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  function pillBtn(label, active, onclick) {
+    return '<button onclick="'+onclick+'" style="padding:4px 10px;font-size:10.5px;font-weight:600;border-radius:14px;border:1px solid '+(active?'#7e22ce':'var(--border)')+';background:'+(active?'#7e22ce':'transparent')+';color:'+(active?'#fff':'var(--t2)')+';cursor:pointer;margin-right:5px;margin-bottom:4px">'+label+'</button>';
+  }
+
+  // Type picker
+  var typeBar = '<div style="display:flex;flex-wrap:wrap;gap:0;align-items:center;padding:10px 16px;border-top:1px solid var(--border)">'
+    + '<span style="font-size:11px;color:var(--t3);margin-right:8px">Type Armada:</span>';
+  typeNames.forEach(function(t) {
+    typeBar += pillBtn(t + ' ('+types[t].length+')', t===selType, "setJabUtilType('"+t+"')");
+  });
+  typeBar += '</div>';
+
+  var rows = types[selType];
+  var statusColor = { UTIL:'#22c55e', NA:'#ef4444', EMPTY:'#e2e8f0' };
+  var dateHeaders = dates.map(function(d){ return '<th style="font-size:10px;color:var(--t3);font-weight:600;padding:4px 0;width:24px">'+dayLabel(d)+'</th>'; }).join('');
+
+  var heatRows = '';
+  var problemAgg = []; // {nopol, naCount, reasons:{}}
+  rows.forEach(function(r) {
+    var naCount = 0, reasons = {};
+    var cellsHtml = r.cells.map(function(c) {
+      var color = statusColor[c.s] || '#e2e8f0';
+      var title = c.d ? esc(c.d) : (c.s==='EMPTY' ? 'Belum ada data' : c.s);
+      if (c.s === 'NA') { naCount++; reasons[c.d] = (reasons[c.d]||0) + 1; }
+      return '<td style="padding:0;text-align:center"><div title="'+title+'" style="width:18px;height:18px;margin:2px auto;border-radius:3px;background:'+color+'"></div></td>';
+    }).join('');
+    heatRows += '<tr><td style="font-family:\'JetBrains Mono\',monospace;font-size:11px;padding:3px 10px;white-space:nowrap;color:var(--t2);border-right:1px solid var(--border)">'+r.nopol+'</td>'+cellsHtml+'</tr>';
+    if (naCount > 0) problemAgg.push({ nopol:r.nopol, naCount:naCount, reasons:reasons });
+  });
+  problemAgg.sort(function(a,b){ return b.naCount - a.naCount; });
+
+  var util=0, na=0, empty=0, total=0;
+  rows.forEach(function(r){ r.cells.forEach(function(c){ total++; if(c.s==='UTIL') util++; else if(c.s==='NA') na++; else empty++; }); });
+  var denom = total - na;
+  var utlPct = denom > 0 ? (100*util/denom) : null;
+
+  var summaryHtml = '<div style="display:flex;gap:14px;padding:10px 16px;flex-wrap:wrap">'
+    + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">UTL Armada ('+selType+')</div><div style="font-size:17px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
+    + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">Not Available (total hari)</div><div style="font-size:17px;font-weight:700;color:#dc2626">'+na+'</div></div>'
+    + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">Belum ada data</div><div style="font-size:17px;font-weight:700;color:var(--t3)">'+empty+'</div></div>'
+    + '<div style="background:var(--bg);border-radius:8px;padding:8px 14px"><div style="font-size:10px;color:var(--t3)">Armada</div><div style="font-size:17px;font-weight:700">'+rows.length+' unit</div></div>'
+    + '</div>';
+
+  var problemHtml = '<div style="padding:12px 16px 4px;font-size:12px;font-weight:700;color:var(--t2)">Armada bermasalah (paling banyak hari Not Available)</div>';
+  if (!problemAgg.length) {
+    problemHtml += '<p style="color:var(--t3);font-size:12px;padding:6px 16px 14px">Tidak ada armada '+selType+' dengan status Not Available di periode ini.</p>';
+  } else {
+    problemAgg.slice(0,10).forEach(function(p) {
+      var reasonStr = Object.keys(p.reasons).slice(0,3).map(function(k){ return p.reasons[k]+'x '+esc(k.length>32?k.slice(0,32)+'…':k); }).join(', ');
+      problemHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;border-bottom:1px solid var(--border)">'
+        + '<div><span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12px">'+p.nopol+'</span><span style="font-size:11px;color:var(--t3);margin-left:6px">'+selType+'</span></div>'
+        + '<div style="text-align:right"><span style="font-size:11px;font-weight:700;color:#dc2626">'+p.naCount+' hari NA</span><div style="font-size:10.5px;color:var(--t3);max-width:340px">'+reasonStr+'</div></div>'
+        + '</div>';
+    });
+  }
+
+  container.innerHTML = '<div class="panel">'
+    + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
+    + '<span class="tag">Jababeka &middot; '+dates[0]+' s/d '+dates[dates.length-1]+'</span></div>'
+    + typeBar
+    + summaryHtml
+    + '<div style="padding:6px 16px 4px;font-size:10.5px;color:var(--t3)">Hover kotak buat lihat detail LC / alasan Not Available &middot; kotak abu = belum ada data dari sheet PIC</div>'
+    + '<div style="overflow-x:auto;padding:4px 16px 12px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:10px;color:var(--t3);padding:4px 10px">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
+    + '<div style="display:flex;gap:16px;padding:4px 16px 12px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
+    + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#22c55e;vertical-align:-1px;margin-right:5px"></span>Utilized</span>'
+    + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#ef4444;vertical-align:-1px;margin-right:5px"></span>Not Available</span>'
+    + '<span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#e2e8f0;vertical-align:-1px;margin-right:5px"></span>Belum ada data</span>'
+    + '</div>'
+    + '<div style="border-top:1px solid var(--border)">' + problemHtml + '</div>'
+    + '<div style="padding:8px 16px;font-size:10px;color:var(--t3);border-top:1px solid var(--border)">Sumber: sheet NOPOL_PAIRED_LC (PIC Jababeka) &middot; pilot Sept 2026, site lain masih pakai perhitungan estimasi lama</div>'
+    + '</div>';
+}
+
 function buildArmadaTypeTrend(container) {
   if (!container) return;
+  if (jabUtilApplies()) { buildJababekaUtilHeatmap(container); ARM_TREND_STATE.container = container; return; }
   ARM_TREND_STATE.container = container;
   var filterSA = ARM_TREND_STATE.filter, gran = ARM_TREND_STATE.gran, filterType = ARM_TREND_STATE.type || 'ALL';
   var { start: s, end: e } = getRange();
