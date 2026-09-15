@@ -2580,6 +2580,8 @@ function waterFillAllocate(items, target) {
 // (s: 'UTIL'|'NA'|'EMPTY', d: detail/reason text). Other sites still use the
 // legacy buildArmadaTypeTrend() below untouched.
 var JABABEKA_UTIL_STATE = { type: null };
+var GENERIC_UTIL_STATE = { type: null }; // per-site heatmap type selector for non-pilot sites (Cikupa/Tallo/Tamora/SDA), keyed loosely — resets are fine since it's just a display default
+function setGenericUtilType(t) { GENERIC_UTIL_STATE.type = t; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
 function setJabUtilType(t) { JABABEKA_UTIL_STATE.type = t; if (ARM_TREND_STATE.container) buildArmadaTypeTrend(ARM_TREND_STATE.container); }
 function jabUtilApplies() {
   var eff = SUB_SITES[currentSite] ? SUB_SITES[currentSite].baseSite : (currentSite === 'ALL' ? null : currentSite);
@@ -2745,6 +2747,136 @@ function buildJababekaHeatmapHtml() {
     + '</div>';
 }
 
+// Same visual layout as the Jababeka pilot heatmap, but sourced from the legacy trip-level
+// ROWS (master LC) instead of the manually-tracked NOPOL_PAIRED_LC sheet — used for every
+// site that doesn't have a pilot sheet yet (Cikupa, Tallo, Tamora, SDA). Only 2 real states
+// are knowable from trip data alone: Utilized (had a trip that day) and Unutilized/idle (no
+// trip, no reason available) — there's no "Not Available" reason breakdown here because the
+// old data source doesn't capture why a vehicle didn't run.
+function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart, periodEnd) {
+  if (!typeNames.length) {
+    return '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3></div>'
+      + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Belum ada data armada untuk site/filter ini.</p></div>';
+  }
+  if (!GENERIC_UTIL_STATE.type || typeNames.indexOf(GENERIC_UTIL_STATE.type) === -1) GENERIC_UTIL_STATE.type = typeNames[0];
+  var selType = GENERIC_UTIL_STATE.type;
+
+  // Full daily date list across the selected periode (includes Sunday/holiday so they can
+  // be shown excluded, same as the Jababeka heatmap) — capped so a huge periode doesn't
+  // render a giant table; narrow the date filter to see more.
+  var dates = [];
+  var cur = new Date(periodStart+'T00:00:00');
+  var endD = new Date(periodEnd+'T00:00:00');
+  while (cur <= endD && dates.length < 400) { dates.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
+  var capped = false;
+  if (dates.length > 45) { dates = dates.slice(-45); capped = true; }
+
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  function dayLabel(iso) { return iso.slice(8,10); }
+  var DOW_ID2 = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  function dowLabel(iso) { return DOW_ID2[new Date(iso+'T00:00:00').getDay()]; }
+  function isExcludedDate(iso) { return (new Date(iso+'T00:00:00').getDay() === 0) || HOLIDAYS_2026.has(iso); }
+  var excludedIdx = dates.map(isExcludedDate);
+
+  function pillBtn(label, active, onclick) {
+    return '<button onclick="'+onclick+'" style="padding:4px 10px;font-size:10.5px;font-weight:600;border-radius:14px;border:1px solid '+(active?'#7e22ce':'var(--border)')+';background:'+(active?'#7e22ce':'transparent')+';color:'+(active?'#fff':'var(--t2)')+';cursor:pointer;margin-right:5px;margin-bottom:4px">'+label+'</button>';
+  }
+  var typeBar = '<div style="display:flex;flex-wrap:wrap;gap:0;align-items:center;padding:10px 16px;border-top:1px solid var(--border)">'
+    + '<span style="font-size:11px;color:var(--t3);margin-right:8px">Type Armada:</span>';
+  typeNames.forEach(function(t) {
+    typeBar += pillBtn(t + ' ('+assetsByType[t].size+')', t===selType, "setGenericUtilType('"+t+"')");
+  });
+  typeBar += '</div>';
+
+  // active[nopol] = Set(date) with a trip for selType
+  var active = {};
+  rows.forEach(function(r) {
+    if (!r.nopol || !r.date) return;
+    if (normalizeArmadaType(r.ja) !== selType) return;
+    if (!active[r.nopol]) active[r.nopol] = new Set();
+    active[r.nopol].add(r.date);
+  });
+  var rosterNopols = Array.from(assetsByType[selType] || []).sort();
+  Object.keys(active).forEach(function(np){ if (rosterNopols.indexOf(np) === -1) rosterNopols.push(np); }); // pengganti not in roster
+
+  var dateHeaders = dates.map(function(d,idx){
+    var sunday = excludedIdx[idx];
+    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'transparent')+'" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'"><div style="font-size:9px;font-weight:500;color:var(--t3);margin-bottom:1px">'+dowLabel(d)+'</div>'+dayLabel(d)+'</th>';
+  }).join('');
+
+  var heatRows = '';
+  var idleRank = []; // {nopol, idleCount}
+  rosterNopols.forEach(function(nopol) {
+    var idleCount = 0;
+    var cellsHtml = dates.map(function(d, idx) {
+      if (excludedIdx[idx]) {
+        return '<td style="padding:0;text-align:center"><div title="Minggu/libur \u2014 di-exclude dari perhitungan" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:var(--bg);border:1px dashed var(--border)"></div></td>';
+      }
+      var isUtil = active[nopol] && active[nopol].has(d);
+      if (!isUtil) idleCount++;
+      var color = isUtil ? '#22c55e' : '#e2e8f0';
+      var title = isUtil ? 'Ada trip (' + selType + ')' : 'Unutilized (idle, ga ada trip)';
+      return '<td style="padding:0;text-align:center"><div title="'+title+'" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:'+color+'"></div></td>';
+    }).join('');
+    heatRows += '<tr><td style="font-family:\'JetBrains Mono\',monospace;font-size:12.5px;padding:4px 12px;white-space:nowrap;color:var(--t2);border-right:1px solid var(--border)">'+esc(nopol)+'</td>'+cellsHtml+'</tr>';
+    if (idleCount > 0) idleRank.push({ nopol: nopol, idleCount: idleCount });
+  });
+  idleRank.sort(function(a,b){ return b.idleCount - a.idleCount; });
+
+  var util=0, idle=0, totalCells=0;
+  rosterNopols.forEach(function(nopol) {
+    dates.forEach(function(d, idx) {
+      if (excludedIdx[idx]) return;
+      totalCells++;
+      if (active[nopol] && active[nopol].has(d)) util++; else idle++;
+    });
+  });
+  var utlPct = totalCells > 0 ? (100*util/totalCells) : null;
+
+  var summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;padding:14px 16px">'
+    + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">UTL Armada ('+selType+')</div><div style="font-size:24px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
+    + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Unutilized (total hari-armada idle)</div><div style="font-size:24px;font-weight:700;color:#d97706">'+idle+'</div></div>'
+    + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Armada</div><div style="font-size:24px;font-weight:700">'+rosterNopols.length+' unit</div></div>'
+    + '</div>';
+
+  var idleHtml = '<div style="padding:14px 16px 8px;font-size:13px;font-weight:700;color:var(--t2)">Armada Jarang Jalan (idle terbanyak)</div>'
+    + '<p style="color:var(--t3);font-size:11px;padding:0 16px 10px;margin-top:-6px">Alasan Not Available belum tersedia untuk site ini (butuh sheet tracking manual kayak pilot Jababeka) — ranking ini murni dari ada/nggaknya trip.</p>';
+  if (!idleRank.length) {
+    idleHtml += '<p style="color:var(--t3);font-size:12px;padding:0 16px 14px">Semua armada '+selType+' jalan tiap hari di periode ini.</p>';
+  } else {
+    idleHtml += '<div style="overflow-x:auto;padding:0 16px 16px"><table style="border-collapse:collapse;width:100%">'
+      + '<thead><tr>'
+      + '<th style="text-align:left;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">NOPOL</th>'
+      + '<th style="text-align:left;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">Type</th>'
+      + '<th style="text-align:center;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">Hari Idle</th>'
+      + '</tr></thead><tbody>';
+    idleRank.slice(0,12).forEach(function(p) {
+      idleHtml += '<tr style="border-bottom:1px solid var(--border)">'
+        + '<td style="padding:8px 10px;font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12.5px;white-space:nowrap">'+esc(p.nopol)+'</td>'
+        + '<td style="padding:8px 10px;font-size:11.5px;color:var(--t3);white-space:nowrap">'+selType+'</td>'
+        + '<td style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#d97706;white-space:nowrap">'+p.idleCount+'</td>'
+        + '</tr>';
+    });
+    idleHtml += '</tbody></table></div>';
+  }
+
+  return '<div class="panel">'
+    + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
+    + '<span class="tag">'+dates[0]+' s/d '+dates[dates.length-1]+(capped?' (dibatasi 45 hari terakhir)':'')+'</span></div>'
+    + typeBar
+    + summaryHtml
+    + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail &middot; kotak abu = Unutilized (idle, ga ada trip) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
+    + '<div style="overflow-x:auto;padding:4px 16px 16px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 12px">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
+    + '<div style="display:flex;gap:18px;padding:4px 16px 16px;font-size:12px;color:var(--t3);border-top:1px solid var(--border);flex-wrap:wrap">'
+    + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#22c55e;vertical-align:-1px;margin-right:6px"></span>Utilized</span>'
+    + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#e2e8f0;vertical-align:-1px;margin-right:6px"></span>Unutilized (idle, ga ada trip)</span>'
+    + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;border:1px dashed var(--border);vertical-align:-1px;margin-right:6px"></span>Minggu/libur (excluded)</span>'
+    + '</div>'
+    + '<div style="border-top:1px solid var(--border)">' + idleHtml + '</div>'
+    + '<div style="padding:10px 16px;font-size:10.5px;color:var(--t3);border-top:1px solid var(--border)">Sumber: master LC (data trip existing) &middot; belum ada sheet tracking manual buat site ini</div>'
+    + '</div>';
+}
+
 function buildArmadaTypeTrend(container) {
   if (!container) return;
   var jabaMode = jabUtilApplies();
@@ -2780,6 +2912,11 @@ function buildArmadaTypeTrend(container) {
   });
   var availableTypes = Object.keys(typeAssetPre).sort(function(a,b){ return typeAssetPre[b].size - typeAssetPre[a].size; });
 
+  // Heatmap builder for non-pilot sites runs on the PRE type-filter rows/roster so its
+  // own type pills work independently of the "Type Armada" filter below (same design
+  // as the Jababeka pilot heatmap, which also has its own independent type selector).
+  var heatmapHtml = jabaMode ? jabaHtml : buildGenericUtilHeatmapHtml(rows, typeAssetPre, availableTypes, s, e);
+
   if (filterType !== 'ALL') {
     rows = rows.filter(function(r){ return normalizeArmadaType(r.ja) === filterType; });
     assetRows = assetRows.filter(function(r){ return normalizeArmadaType(r.ja) === filterType; });
@@ -2813,15 +2950,9 @@ function buildArmadaTypeTrend(container) {
   }
 
   if (!rows.length) {
-    if (jabaMode) {
-      container.innerHTML = jabaHtml
-        + '<div class="panel" style="margin-top:16px"><div class="ph"><h3>Detail Tabel per Type Armada</h3></div>'
-        + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data tabel untuk periode &amp; filter trip ini.</p></div>';
-      return;
-    }
-    container.innerHTML = '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3></div>'
-      + controlBar()
-      + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data untuk periode, site, &amp; filter trip ini.</p></div>';
+    container.innerHTML = heatmapHtml
+      + '<div class="panel" style="margin-top:16px"><div class="ph"><h3>Detail Tabel per Type Armada</h3></div>'
+      + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada data tabel untuk periode, site, &amp; filter trip ini.</p></div>';
     return;
   }
 
@@ -3406,33 +3537,11 @@ function buildArmadaTypeTrend(container) {
     +'<span>Cost = cost + OT + Insentif &middot; TAT = rata-rata durasi bongkar (0-24 jam, outlier checkout kosong dibuang)</span>'
     +'</div>';
 
-  if (jabaMode) {
-    container.innerHTML = jabaHtml
-      + '<div class="panel" style="margin-top:16px">'
-      + '<div class="ph"><h3>Detail Tabel per Type Armada</h3>'
-      + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' '+bucketUnitLabel(gran)+'</span></div>'
-      + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
-      + '<span>Data: <b>'+bucketLabel(allDates[0],gran)+'</b> s/d <b>'+bucketLabel(allDates[allDates.length-1],gran)+'</b> ('+allDates.length+' '+bucketUnitLabel(gran)+', '+rowCount+' baris)</span>'
-      + '<span>&#8595; scroll di dalam tabel untuk lihat semua periode</span>'
-      + '</div>'
-      + '<div style="overflow-x:auto;max-height:480px;overflow-y:auto;border-top:1px solid var(--border)">'
-      + '<table class="mtt"><thead>'+thead+'</thead><tbody>'+tbody+'</tbody></table>'
-      + '</div>'
-      + legendHtml
-      + '</div>';
-    return;
-  }
-
-  container.innerHTML =
-    '<div class="panel">'
-    + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
-    + '<span style="font-size:9.5px;font-weight:700;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:2px 7px;letter-spacing:.2px;margin-left:8px">🔧 ON DEVELOPMENT</span>'
+  container.innerHTML = heatmapHtml
+    + '<div class="panel" style="margin-top:16px">'
+    + '<div class="ph"><h3>Detail Tabel per Type Armada</h3>'
     + '<span class="tag">'+allTypes.length+' type &middot; '+allDates.length+' '+bucketUnitLabel(gran)+'</span></div>'
     + controlBar()
-    + buGapHtml
-    + lowUtilHtml
-    + lowSeasonHtml
-    + '<div style="padding:14px 16px 4px;height:320px;position:relative"><canvas id="cArmTypeTrend"></canvas></div>'
     + '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 16px;font-size:11px;color:var(--t3);border-top:1px solid var(--border)">'
     + '<span>Data: <b>'+bucketLabel(allDates[0],gran)+'</b> s/d <b>'+bucketLabel(allDates[allDates.length-1],gran)+'</b> ('+allDates.length+' '+bucketUnitLabel(gran)+', '+rowCount+' baris)</span>'
     + '<span>&#8595; scroll di dalam tabel untuk lihat semua periode</span>'
