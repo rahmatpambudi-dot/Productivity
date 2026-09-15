@@ -2649,27 +2649,31 @@ function buildJababekaUtilHeatmap(container) {
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Armada</div><div style="font-size:24px;font-weight:700">'+rows.length+' unit</div></div>'
     + '</div>';
 
-  var problemHtml = '<div style="padding:14px 16px 8px;font-size:13px;font-weight:700;color:var(--t2)">Armada bermasalah (paling banyak hari Not Available)</div>';
+  var problemHtml = '<div style="padding:14px 16px 8px;font-size:13px;font-weight:700;color:var(--t2)">Armada Not Available</div>';
   if (!problemAgg.length) {
     problemHtml += '<p style="color:var(--t3);font-size:12px;padding:6px 16px 14px">Tidak ada armada '+selType+' dengan status Not Available di periode ini.</p>';
   } else {
-    problemHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;padding:0 16px 16px">';
+    problemHtml += '<div style="overflow-x:auto;padding:0 16px 16px"><table style="border-collapse:collapse;width:100%">'
+      + '<thead><tr>'
+      + '<th style="text-align:left;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">NOPOL</th>'
+      + '<th style="text-align:left;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">Type</th>'
+      + '<th style="text-align:center;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">Hari NA</th>'
+      + '<th style="text-align:left;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">Detail (alasan &amp; tanggal)</th>'
+      + '</tr></thead><tbody>';
     problemAgg.slice(0,12).forEach(function(p) {
       var reasonStr = Object.keys(p.reasons).slice(0,3).map(function(k){
         var ds = p.reasons[k];
         var dsStr = ds.length>5 ? ds.slice(0,5).join('/')+'+'+(ds.length-5) : ds.join('/');
         return esc(k.length>28?k.slice(0,28)+'…':k)+' (tgl '+dsStr+')';
       }).join('; ');
-      problemHtml += '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px">'
-        + '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px">'
-        + '<span style="font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:13px">'+p.nopol+'</span>'
-        + '<span style="font-size:12px;font-weight:700;color:#dc2626">'+p.naCount+' hari NA</span>'
-        + '</div>'
-        + '<div style="font-size:10.5px;color:var(--t3);margin-bottom:4px">'+selType+'</div>'
-        + '<div style="font-size:11px;color:var(--t2);line-height:1.5">'+reasonStr+'</div>'
-        + '</div>';
+      problemHtml += '<tr style="border-bottom:1px solid var(--border)">'
+        + '<td style="padding:8px 10px;font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12.5px;white-space:nowrap">'+p.nopol+'</td>'
+        + '<td style="padding:8px 10px;font-size:11.5px;color:var(--t3);white-space:nowrap">'+selType+'</td>'
+        + '<td style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#dc2626;white-space:nowrap">'+p.naCount+'</td>'
+        + '<td style="padding:8px 10px;font-size:11.5px;color:var(--t2)">'+reasonStr+'</td>'
+        + '</tr>';
     });
-    problemHtml += '</div>';
+    problemHtml += '</tbody></table></div>';
   }
 
   container.innerHTML = '<div class="panel">'
