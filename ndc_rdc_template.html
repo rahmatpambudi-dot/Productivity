@@ -2725,7 +2725,7 @@ function buildPilotHeatmapHtml(siteKey) {
   function dowLabel(iso) { return DOW_ID[new Date(iso+'T00:00:00').getDay()]; }
   var dateHeaders = dates.map(function(d,idx){
     var sunday = excludedIdx[idx];
-    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'transparent')+'" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'"><div style="font-size:9px;font-weight:500;color:var(--t3);margin-bottom:1px">'+dowLabel(d)+'</div>'+dayLabel(d)+'</th>';
+    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'var(--white)')+';position:sticky;top:0;z-index:2" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'"><div style="font-size:9px;font-weight:500;color:var(--t3);margin-bottom:1px">'+dowLabel(d)+'</div>'+dayLabel(d)+'</th>';
   }).join('');
 
   var heatRows = '';
@@ -2791,7 +2791,7 @@ function buildPilotHeatmapHtml(siteKey) {
     + typeBar
     + summaryHtml
     + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail LC / alasan Not Available &middot; kotak abu = Unutilized (armada available, idle, ga ada LC/status apapun) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
-    + '<div style="overflow-x:auto;padding:4px 16px 16px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 12px">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
+    + '<div style="overflow-x:auto;overflow-y:auto;max-height:520px;padding:4px 16px 16px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 12px;position:sticky;top:0;left:0;z-index:3;background:var(--white)">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
     + '<div style="display:flex;gap:18px;padding:4px 16px 16px;font-size:12px;color:var(--t3);border-top:1px solid var(--border);flex-wrap:wrap">'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#22c55e;vertical-align:-1px;margin-right:6px"></span>Utilized</span>'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ef4444;vertical-align:-1px;margin-right:6px"></span>Not Available</span>'
@@ -2893,7 +2893,7 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
 
   var dateHeaders = dates.map(function(d,idx){
     var sunday = excludedIdx[idx];
-    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'transparent')+'" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'"><div style="font-size:9px;font-weight:500;color:var(--t3);margin-bottom:1px">'+dowLabel(d)+'</div>'+dayLabel(d)+'</th>';
+    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'var(--white)')+';position:sticky;top:0;z-index:2" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'"><div style="font-size:9px;font-weight:500;color:var(--t3);margin-bottom:1px">'+dowLabel(d)+'</div>'+dayLabel(d)+'</th>';
   }).join('');
 
   var nopolTypeLabel = {};
@@ -2999,7 +2999,7 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
     + typeBar
     + summaryHtml
     + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail &middot; kotak abu = Unutilized (idle, ga ada trip) &middot; kotak merah = Not Available (alasan diketahui) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
-    + '<div style="overflow-x:auto;padding:4px 16px 16px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 12px">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
+    + '<div style="overflow-x:auto;overflow-y:auto;max-height:520px;padding:4px 16px 16px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 12px;position:sticky;top:0;left:0;z-index:3;background:var(--white)">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
     + '<div style="display:flex;gap:18px;padding:4px 16px 16px;font-size:12px;color:var(--t3);border-top:1px solid var(--border);flex-wrap:wrap">'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#22c55e;vertical-align:-1px;margin-right:6px"></span>Utilized</span>'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ef4444;vertical-align:-1px;margin-right:6px"></span>Not Available (alasan diketahui)</span>'
