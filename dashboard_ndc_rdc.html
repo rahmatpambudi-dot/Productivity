@@ -2658,8 +2658,13 @@ function buildPilotHeatmapHtml(siteKey) {
     return '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3><span class="tag">'+siteLabel+' &middot; '+buLabel+'</span></div>'
       + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Belum ada data NOPOL untuk BU '+buLabel+' di sheet pilot ini.</p></div>';
   }
-  if (!PILOT_UTIL_STATE.type || typeNames.indexOf(PILOT_UTIL_STATE.type) === -1) PILOT_UTIL_STATE.type = typeNames[0];
+  var nopolTypeLabel = {};
+  var allNopolSet = new Set();
+  typeNames.forEach(function(t){ types[t].forEach(function(r){ allNopolSet.add(r.nopol); if (!nopolTypeLabel[r.nopol]) nopolTypeLabel[r.nopol] = t; }); });
+  if (!PILOT_UTIL_STATE.type) PILOT_UTIL_STATE.type = 'ALL';
+  if (PILOT_UTIL_STATE.type !== 'ALL' && typeNames.indexOf(PILOT_UTIL_STATE.type) === -1) PILOT_UTIL_STATE.type = 'ALL';
   var selType = PILOT_UTIL_STATE.type;
+  var selTypeLabel = selType === 'ALL' ? 'Semua Type' : selType;
 
   function dayLabel(iso) { return iso.slice(8,10); }
   function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
@@ -2669,13 +2674,14 @@ function buildPilotHeatmapHtml(siteKey) {
 
   // Type picker
   var typeBar = '<div style="display:flex;flex-wrap:wrap;gap:0;align-items:center;padding:10px 16px;border-top:1px solid var(--border)">'
-    + '<span style="font-size:11px;color:var(--t3);margin-right:8px">Type Armada:</span>';
+    + '<span style="font-size:11px;color:var(--t3);margin-right:8px">Type Armada:</span>'
+    + pillBtn('Semua ('+allNopolSet.size+')', selType==='ALL', "setJabUtilType('ALL')");
   typeNames.forEach(function(t) {
     typeBar += pillBtn(t + ' ('+types[t].length+')', t===selType, "setJabUtilType('"+t+"')");
   });
   typeBar += '</div>';
 
-  var rows = types[selType];
+  var rows = selType === 'ALL' ? typeNames.reduce(function(acc,t){ return acc.concat(types[t]); }, []) : types[selType];
   var statusColor = { UTIL:'#22c55e', NA:'#ef4444', EMPTY:'#e2e8f0' };
   function isExcludedDate(iso) {
     return (new Date(iso+'T00:00:00').getDay() === 0) || HOLIDAYS_2026.has(iso);
@@ -2712,7 +2718,7 @@ function buildPilotHeatmapHtml(siteKey) {
   var utlPct = denom > 0 ? (100*util/denom) : null;
 
   var summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,220px));gap:14px;padding:14px 16px;justify-content:start">'
-    + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">UTL Armada ('+selType+')</div><div style="font-size:24px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
+    + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">UTL Armada ('+selTypeLabel+')</div><div style="font-size:24px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Not Available (total hari)</div><div style="font-size:24px;font-weight:700;color:#dc2626">'+na+'</div></div>'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Unutilized (idle)</div><div style="font-size:24px;font-weight:700;color:#d97706">'+empty+'</div></div>'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Armada</div><div style="font-size:24px;font-weight:700">'+rows.length+' unit</div></div>'
@@ -2720,7 +2726,7 @@ function buildPilotHeatmapHtml(siteKey) {
 
   var problemHtml = '<div style="padding:14px 16px 8px;font-size:13px;font-weight:700;color:var(--t2)">Armada Not Available</div>';
   if (!problemAgg.length) {
-    problemHtml += '<p style="color:var(--t3);font-size:12px;padding:6px 16px 14px">Tidak ada armada '+selType+' dengan status Not Available di periode ini.</p>';
+    problemHtml += '<p style="color:var(--t3);font-size:12px;padding:6px 16px 14px">Tidak ada armada '+selTypeLabel+' dengan status Not Available di periode ini.</p>';
   } else {
     problemHtml += '<div style="overflow-x:auto;padding:0 16px 16px"><table style="border-collapse:collapse;width:100%">'
       + '<thead><tr>'
@@ -2737,7 +2743,7 @@ function buildPilotHeatmapHtml(siteKey) {
       }).join('; ');
       problemHtml += '<tr style="border-bottom:1px solid var(--border)">'
         + '<td style="padding:8px 10px;font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12.5px;white-space:nowrap">'+p.nopol+'</td>'
-        + '<td style="padding:8px 10px;font-size:11.5px;color:var(--t3);white-space:nowrap">'+selType+'</td>'
+        + '<td style="padding:8px 10px;font-size:11.5px;color:var(--t3);white-space:nowrap">'+(nopolTypeLabel[p.nopol] || selTypeLabel)+'</td>'
         + '<td style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#dc2626;white-space:nowrap">'+p.naCount+'</td>'
         + '<td style="padding:8px 10px;font-size:11.5px;color:var(--t2)">'+reasonStr+'</td>'
         + '</tr>';
