@@ -1572,8 +1572,12 @@ function renderDetail(results, summary, start, end) {
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
-      <div class="ph"><h3>Trendline Bulanan &mdash; Demand &amp; Trip</h3><span class="tag">Demand DO Customer, CBM Store, Trip per kategori</span></div>
+      <div class="ph"><h3>Trendline Bulanan &mdash; Demand</h3><span class="tag">DO Customer &amp; CBM Store</span></div>
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND2"></canvas></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <div class="ph"><h3>Trendline Bulanan &mdash; Trip per Kategori</h3><span class="tag">Customer / Hub / Store / Other</span></div>
+      <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND3"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Trend Bulanan per Site</h3><span class="tag">color = vs target</span></div>
@@ -1708,10 +1712,12 @@ function buildTrendline(results, summary, s, e) {
   var trendSeries2=[
     {key:'totalDoCust',       label:'Demand DO Customer', color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
     {key:'totalCbmStore',     label:'Demand CBM Store',   color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripCustomer', label:'Trip Customer',      color:'#1a73e8', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripHub',      label:'Trip Hub',           color:'#a142f4', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripStore',    label:'Trip Store',         color:'#34a85a', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripOther',    label:'Trip Other',         color:'#e37400', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+  ];
+  var trendSeries3=[
+    {key:'totalTripCustomer', label:'Trip Customer', color:'#1a73e8', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripHub',      label:'Trip Hub',      color:'#a142f4', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripStore',    label:'Trip Store',    color:'#34a85a', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripOther',    label:'Trip Other',    color:'#e37400', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
   ];
 
   var n=trendData.length;
@@ -1909,6 +1915,10 @@ function buildTrendline(results, summary, s, e) {
     axes: [
       { id:'yC', opts:{display:false,min:0} },
       { id:'yV', opts:{display:false,min:0} },
+    ]
+  });
+  renderTrendChart('dTREND3', trendSeries3, {
+    axes: [
       { id:'yT', opts:{display:false,min:0} },
     ]
   });
