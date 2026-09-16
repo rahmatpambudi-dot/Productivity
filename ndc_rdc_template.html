@@ -2831,6 +2831,21 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
     if (!active[r.nopol]) active[r.nopol] = new Set();
     active[r.nopol].add(r.date);
   });
+  // Pair Luar Kota trips against LEADTIME_MAP so multi-day LK trips mark the vehicle
+  // Utilized for the whole transit/kembali window, not just the departure day — same
+  // imputation as the Jababeka/Cikupa pilot heatmap (applyPilotLKTransitImputation),
+  // ported here since this heatmap reads straight from ROWS instead of a pilot JSON.
+  rows.forEach(function(r) {
+    if (!r.nopol || !r.date) return;
+    if (selType !== 'ALL' && normalizeArmadaType(r.ja) !== selType) return;
+    if (effectiveSA(r) !== 'LUAR KOTA' || !r.jalur || r.jalur === '#N/A') return;
+    var lt = getLeadTimeDays(r.site, r.jalur);
+    if (lt <= 1) return;
+    if (!active[r.nopol]) active[r.nopol] = new Set();
+    expandActiveDates(r.date, lt).slice(1).forEach(function(ed) {
+      if (ed <= periodEnd) active[r.nopol].add(ed);
+    });
+  });
   var rosterNopols = selType === 'ALL' ? Array.from(allNopolSet).sort() : Array.from(assetsByType[selType] || []).sort();
   Object.keys(active).forEach(function(np){ if (rosterNopols.indexOf(np) === -1) rosterNopols.push(np); }); // pengganti not in roster
 
