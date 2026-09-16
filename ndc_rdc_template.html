@@ -2780,6 +2780,15 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
   // Full daily date list across the selected periode (includes Sunday/holiday so they can
   // be shown excluded, same as the Jababeka heatmap) — capped so a huge periode doesn't
   // render a giant table; narrow the date filter to see more.
+  // Also cap periodEnd to the latest date that actually has trip data for this site —
+  // otherwise a periode that reaches "today" (or beyond) shows 100% gray for days whose
+  // trips haven't been recorded yet, which looks like a data/utilization problem when it
+  // is really just "that day hasn't happened in the data feed yet".
+  var latestDataDate = null;
+  rows.forEach(function(r){ if (r.date && (!latestDataDate || r.date > latestDataDate)) latestDataDate = r.date; });
+  var noDataAfter = false;
+  if (latestDataDate && periodEnd > latestDataDate) { periodEnd = latestDataDate; noDataAfter = true; }
+
   var dates = [];
   var cur = new Date(periodStart+'T00:00:00');
   var endD = new Date(periodEnd+'T00:00:00');
@@ -2878,7 +2887,7 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
 
   return '<div class="panel">'
     + '<div class="ph"><h3>Trend Utilisasi Armada per Type</h3>'
-    + '<span class="tag">'+dates[0]+' s/d '+dates[dates.length-1]+(capped?' (dibatasi 45 hari terakhir)':'')+'</span></div>'
+    + '<span class="tag">'+dates[0]+' s/d '+dates[dates.length-1]+(capped?' (dibatasi 45 hari terakhir)':'')+(noDataAfter?' \u2014 data trip terbaru sampai '+latestDataDate:'')+'</span></div>'
     + typeBar
     + summaryHtml
     + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail &middot; kotak abu = Unutilized (idle, ga ada trip) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
