@@ -1694,10 +1694,10 @@ function buildTrendline(results, summary, s, e) {
   var trendSeries2=[
     {key:'totalDoCust',       label:'Demand DO Customer', color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
     {key:'totalCbmStore',     label:'Demand CBM Store',   color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripCustomer', label:'Trip Customer',      color:'#1a73e8', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripHub',      label:'Trip Hub',           color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripStore',    label:'Trip Store',         color:'#34a85a', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripOther',    label:'Trip Other',         color:'#e37400', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripCustomer', label:'Trip Customer',      color:'#1a73e8', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripHub',      label:'Trip Hub',           color:'#a142f4', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripStore',    label:'Trip Store',         color:'#34a85a', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripOther',    label:'Trip Other',         color:'#e37400', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
   ];
 
   var n=trendData.length;
@@ -1895,6 +1895,7 @@ function buildTrendline(results, summary, s, e) {
     axes: [
       { id:'yC', opts:{display:false,min:0} },
       { id:'yV', opts:{display:false,min:0} },
+      { id:'yT', opts:{display:false,min:0} },
     ]
   });
 }
