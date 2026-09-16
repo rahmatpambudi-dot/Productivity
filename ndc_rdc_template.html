@@ -2809,6 +2809,14 @@ function buildPilotHeatmapHtml(siteKey) {
 // are knowable from trip data alone: Utilized (had a trip that day) and Unutilized/idle (no
 // trip, no reason available) — there's no "Not Available" reason breakdown here because the
 // old data source doesn't capture why a vehicle didn't run.
+// Known Not Available overrides for sites without a PIC-tracked pilot sheet — small,
+// manually-confirmed exceptions (e.g. a unit in bengkel/MR with a stand-in covering its
+// trips) so it shows as an explained Not Available instead of unexplained idle. Add more
+// { NOPOL: 'reason' } entries here as they get confirmed; this is a stopgap until a real
+// tracking sheet exists for these sites.
+const GENERIC_KNOWN_NA = {
+  'BK8022LM': 'Downtime/MR (armada pengganti: BK8112LM)',
+};
 function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart, periodEnd) {
   if (!typeNames.length) {
     return '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3></div>'
@@ -2894,41 +2902,78 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
 
   var heatRows = '';
   var idleRank = []; // {nopol, idleCount}
+  var naByNopol = {}; // nopol -> {reason, naCount}
   rosterNopols.forEach(function(nopol) {
     var idleCount = 0;
+    var knownReason = GENERIC_KNOWN_NA[nopol];
     var cellsHtml = dates.map(function(d, idx) {
       if (excludedIdx[idx]) {
         return '<td style="padding:0;text-align:center"><div title="Minggu/libur \u2014 di-exclude dari perhitungan" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:var(--bg);border:1px dashed var(--border)"></div></td>';
       }
       var isUtil = active[nopol] && active[nopol].has(d);
-      if (!isUtil) idleCount++;
-      var color = isUtil ? '#22c55e' : '#e2e8f0';
-      var title = isUtil ? 'Ada trip (' + (nopolTypeLabel[nopol] || selTypeLabel) + ')' : 'Unutilized (idle, ga ada trip)';
-      return '<td style="padding:0;text-align:center"><div title="'+title+'" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:'+color+'"></div></td>';
+      if (isUtil) {
+        var title = 'Ada trip (' + (nopolTypeLabel[nopol] || selTypeLabel) + ')';
+        return '<td style="padding:0;text-align:center"><div title="'+title+'" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:#22c55e"></div></td>';
+      }
+      if (knownReason) {
+        if (!naByNopol[nopol]) naByNopol[nopol] = { reason: knownReason, naCount: 0 };
+        naByNopol[nopol].naCount++;
+        return '<td style="padding:0;text-align:center"><div title="Not Available: '+esc(knownReason)+'" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:#ef4444"></div></td>';
+      }
+      idleCount++;
+      return '<td style="padding:0;text-align:center"><div title="Unutilized (idle, ga ada trip)" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:#e2e8f0"></div></td>';
     }).join('');
     heatRows += '<tr><td style="font-family:\'JetBrains Mono\',monospace;font-size:12.5px;padding:4px 12px;white-space:nowrap;color:var(--t2);border-right:1px solid var(--border)">'+esc(nopol)+'</td>'+cellsHtml+'</tr>';
     if (idleCount > 0) idleRank.push({ nopol: nopol, idleCount: idleCount });
   });
   idleRank.sort(function(a,b){ return b.idleCount - a.idleCount; });
+  var naRank = Object.keys(naByNopol).map(function(np){ return { nopol: np, reason: naByNopol[np].reason, naCount: naByNopol[np].naCount }; });
+  naRank.sort(function(a,b){ return b.naCount - a.naCount; });
 
-  var util=0, idle=0, totalCells=0;
+  var util=0, idle=0, na=0, totalCells=0;
   rosterNopols.forEach(function(nopol) {
+    var knownReason = GENERIC_KNOWN_NA[nopol];
     dates.forEach(function(d, idx) {
       if (excludedIdx[idx]) return;
       totalCells++;
-      if (active[nopol] && active[nopol].has(d)) util++; else idle++;
+      if (active[nopol] && active[nopol].has(d)) util++;
+      else if (knownReason) na++;
+      else idle++;
     });
   });
-  var utlPct = totalCells > 0 ? (100*util/totalCells) : null;
+  var denom = util + idle;
+  var utlPct = denom > 0 ? (100*util/denom) : null;
 
   var summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,220px));gap:14px;padding:14px 16px;justify-content:start">'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">UTL Armada ('+selTypeLabel+')</div><div style="font-size:24px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
+    + (na>0 ? '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Not Available (known reason)</div><div style="font-size:24px;font-weight:700;color:#dc2626">'+na+'</div></div>' : '')
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Unutilized (total hari-armada idle)</div><div style="font-size:24px;font-weight:700;color:#d97706">'+idle+'</div></div>'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Armada</div><div style="font-size:24px;font-weight:700">'+rosterNopols.length+' unit</div></div>'
     + '</div>';
 
+  var naHtml = '';
+  if (naRank.length) {
+    naHtml += '<div style="padding:14px 16px 8px;font-size:13px;font-weight:700;color:var(--t2)">Armada Not Available (alasan diketahui)</div>'
+      + '<div style="overflow-x:auto;padding:0 16px 16px"><table style="border-collapse:collapse;width:100%">'
+      + '<thead><tr>'
+      + '<th style="text-align:left;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">NOPOL</th>'
+      + '<th style="text-align:left;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">Type</th>'
+      + '<th style="text-align:center;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">Hari NA</th>'
+      + '<th style="text-align:left;font-size:11px;color:var(--t3);padding:6px 10px;border-bottom:1px solid var(--border)">Alasan</th>'
+      + '</tr></thead><tbody>';
+    naRank.forEach(function(p) {
+      naHtml += '<tr style="border-bottom:1px solid var(--border)">'
+        + '<td style="padding:8px 10px;font-family:\'JetBrains Mono\',monospace;font-weight:700;font-size:12.5px;white-space:nowrap">'+esc(p.nopol)+'</td>'
+        + '<td style="padding:8px 10px;font-size:11.5px;color:var(--t3);white-space:nowrap">'+(nopolTypeLabel[p.nopol] || selTypeLabel)+'</td>'
+        + '<td style="padding:8px 10px;text-align:center;font-size:12px;font-weight:700;color:#dc2626;white-space:nowrap">'+p.naCount+'</td>'
+        + '<td style="padding:8px 10px;font-size:11.5px;color:var(--t2)">'+esc(p.reason)+'</td>'
+        + '</tr>';
+    });
+    naHtml += '</tbody></table></div>';
+  }
+
   var idleHtml = '<div style="padding:14px 16px 8px;font-size:13px;font-weight:700;color:var(--t2)">Armada Jarang Jalan (idle terbanyak)</div>'
-    + '<p style="color:var(--t3);font-size:11px;padding:0 16px 10px;margin-top:-6px">Alasan Not Available belum tersedia untuk site ini (butuh sheet tracking manual kayak pilot Jababeka) — ranking ini murni dari ada/nggaknya trip.</p>';
+    + '<p style="color:var(--t3);font-size:11px;padding:0 16px 10px;margin-top:-6px">Alasan Not Available belum tersedia untuk sebagian besar armada di site ini (butuh sheet tracking manual kayak pilot Jababeka) — ranking ini murni dari ada/nggaknya trip. Armada yang alasannya udah diketahui ditampilin terpisah di atas.</p>';
   if (!idleRank.length) {
     idleHtml += '<p style="color:var(--t3);font-size:12px;padding:0 16px 14px">Semua armada '+selTypeLabel+' jalan tiap hari di periode ini.</p>';
   } else {
@@ -2953,13 +2998,15 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
     + '<span class="tag">'+dates[0]+' s/d '+dates[dates.length-1]+(capped?' (dibatasi 45 hari terakhir)':'')+(noDataAfter?' \u2014 data trip terbaru sampai '+latestDataDate:'')+'</span></div>'
     + typeBar
     + summaryHtml
-    + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail &middot; kotak abu = Unutilized (idle, ga ada trip) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
+    + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail &middot; kotak abu = Unutilized (idle, ga ada trip) &middot; kotak merah = Not Available (alasan diketahui) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
     + '<div style="overflow-x:auto;padding:4px 16px 16px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 12px">NOPOL</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
     + '<div style="display:flex;gap:18px;padding:4px 16px 16px;font-size:12px;color:var(--t3);border-top:1px solid var(--border);flex-wrap:wrap">'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#22c55e;vertical-align:-1px;margin-right:6px"></span>Utilized</span>'
+    + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ef4444;vertical-align:-1px;margin-right:6px"></span>Not Available (alasan diketahui)</span>'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#e2e8f0;vertical-align:-1px;margin-right:6px"></span>Unutilized (idle, ga ada trip)</span>'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;border:1px dashed var(--border);vertical-align:-1px;margin-right:6px"></span>Minggu/libur (excluded)</span>'
     + '</div>'
+    + (naHtml ? '<div style="border-top:1px solid var(--border)">' + naHtml + '</div>' : '')
     + '<div style="border-top:1px solid var(--border)">' + idleHtml + '</div>'
     + '<div style="padding:10px 16px;font-size:10.5px;color:var(--t3);border-top:1px solid var(--border)">Sumber: master LC (data trip existing) &middot; belum ada sheet tracking manual buat site ini</div>'
     + '</div>';
