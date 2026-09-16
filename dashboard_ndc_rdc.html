@@ -1664,7 +1664,21 @@ function buildTrendline(results, summary, s, e) {
   var filterD1=parseInt(s.slice(8,10)), filterD2=parseInt(e.slice(8,10));
   var trendLabels=allMonths.map(function(mo){var arr=mo.split('-');return moNames2[parseInt(arr[1])-1]+' '+arr[0];});
   var trendData=allMonths.map(function(mo){
-    var {start:d1,end:d2}=getMonthRange(mo);
+    // Apply the SAME day-of-month window (from the periode filter) to every month here —
+    // not just getMonthRange()'s own first/last-month clamp, which only clamps the
+    // filter's own start/end month and leaves every other historical month at full-month.
+    // That made recent months look like they "dropped" when really every earlier month
+    // was just being counted in full while the latest one was MTD-only.
+    var moYear=parseInt(mo.slice(0,4)), moMonthNum=parseInt(mo.slice(5,7));
+    var lastDayOfMo=new Date(moYear,moMonthNum,0).getDate();
+    var d1, d2;
+    if (fullMonthMode) {
+      d1 = mo+'-01'; d2 = mo+'-'+String(lastDayOfMo).padStart(2,'0');
+    } else {
+      var dd1=Math.min(filterD1,lastDayOfMo), dd2=Math.min(filterD2,lastDayOfMo);
+      d1 = mo+'-'+String(dd1).padStart(2,'0');
+      d2 = mo+'-'+String(dd2).padStart(2,'0');
+    }
     if(currentSite==='ALL'){
       return makeSummary(computeAll(filterRows(ROWS,d1,d2,'ALL')));
     }
