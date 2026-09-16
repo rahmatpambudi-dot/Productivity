@@ -2711,7 +2711,7 @@ function buildPilotHeatmapHtml(siteKey) {
   var denom = total - na;
   var utlPct = denom > 0 ? (100*util/denom) : null;
 
-  var summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;padding:14px 16px">'
+  var summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,220px));gap:14px;padding:14px 16px;justify-content:start">'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">UTL Armada ('+selType+')</div><div style="font-size:24px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Not Available (total hari)</div><div style="font-size:24px;font-weight:700;color:#dc2626">'+na+'</div></div>'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Unutilized (idle)</div><div style="font-size:24px;font-weight:700;color:#d97706">'+empty+'</div></div>'
@@ -2866,7 +2866,7 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
   });
   var utlPct = totalCells > 0 ? (100*util/totalCells) : null;
 
-  var summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;padding:14px 16px">'
+  var summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,220px));gap:14px;padding:14px 16px;justify-content:start">'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">UTL Armada ('+selTypeLabel+')</div><div style="font-size:24px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Unutilized (total hari-armada idle)</div><div style="font-size:24px;font-weight:700;color:#d97706">'+idle+'</div></div>'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Armada</div><div style="font-size:24px;font-weight:700">'+rosterNopols.length+' unit</div></div>'
