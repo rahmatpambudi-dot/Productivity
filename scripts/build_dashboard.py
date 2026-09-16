@@ -14,15 +14,166 @@ from googleapiclient.discovery import build as gapi_build
 
 SPREADSHEET_ID = "1wumoDA8SrXmaEXRkI_2lNlvof9JVtsXceeE2qhLtb7A"
 
-# Master Asset roster — separate spreadsheet, one tab per month (Indonesian month names)
-MASTER_ASSET_SPREADSHEET_ID = "1I20iRUWcJplXcefl_-E0li_Af-lV2vBawCaz4_Phm4I"
-MASTER_ASSET_MONTHS = {
-    'Januari': '01', 'Februari': '02', 'Maret': '03', 'April': '04',
-    'Mei': '05', 'Juni': '06', 'Juli': '07', 'Agustus': '08',
-    'September': '09', 'Oktober': '10', 'November': '11', 'Desember': '12',
+# Master Asset roster — new spreadsheet (as of Sep 2026), single long roster table
+# (one row per nopol per month) instead of the old one-tab-per-month layout. The old
+# spreadsheet ID below is kept only as a comment for history; it stopped being updated
+# around July 2026 and is no longer the source.
+# OLD_MASTER_ASSET_SPREADSHEET_ID = "1I20iRUWcJplXcefl_-E0li_Af-lV2vBawCaz4_Phm4I"
+MASTER_ASSET_SPREADSHEET_ID = "1R30vW1JD94RPjVhmGeyvu2uOmR9xomAfd8SfczzN7qA"
+MASTER_ASSET_TAB = "Data Verifikasi dan Tagihan"
+GOOGLE_SHEETS_EPOCH = datetime.date(1899, 12, 30)
+
+# NOPOL-level PIC-tracked utilization pilot ("NOPOL_PAIRED_LC"), one tab per site.
+# Add a new { key, tab } pair here when a new site's pilot tab is created.
+PILOT_SPREADSHEET_ID = "1creSwU_Fso0OgF5eZBp65oOfV67maGKBYLKeYyhLsO0"
+PILOT_SHEETS = [
+    { "key": "JABABEKA", "tab": "JABABEKA" },
+    { "key": "CIKUPA",   "tab": "CIKUPA"   },
+]
+PILOT_LC_RE = re.compile(r'^\d{6}[A-Z]\d{2,4}$')
+PILOT_NA_KEYWORDS = ["ADA BARANG NON M","ISI BARANG NON M","ADA BONGKARAN NON M","KARDUS","BARANG IT SET BOX",
+    "ADA BARANG KASUR","ADA BARANG JURONG","ADA BARANG REAPIR","MEDIX","ASTOR","ASTORE","BONGKARAN",
+    "SVC","ARMADA SERVICE","SERVICE","SVB","SERVIS","GANTI BAN","STARTER","STATER","DIBENGKEL","MASUK MR",
+    "PHYSICAL CHECK","PINTU RUSAK","KELISTRIKAN","BOX KEROPOS","REPAIR","DELAYSERVICE","GENERAL CLEANING",
+    "INS","ASURANSI","DIPINJAM","EX WO","JANGAN DIMUAT","TOLAKAN","GAADA KUNCINYA"]
+PILOT_NA_EXACT = {"PLN","RBR"}
+# Case-sensitive exact strings confirmed Utilized despite an incidental NA-looking word
+# inside them (e.g. a Luar Kota store trip that also mentions "service" as a side note).
+PILOT_UTIL_EXPLICIT = {
+    "DK- B3 SATELIT CIKUPA / TANGERANG/24,94", "LAMPUNG HCI", "H034 WH HCI HUB CIREBON",
+    "H031 WH HCI LAMPUNG",
+    "DK B1 ST SELMA KALIBATA on site jam 08.00 (1) & GANDARIA (2) & PONDOK INDAH (3)/Zyllem",
+    "AZKO BALI - SEBELUM JALAN SERVICE HINO TERLEBIH DAHULU", "AZKO BALI / PLAN SERVICE",
+    "A564 ST AHI INDRAMAYU MALL & A326 ST AHI CIREBON", "ADA MADIX BUAT MIKO MALL DARI TASIK",
+    "H050 WH HCI HUB GARUT & J31G ST HCIR INFORMA TASIKMALAYA",
+    "Tangerang","Jakarta Selatan","Jakarta Barat","Bogor Kabupaten","Serang","Jakarta Timur","Cilegon",
+    "Bogor","Bekasi","Jakarta Pusat","JAKARTA PUSAT","Jakarta Utara",
+    "HUB LAMPUNG","HUB CIKUPA","HUB BANDUNG","HUB BOGOR","HUB CIREBON","HUB UTARA",
+    "HCI CIREBON","HCI LAMPUNG","JALUR DEKAT","jalur dekat","DO JABABEKA+KEMBANGAN",
+    "Zyllem BARANG ASTOR KE PAMERAN PALEM SEMI","Zyllem AYB",
 }
+# "DK" (Dalam Kota) and "LK" (Luar Kota) are both real-trip prefixes — a cell starting
+# with either one is a delivery description, not a status note.
+PILOT_UTIL_PREFIXES = ["DK","LK ","FBI-LK","AHI-LK","PLAN LK","ST ","ST.","LANGSIR","RIT","PLAN RIT","CUST RIT","PERBANTUAN","WH "]
+PILOT_UTIL_KEYWORDS = ["AZKO","ATARU","CHATIME","GDC ","MOLLY","TGI","NEKA","GUDANG","JALAN","PAMERAN","PROJECT","RACKING"]
+
+def pilot_classify_cell(raw):
+    """Returns (status, detail) for one NOPOL_PAIRED_LC cell. status is UTIL/NA/EMPTY.
+    Mirrors the classification rules agreed with the PIC team — see chat history for
+    the reasoning behind each bucket (ada-muatan/service/dipinjam -> NA and excluded
+    from the utilization denominator; LK/DK/ST/hub/store mentions -> UTIL)."""
+    parts = [p.strip() for p in re.split(r'[,\n]', raw) if p.strip()]
+    if not parts:
+        return ('EMPTY', None)
+    if all(PILOT_LC_RE.match(p) for p in parts):
+        return ('UTIL', ', '.join(parts))
+    v = raw.strip()
+    u = v.upper()
+    if v in PILOT_UTIL_EXPLICIT:
+        return ('UTIL', v)
+    if u in PILOT_NA_EXACT:
+        return ('NA', v)
+    for kw in PILOT_NA_KEYWORDS:
+        if kw in u:
+            return ('NA', v)
+    for pre in PILOT_UTIL_PREFIXES:
+        if u.startswith(pre):
+            return ('UTIL', v)
+    for kw in PILOT_UTIL_KEYWORDS:
+        if kw in u:
+            return ('UTIL', v)
+    return ('NA', v)  # unrecognized freestyle text defaults to NA (conservative)
+
+def pilot_site_to_owner(site):
+    s = (site or '').upper()
+    if 'AHI' in s: return 'AHI'
+    if 'HCI' in s: return 'HCI'
+    if 'FBI' in s: return 'FBI'
+    if 'KLS' in s: return 'KLS'
+    return 'OTHER'
+
+def fetch_pilot_data(service, today_iso):
+    """Fetches each site's NOPOL_PAIRED_LC tab and returns
+    { site_key: {"source":..., "dates":[...], "types": {TYPE: [{nopol,owner,cells},...]}} }.
+    Only dates up to today (WIB) are included, so future empty columns never drag
+    down the utilization % before that day has actually happened."""
+    out = {}
+    for ps in PILOT_SHEETS:
+        try:
+            result = service.spreadsheets().values().get(
+                spreadsheetId=PILOT_SPREADSHEET_ID,
+                range=f"'{ps['tab']}'!A:AZ",
+                valueRenderOption="FORMATTED_VALUE",
+            ).execute()
+            rows = result.get("values", [])
+        except Exception as e:
+            print(f"  ✗ Pilot data {ps['key']}: {e}")
+            continue
+        if len(rows) < 2:
+            continue
+        header = rows[0]
+        # Locate the fixed columns by name (position varies: Cikupa has an extra
+        # leading "KODE NOPOL" column that Jababeka doesn't).
+        hdr_up = [str(h).strip().upper() for h in header]
+        def col(name):
+            for i, hh in enumerate(hdr_up):
+                if hh == name: return i
+            return -1
+        i_nopol = col('NOPOL')
+        i_type  = col('TYPE2')
+        i_site  = col('SITE NAME')
+        if -1 in (i_nopol, i_type, i_site):
+            print(f"  ✗ Pilot data {ps['key']}: missing NOPOL/TYPE2/SITE NAME column")
+            continue
+        date_start = i_site + 1
+        date_cols = []  # (row_index, iso_date)
+        for i in range(date_start, len(header)):
+            h = str(header[i]).strip()
+            if not h: continue
+            parsed = _parse_pilot_date_header(h)
+            if parsed and parsed <= today_iso:
+                date_cols.append((i, parsed))
+        if not date_cols:
+            continue
+        dates = [d for _, d in date_cols]
+
+        types = defaultdict(list)
+        for r in rows[1:]:
+            if len(r) <= i_nopol or not str(r[i_nopol]).strip():
+                continue
+            nopol = str(r[i_nopol]).strip()
+            typ = str(r[i_type]).strip() if i_type < len(r) else ''
+            site = str(r[i_site]).strip() if i_site < len(r) else ''
+            owner = pilot_site_to_owner(site)
+            cells = []
+            for col_idx, _ in date_cols:
+                raw = str(r[col_idx]) if col_idx < len(r) and r[col_idx] is not None else ''
+                status, detail = pilot_classify_cell(raw)
+                cells.append({'s': status, 'd': detail})
+            types[typ].append({'nopol': nopol, 'owner': owner, 'cells': cells})
+
+        out[ps['key']] = {
+            'source': f"NOPOL_PAIRED_LC Google Sheet - {ps['tab']} tab",
+            'dates': dates,
+            'types': {t: v for t, v in types.items()},
+        }
+        total_nopol = sum(len(v) for v in types.values())
+        print(f"  ✓ Pilot data {ps['key']}: {total_nopol} nopol, {len(dates)} hari ({dates[0]} s/d {dates[-1]})")
+    return out
+
+def _parse_pilot_date_header(h):
+    """Header cells are date-formatted (e.g. '9/1/2026'); returns 'YYYY-MM-DD' or None."""
+    m = re.match(r'^(\d{1,2})/(\d{1,2})/(\d{4})$', h)
+    if not m:
+        return None
+    mth, day, yr = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    try:
+        return datetime.date(yr, mth, day).isoformat()
+    except ValueError:
+        return None
+
 ARMADA_TYPE_NORMALIZE = {
-    'CDD': 'CDD', 'CDD LONG CHASSIS': 'CDDLC', 'CDD PICK UP': 'CDD PICKUP', 'CDD PICKUP': 'CDD PICKUP',
+    'CDD': 'CDD', 'CDD LONG CHASSIS': 'CDDLC', 'CDD LC': 'CDDLC', 'CDD PICK UP': 'CDD PICKUP', 'CDD PICKUP': 'CDD PICKUP',
     'CDE': 'CDE', 'CDE LONG CHASSIS': 'CDELC', 'CDE LC': 'CDELC', 'CDELC': 'CDELC', 'CDE PICK UP': 'CDE PICKUP', 'CDE PICKUP': 'CDE PICKUP',
     'FUSO': 'FUSO', 'FUSO GENAP': 'FUSO', 'MIN VAN OPS': 'MINI VAN BOX', 'MINI VAN BOX': 'MINI VAN BOX', 'MINI VANBOX': 'MINI VAN BOX', 'MVB': 'MINI VAN BOX',
     'MOTOR BOX': 'MOTOR BOX', 'PICK UP': 'PICKUP', 'PICKUP': 'PICKUP', 'PICKUP EXTRA': 'PICKUP',
@@ -658,63 +809,67 @@ def aggregate_monthly(all_rows, timestamp):
 
 
 def fetch_master_asset(service):
-    """Fetch Master Asset roster (one tab per month) from the separate Master Asset spreadsheet.
-    Returns { 'YYYY-MM': { site: { normalized_type: [nopol,...] } } }"""
+    """Fetch Master Asset roster from the new spreadsheet: a single long roster table
+    (one row per nopol per month, 'Bulan' column marks the month) instead of the old
+    one-tab-per-month layout. Returns { 'YYYY-MM': { site: { normalized_type: [nopol,...] } } }.
+    Uses UNFORMATTED_VALUE so the 'Bulan' date column comes back as a Sheets serial
+    number regardless of its display format — avoids guessing a date string format."""
     try:
-        meta = service.spreadsheets().get(spreadsheetId=MASTER_ASSET_SPREADSHEET_ID).execute()
-        tab_names = [s['properties']['title'] for s in meta.get('sheets', [])]
+        result = service.spreadsheets().values().get(
+            spreadsheetId=MASTER_ASSET_SPREADSHEET_ID,
+            range=f"'{MASTER_ASSET_TAB}'!A:W",
+            valueRenderOption="UNFORMATTED_VALUE",
+        ).execute()
+        rows = result.get("values", [])
     except Exception as e:
-        print(f"  ✗ Master Asset: cannot list tabs: {e}")
+        print(f"  ✗ Master Asset: {e}")
+        return {}
+    if len(rows) < 2:
+        print("  ✗ Master Asset: sheet empty")
         return {}
 
-    months_out = {}
-    for tab in tab_names:
-        month_num = MASTER_ASSET_MONTHS.get(tab.strip())
-        if not month_num:
-            continue  # skip non-month tabs
+    headers = [str(h).strip().upper() for h in rows[0]]
+    def col(*names):
+        for n in names:
+            for i, hh in enumerate(headers):
+                if n in hh: return i
+        return -1
+    i_bulan   = col('BULAN')
+    i_nopol   = col('NOPOL')
+    i_alokasi = col('ALOKASI SITE')
+    i_typearm = col('TYPE ARMADA')
+    if -1 in (i_bulan, i_nopol, i_alokasi, i_typearm):
+        print(f"  ✗ Master Asset: missing BULAN/NOPOL/ALOKASI SITE/TYPE ARMADA column (found: {headers})")
+        return {}
+
+    by_month = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    skipped_bad_date = 0
+    for r in rows[1:]:
+        if len(r) <= max(i_bulan, i_nopol, i_alokasi, i_typearm):
+            continue
+        bulan_raw = r[i_bulan]
         try:
-            result = service.spreadsheets().values().get(
-                spreadsheetId=MASTER_ASSET_SPREADSHEET_ID,
-                range=f"'{tab}'!A:K",
-                valueRenderOption="FORMATTED_VALUE",
-            ).execute()
-            rows = result.get("values", [])
-        except Exception as e:
-            print(f"  ✗ Master Asset tab {tab}: {e}")
+            serial = float(bulan_raw)
+        except (TypeError, ValueError):
+            skipped_bad_date += 1
             continue
-        if len(rows) < 2:
+        d = GOOGLE_SHEETS_EPOCH + datetime.timedelta(days=serial)
+        month_key = f"{d.year:04d}-{d.month:02d}"
+        nopol = str(r[i_nopol] or '').strip().upper()
+        site_key = str(r[i_alokasi] or '').strip()
+        typ = norm_armada_type(r[i_typearm] if i_typearm < len(r) else '')
+        if not nopol or not site_key:
             continue
-        headers = [str(h).strip().upper() for h in rows[0]]
-        def col(*names):
-            for n in names:
-                for i, hh in enumerate(headers):
-                    if n in hh: return i
-            return -1
-        i_nopol = col('NOPOL')
-        i_type  = col('TYPE')
-        i_site  = col('SITE')
-        if i_nopol < 0 or i_type < 0 or i_site < 0:
-            print(f"  ✗ Master Asset tab {tab}: missing NOPOL/Type/Site column")
-            continue
+        if 'TAMORA' in site_key.upper() and typ == 'CDE':
+            typ = 'CDELC'
+        by_month[month_key][site_key][typ].append(nopol)
 
-        by_site_type = defaultdict(lambda: defaultdict(list))
-        for r in rows[1:]:
-            if len(r) <= max(i_nopol, i_type, i_site): continue
-            nopol = (r[i_nopol] or '').strip().upper()
-            typ   = norm_armada_type(r[i_type] if i_type < len(r) else '')
-            site  = (r[i_site] or '').strip()
-            if not nopol or not site: continue
-            # Tamora master sheet: 'CDE' entries are a data-entry shorthand for 'CDE LC'
-            # (CDELC), not a genuinely separate short-chassis fleet like at other sites.
-            if 'TAMORA' in site.upper() and typ == 'CDE':
-                typ = 'CDELC'
-            by_site_type[site][typ].append(nopol)
-
-        month_key = f"2026-{month_num}"
-        months_out[month_key] = {s: dict(t) for s, t in by_site_type.items()}
-        total_nopol = sum(len(v) for t in by_site_type.values() for v in t.values())
-        print(f"  ✓ Master Asset {tab} ({month_key}): {total_nopol} nopol, {len(by_site_type)} site")
-
+    months_out = {m: {s: dict(t) for s, t in st.items()} for m, st in by_month.items()}
+    for month_key, sites in sorted(months_out.items()):
+        total_nopol = sum(len(v) for t in sites.values() for v in t.values())
+        print(f"  ✓ Master Asset {month_key}: {total_nopol} nopol, {len(sites)} site")
+    if skipped_bad_date:
+        print(f"  (skipped {skipped_bad_date} rows with unparseable Bulan value)")
     return months_out
 
 
@@ -806,6 +961,14 @@ def build():
         print(f"  ✗ Master Asset: {e}")
         master_asset = {}
 
+    print("  Fetching NOPOL-level pilot data (Jababeka/Cikupa)...")
+    today_iso_wib = now_wib.date().isoformat()
+    try:
+        pilot_data = fetch_pilot_data(service, today_iso_wib)
+    except Exception as e:
+        print(f"  ✗ Pilot data: {e}")
+        pilot_data = {}
+
     base = os.path.dirname(os.path.abspath(__file__))
     data_path     = os.path.join(base, '..', 'data.json')
     monthly_path  = os.path.join(base, '..', 'data_monthly.json')
@@ -817,6 +980,12 @@ def build():
     with open(master_asset_path, 'w', encoding='utf-8') as f:
         json.dump({"timestamp": timestamp, "months": master_asset}, f, ensure_ascii=False, separators=(',',':'))
     print(f"data_master_asset.json: {os.path.getsize(master_asset_path)/1024:.1f} KB, {len(master_asset)} bulan")
+
+    for site_key, site_data in pilot_data.items():
+        pilot_path = os.path.join(base, '..', f'data_{site_key.lower()}_nopol_status.json')
+        with open(pilot_path, 'w', encoding='utf-8') as f:
+            json.dump(site_data, f, ensure_ascii=False, separators=(',',':'))
+        print(f"data_{site_key.lower()}_nopol_status.json: {os.path.getsize(pilot_path)/1024:.1f} KB")
 
     # Encode string fields to integer codes to reduce file size
     ENCODE_FIELDS = ['sheet','site','td','kat','ta','sa','owner','nopol','jalur','ja','sat','od','drvId','crewId','sla']
