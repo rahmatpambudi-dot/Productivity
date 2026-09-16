@@ -2302,6 +2302,17 @@ function normalizeArmadaType(ja) {
   if (!v) return 'LAINNYA';
   return ARMADA_TYPE_NORMALIZE[v] || v;
 }
+// Tamora's trip data records plain 'CDE' for what Master Asset's roster already lists as
+// 'CDELC' (a data-entry shorthand, not a genuinely separate short-chassis fleet) — without
+// this, every Tamora CDELC vehicle's real trips fail to match its own roster type and the
+// heatmap shows it as permanently idle. Use this wherever a trip row's type is compared
+// against a Master-Asset-derived roster type; normalizeArmadaType(r.ja) alone is enough
+// when just grouping trips among themselves.
+function normalizeArmadaTypeForRow(r) {
+  var t = normalizeArmadaType(r.ja);
+  if (r.site === 'TAMORA' && t === 'CDE') return 'CDELC';
+  return t;
+}
 const ARMADA_TYPE_COLORS = ['#1a73e8','#34a85a','#e37400','#a142f4','#d93025','#00acc1','#8B4513','#c2185b','#7cb342','#5c6bc0','#f9a825','#546e7a'];
 
 // Breakdown per Jenis Kiriman (kolom Type Deliver di Master LC) — dipakai buat pecah
@@ -2850,7 +2861,7 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
   var active = {};
   rows.forEach(function(r) {
     if (!r.nopol || !r.date) return;
-    if (selType !== 'ALL' && normalizeArmadaType(r.ja) !== selType) return;
+    if (selType !== 'ALL' && normalizeArmadaTypeForRow(r) !== selType) return;
     if (!active[r.nopol]) active[r.nopol] = new Set();
     active[r.nopol].add(r.date);
   });
@@ -2860,7 +2871,7 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
   // ported here since this heatmap reads straight from ROWS instead of a pilot JSON.
   rows.forEach(function(r) {
     if (!r.nopol || !r.date) return;
-    if (selType !== 'ALL' && normalizeArmadaType(r.ja) !== selType) return;
+    if (selType !== 'ALL' && normalizeArmadaTypeForRow(r) !== selType) return;
     if (effectiveSA(r) !== 'LUAR KOTA' || !r.jalur || r.jalur === '#N/A') return;
     var lt = getLeadTimeDays(r.site, r.jalur);
     if (lt <= 1) return;
