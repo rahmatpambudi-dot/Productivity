@@ -1683,6 +1683,15 @@ function buildTrendline(results, summary, s, e) {
     {key:'dpReg',  label:'DP Reg', color:'#D62B1F', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
     {key:'dpMix',  label:'DP Mix', color:'#7B2D8B', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
     {key:'ritase', label:'Ritase', color:'#1E3448', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(2):null;},       disp:function(v){return v.toFixed(2);}},
+    // Volume/count metrics — very different scale from the ratio metrics above, so they
+    // get their own axes (yC = trip/DO counts, yV = CBM volume) and start hidden (click
+    // the legend to turn one on) so the chart doesn't open cluttered with 11 lines.
+    {key:'totalDoCust',       label:'Demand DO Customer', color:'#0d9488', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalCbmStore',     label:'Demand CBM Store',   color:'#be185d', axis:'yV', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripCustomer', label:'Trip Customer',      color:'#1a73e8', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripHub',      label:'Trip Hub',           color:'#a142f4', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripStore',    label:'Trip Store',         color:'#34a85a', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripOther',    label:'Trip Other',         color:'#e37400', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
   ];
 
   var n=trendData.length;
@@ -1749,7 +1758,7 @@ function buildTrendline(results, summary, s, e) {
       backgroundColor:'transparent',
       borderWidth:2.5, pointRadius:5, pointHoverRadius:7,
       tension:0.35, fill:false, yAxisID:s.axis,
-      hidden:!hasData,
+      hidden: s.hiddenByDefault || !hasData,
       datalabels:{ display:false }
     };
   });
@@ -1859,7 +1868,9 @@ function buildTrendline(results, summary, s, e) {
           border:{display:false}
         },
         yL:{display:false,min:0,max:25},
-        yR:{display:false,min:0,max:100}
+        yR:{display:false,min:0,max:100},
+        yC:{display:false,min:0},
+        yV:{display:false,min:0}
       },
       layout:{padding:{top:20,right:80,bottom:8,left:40}}
     }
