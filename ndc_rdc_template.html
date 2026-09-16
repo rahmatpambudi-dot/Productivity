@@ -2382,6 +2382,29 @@ function getMasterSiteKey(site, owner) {
   if (o === 'NKA' || o === 'TGI') o = 'AHI';
   return m[o] || null;
 }
+// Roster per normalized armada type from Master Asset's latest available month for a
+// given base site, optionally restricted to a BU/owner subset. Excludes PASSENGER
+// (staff/manager cars that sit in the roster but were never meant to carry deliveries).
+// Returns {} if Master Asset has no data at all for this site (caller should fall back).
+function buildMasterAssetRosterByType(baseSite, ownerFilter) {
+  var roster = {};
+  var siteMap = MASTER_SITE_KEY_MAP[baseSite];
+  if (!siteMap) return roster;
+  var monthKey = resolveMasterAssetMonth(new Date().toISOString().slice(0,7));
+  if (!monthKey) return roster;
+  var monthData = MASTER_ASSET[monthKey];
+  Object.keys(siteMap).forEach(function(bu) {
+    if (ownerFilter && ownerFilter.indexOf(bu) === -1) return;
+    var sd = monthData[siteMap[bu]];
+    if (!sd) return;
+    Object.keys(sd).forEach(function(typ) {
+      if (typ === 'PASSENGER') return;
+      if (!roster[typ]) roster[typ] = new Set();
+      sd[typ].forEach(function(np){ roster[typ].add(np); });
+    });
+  });
+  return roster;
+}
 function getMasterAssetTotalCount(date, site, owner) {
   var monthKey = resolveMasterAssetMonth(date.slice(0, 7));
   if (!monthKey) return 0;
@@ -2966,10 +2989,25 @@ function buildArmadaTypeTrend(container) {
   });
   var availableTypes = Object.keys(typeAssetPre).sort(function(a,b){ return typeAssetPre[b].size - typeAssetPre[a].size; });
 
+  // The generic heatmap needs a roster that reflects who's *currently* in the fleet —
+  // pulling it from ROWS trip history (like typeAssetPre above) means a retired vehicle
+  // stays in the roster forever (it had a trip once) and a brand-new replacement is
+  // invisible until its first trip. Master Asset's latest month is the actual source of
+  // truth for "what's in service right now" (same source the legacy Detail Tabel already
+  // uses for Aset Armada), so pull the heatmap roster from there instead — and drop
+  // PASSENGER entries (Ops Manager/staff cars that end up in the roster but were never
+  // meant to carry deliveries).
+  var heatmapBaseSite = SUB_SITES[currentSite] ? SUB_SITES[currentSite].baseSite : currentSite;
+  var heatmapOwnerFilter = SUB_SITES[currentSite] ? SUB_SITES[currentSite].owners : null;
+  var masterRosterByType = buildMasterAssetRosterByType(heatmapBaseSite, heatmapOwnerFilter);
+  var masterAvailableTypes = Object.keys(masterRosterByType).sort(function(a,b){ return masterRosterByType[b].size - masterRosterByType[a].size; });
+
   // Heatmap builder for non-pilot sites runs on the PRE type-filter rows/roster so its
   // own type pills work independently of the "Type Armada" filter below (same design
   // as the Jababeka pilot heatmap, which also has its own independent type selector).
-  var heatmapHtml = jabaMode ? jabaHtml : buildGenericUtilHeatmapHtml(rows, typeAssetPre, availableTypes, s, e);
+  var heatmapHtml = jabaMode ? jabaHtml
+    : (masterAvailableTypes.length ? buildGenericUtilHeatmapHtml(rows, masterRosterByType, masterAvailableTypes, s, e)
+                                    : buildGenericUtilHeatmapHtml(rows, typeAssetPre, availableTypes, s, e)); // fallback if Master Asset has no data for this site at all
 
   if (filterType !== 'ALL') {
     rows = rows.filter(function(r){ return normalizeArmadaType(r.ja) === filterType; });
