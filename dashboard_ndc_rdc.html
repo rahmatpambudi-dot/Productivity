@@ -1572,6 +1572,10 @@ function renderDetail(results, summary, start, end) {
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
+      <div class="ph"><h3>Trendline Bulanan &mdash; Demand &amp; Trip</h3><span class="tag">Demand DO Customer, CBM Store, Trip per kategori</span></div>
+      <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND2"></canvas></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Trend Bulanan per Site</h3><span class="tag">color = vs target</span></div>
       <div class="tw" id="monthlyTrendTable" style="padding:0 2px 4px"></div>
     </div>
@@ -1683,197 +1687,215 @@ function buildTrendline(results, summary, s, e) {
     {key:'dpReg',  label:'DP Reg', color:'#D62B1F', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
     {key:'dpMix',  label:'DP Mix', color:'#7B2D8B', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(1):null;},       disp:function(v){return v.toFixed(1);}},
     {key:'ritase', label:'Ritase', color:'#1E3448', axis:'yL', fmt:function(v){return v!=null?+v.toFixed(2):null;},       disp:function(v){return v.toFixed(2);}},
-    // Volume/count metrics — very different scale from the ratio metrics above, so they
-    // get their own axes (yC = trip/DO counts, yV = CBM volume) and start hidden (click
-    // the legend to turn one on) so the chart doesn't open cluttered with 11 lines.
-    {key:'totalDoCust',       label:'Demand DO Customer', color:'#0d9488', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalCbmStore',     label:'Demand CBM Store',   color:'#be185d', axis:'yV', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripCustomer', label:'Trip Customer',      color:'#1a73e8', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripHub',      label:'Trip Hub',           color:'#a142f4', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripStore',    label:'Trip Store',         color:'#34a85a', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalTripOther',    label:'Trip Other',         color:'#e37400', axis:'yC', hiddenByDefault:true, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+  ];
+  // Volume/count metrics live in their own chart (dTREND2) — very different scale from
+  // the ratio metrics above (trip/DO counts vs. CBM volume), so they get their own axes
+  // (yC = counts, yV = CBM volume) in that second chart.
+  var trendSeries2=[
+    {key:'totalDoCust',       label:'Demand DO Customer', color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalCbmStore',     label:'Demand CBM Store',   color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripCustomer', label:'Trip Customer',      color:'#1a73e8', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripHub',      label:'Trip Hub',           color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripStore',    label:'Trip Store',         color:'#34a85a', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalTripOther',    label:'Trip Other',         color:'#e37400', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
   ];
 
   var n=trendData.length;
 
   // ── Smart label: pixel-aware collision avoidance ──
   // Strategy: sort by value, then push labels apart with minimum gap
-  // Each group (yL / yR) handled independently to avoid axis mixing
-  function getRankOffsets(moIdx) {
-    var groupL=[], groupR=[];
-    trendSeries.forEach(function(s,i){
-      var v=s.fmt(trendData[moIdx][s.key]);
-      if(v==null) return;
-      (s.axis==='yR'?groupR:groupL).push({i:i,v:v});
-    });
-    var offsets={};
-    var MIN_GAP = 18; // min px between label centers
-    function assign(grp) {
-      if(!grp.length) return;
-      // Sort by value descending (higher value = higher on chart = lower pixel y)
-      grp.sort(function(a,b){return b.v-a.v;});
-      // Assign initial offsets: 0 = center on point
-      var pos = grp.map(function(){return 0;});
-      // Iteratively push apart — run a few passes
-      for(var iter=0; iter<10; iter++){
-        for(var j=0; j<grp.length-1; j++){
-          var gap = pos[j+1] - pos[j];
-          if(gap < MIN_GAP){
-            var push = (MIN_GAP - gap) / 2;
-            pos[j]   -= push;
-            pos[j+1] += push;
+  // Each group (yL / yR, or yC / yV for the second chart) handled independently.
+  function makeRankOffsets(series) {
+    return function(moIdx) {
+      var groupL=[], groupR=[];
+      series.forEach(function(s,i){
+        var v=s.fmt(trendData[moIdx][s.key]);
+        if(v==null) return;
+        (s.axis==='yR'||s.axis==='yV'?groupR:groupL).push({i:i,v:v});
+      });
+      var offsets={};
+      var MIN_GAP = 18; // min px between label centers
+      function assign(grp) {
+        if(!grp.length) return;
+        // Sort by value descending (higher value = higher on chart = lower pixel y)
+        grp.sort(function(a,b){return b.v-a.v;});
+        // Assign initial offsets: 0 = center on point
+        var pos = grp.map(function(){return 0;});
+        // Iteratively push apart — run a few passes
+        for(var iter=0; iter<10; iter++){
+          for(var j=0; j<grp.length-1; j++){
+            var gap = pos[j+1] - pos[j];
+            if(gap < MIN_GAP){
+              var push = (MIN_GAP - gap) / 2;
+              pos[j]   -= push;
+              pos[j+1] += push;
+            }
           }
         }
+        grp.forEach(function(item, rank){
+          var px = Math.round(pos[rank]);
+          var align, anchor;
+          // px < 0 means label pushed up (above point), px > 0 means below
+          if(px < -4)      { align='top';    anchor='end';    }
+          else if(px > 4)  { align='bottom'; anchor='start';  }
+          else             { align='center'; anchor='center'; }
+          offsets[item.i] = {align:align, anchor:anchor, offset:Math.abs(px)+4};
+        });
       }
-      grp.forEach(function(item, rank){
-        var px = Math.round(pos[rank]);
-        var align, anchor;
-        // px < 0 means label pushed up (above point), px > 0 means below
-        if(px < -4)      { align='top';    anchor='end';    }
-        else if(px > 4)  { align='bottom'; anchor='start';  }
-        else             { align='center'; anchor='center'; }
-        offsets[item.i] = {align:align, anchor:anchor, offset:Math.abs(px)+4};
-      });
-    }
-    assign(groupL); assign(groupR);
-    return offsets;
+      assign(groupL); assign(groupR);
+      return offsets;
+    };
   }
 
-  var offsetFirst=n>0?getRankOffsets(0):{};
-  var offsetLast=n>0?getRankOffsets(n-1):{};
+  // Builds one trend line chart (datasets + end-label plugin + Chart.js instance) for a
+  // given canvas id and series list — used for both the ratio-metric chart (dTREND) and
+  // the volume/count chart (dTREND2), which share trendData/trendLabels but plot
+  // completely different metrics.
+  function renderTrendChart(canvasId, series, opts) {
+    opts = opts || {};
+    var getRankOffsets = makeRankOffsets(series);
+    var offsetFirst = n>0 ? getRankOffsets(0) : {};
+    var offsetLast  = n>0 ? getRankOffsets(n-1) : {};
 
-  var trendDatasets=trendSeries.map(function(s,i){
-    var vals=trendData.map(function(d){return s.fmt(d[s.key]);});
-    // Trim trailing null/zero values (e.g. OLF not yet available for latest month)
-    if(s.key==='olf') {
-      var lastValid=vals.length-1;
-      while(lastValid>=0 && (vals[lastValid]==null||vals[lastValid]===0)) lastValid--;
-      for(var ti=lastValid+1;ti<vals.length;ti++) vals[ti]=null;
-    }
-    var hasData=vals.some(function(v){return v!=null&&v!==0;});
-    return {
-      label:s.label, data:vals,
-      borderColor:s.color, pointBackgroundColor:'#ffffff',
-      pointBorderColor:s.color, pointBorderWidth:2,
-      backgroundColor:'transparent',
-      borderWidth:2.5, pointRadius:5, pointHoverRadius:7,
-      tension:0.35, fill:false, yAxisID:s.axis,
-      hidden: s.hiddenByDefault || !hasData,
-      datalabels:{ display:false }
-    };
-  });
+    var datasets = series.map(function(s) {
+      var vals = trendData.map(function(d){ return s.fmt(d[s.key]); });
+      // Trim trailing null/zero values (e.g. OLF not yet available for latest month)
+      if (opts.trimTrailingZero && opts.trimTrailingZero === s.key) {
+        var lastValid=vals.length-1;
+        while(lastValid>=0 && (vals[lastValid]==null||vals[lastValid]===0)) lastValid--;
+        for(var ti=lastValid+1;ti<vals.length;ti++) vals[ti]=null;
+      }
+      var hasData = vals.some(function(v){ return v!=null && v!==0; });
+      return {
+        label:s.label, data:vals,
+        borderColor:s.color, pointBackgroundColor:'#ffffff',
+        pointBorderColor:s.color, pointBorderWidth:2,
+        backgroundColor:'transparent',
+        borderWidth:2.5, pointRadius:5, pointHoverRadius:7,
+        tension:0.35, fill:false, yAxisID:s.axis,
+        hidden: !hasData,
+        datalabels:{ display:false }
+      };
+    });
 
-  // ── End-label plugin: value on ALL points, series name at right end only ──
-  var endLabelPlugin={
-    id:'endLabel',
-    afterDatasetsDraw:function(chart){
-      var ctx=chart.ctx;
-      var right=chart.chartArea.right;
-      var MIN_GAP=14;
+    var endLabelPlugin = {
+      id:'endLabel'+canvasId,
+      afterDatasetsDraw:function(chart){
+        var ctx=chart.ctx;
+        var right=chart.chartArea.right;
+        var MIN_GAP=14;
 
-      function relaxY(items){
-        items.sort(function(a,b){return a.y-b.y;});
-        for(var iter=0;iter<30;iter++){
-          for(var j=0;j<items.length-1;j++){
-            var gap=items[j+1].y-items[j].y;
-            if(gap<MIN_GAP){ var push=(MIN_GAP-gap)/2; items[j].y-=push; items[j+1].y+=push; }
+        function relaxY(items){
+          items.sort(function(a,b){return a.y-b.y;});
+          for(var iter=0;iter<30;iter++){
+            for(var j=0;j<items.length-1;j++){
+              var gap=items[j+1].y-items[j].y;
+              if(gap<MIN_GAP){ var push=(MIN_GAP-gap)/2; items[j].y-=push; items[j+1].y+=push; }
+            }
           }
+          return items;
         }
-        return items;
-      }
 
-      function fmtDisplay(s, fmtVal){
-        if(fmtVal==null) return '';
-        return s.key==='olf' ? fmtVal.toFixed(1)+'%' : fmtVal.toFixed(s.key==='ritase'?2:1);
-      }
+        ctx.save();
+        ctx.font='bold 10px Inter,sans-serif';
+        ctx.textBaseline='middle';
 
-      ctx.save();
-      ctx.font='bold 10px Inter,sans-serif';
-      ctx.textBaseline='middle';
-
-      // ── Value label above every dot ──
-      trendSeries.forEach(function(s,i){
-        var ds=trendDatasets[i]; if(!ds||ds.hidden) return;
-        var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
-        ctx.fillStyle=s.color;
-        ctx.textAlign='center';
-        meta.data.forEach(function(pt, ptIdx){
-          var fmtVal=trendDatasets[i].data[ptIdx];
-          if(fmtVal==null) return;
-          ctx.fillText(fmtDisplay(s, fmtVal), pt.x, pt.y-12);
+        // ── Value label above every dot ──
+        series.forEach(function(s,i){
+          var ds=datasets[i]; if(!ds||ds.hidden) return;
+          var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
+          ctx.fillStyle=s.color;
+          ctx.textAlign='center';
+          meta.data.forEach(function(pt, ptIdx){
+            var fmtVal=datasets[i].data[ptIdx];
+            if(fmtVal==null) return;
+            ctx.fillText(s.disp(fmtVal), pt.x, pt.y-12);
+          });
         });
-      });
 
-      // ── Series name at right end only (with collision avoidance) ──
-      var lastItems=[];
-      trendSeries.forEach(function(s,i){
-        var ds=trendDatasets[i]; if(!ds||ds.hidden) return;
-        var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
-        var pt=meta.data[meta.data.length-1]; if(!pt) return;
-        lastItems.push({y:pt.y, color:s.color, label:s.label});
-      });
-      relaxY(lastItems);
-      ctx.textAlign='left';
-      lastItems.forEach(function(item){
-        ctx.fillStyle=item.color;
-        ctx.fillText(item.label, right+8, item.y);
-      });
+        // ── Series name at right end only (with collision avoidance) ──
+        var lastItems=[];
+        series.forEach(function(s,i){
+          var ds=datasets[i]; if(!ds||ds.hidden) return;
+          var meta=chart.getDatasetMeta(i); if(meta.hidden) return;
+          var pt=meta.data[meta.data.length-1]; if(!pt) return;
+          lastItems.push({y:pt.y, color:s.color, label:s.label});
+        });
+        relaxY(lastItems);
+        ctx.textAlign='left';
+        lastItems.forEach(function(item){
+          ctx.fillStyle=item.color;
+          ctx.fillText(item.label, right+8, item.y);
+        });
 
-      ctx.restore();
-    }
-  };
+        ctx.restore();
+      }
+    };
 
-  var canvas=document.getElementById('dTREND');
-  if(!canvas) return;
-  charts.dTREND=new Chart(canvas.getContext('2d'),{
-    type:'line',
-    data:{labels:trendLabels,datasets:trendDatasets},
-    plugins:[endLabelPlugin],
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{
-        legend:{
-          display:true,
-          position:'top',
-          labels:{
-            color:'#64748b',
-            font:{family:'Inter',size:11,weight:'500'},
-            boxWidth:10, boxHeight:10,
-            padding:20,
-            usePointStyle:true, pointStyle:'circle'
-          }
+    var canvas=document.getElementById(canvasId);
+    if(!canvas) return;
+    var scales = {
+      x:{
+        ticks:{color:'#94a3b8',font:{family:'Inter',size:11},padding:6},
+        grid:{color:'#f1f5f9'},
+        border:{display:false}
+      }
+    };
+    (opts.axes || []).forEach(function(a){ scales[a.id] = a.opts; });
+    charts[canvasId]=new Chart(canvas.getContext('2d'),{
+      type:'line',
+      data:{labels:trendLabels,datasets:datasets},
+      plugins:[endLabelPlugin],
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{
+            display:true,
+            position:'top',
+            labels:{
+              color:'#64748b',
+              font:{family:'Inter',size:11,weight:'500'},
+              boxWidth:10, boxHeight:10,
+              padding:20,
+              usePointStyle:true, pointStyle:'circle'
+            }
+          },
+          tooltip:{
+            backgroundColor:'#ffffff',
+            borderColor:'#e2e8f0',
+            borderWidth:1,
+            titleColor:'#0f172a',
+            bodyColor:'#64748b',
+            titleFont:{family:'Inter',size:12,weight:'600'},
+            bodyFont:{family:'Inter',size:11},
+            padding:10,
+            cornerRadius:8,
+            callbacks:{label:function(ctx){
+              var ts=series[ctx.datasetIndex];
+              var raw=trendData[ctx.dataIndex][ts.key];
+              return '  '+ts.label+': '+(raw!=null?ts.disp(raw):'—');
+            }}
+          },
+          datalabels:{display:false}
         },
-        tooltip:{
-          backgroundColor:'#ffffff',
-          borderColor:'#e2e8f0',
-          borderWidth:1,
-          titleColor:'#0f172a',
-          bodyColor:'#64748b',
-          titleFont:{family:'Inter',size:12,weight:'600'},
-          bodyFont:{family:'Inter',size:11},
-          padding:10,
-          cornerRadius:8,
-          callbacks:{label:function(ctx){
-            var ts=trendSeries[ctx.datasetIndex];
-            var raw=trendData[ctx.dataIndex][ts.key];
-            return '  '+ts.label+': '+(raw!=null?ts.disp(raw):'—');
-          }}
-        },
-        datalabels:{display:false}
-      },
-      scales:{
-        x:{
-          ticks:{color:'#94a3b8',font:{family:'Inter',size:11},padding:6},
-          grid:{color:'#f1f5f9'},
-          border:{display:false}
-        },
-        yL:{display:false,min:0,max:25},
-        yR:{display:false,min:0,max:100},
-        yC:{display:false,min:0},
-        yV:{display:false,min:0}
-      },
-      layout:{padding:{top:20,right:80,bottom:8,left:40}}
-    }
+        scales:scales,
+        layout:{padding:{top:20,right:80,bottom:8,left:40}}
+      }
+    });
+  }
+
+  renderTrendChart('dTREND', trendSeries, {
+    trimTrailingZero: 'olf',
+    axes: [
+      { id:'yL', opts:{display:false,min:0,max:25} },
+      { id:'yR', opts:{display:false,min:0,max:100} },
+    ]
+  });
+  renderTrendChart('dTREND2', trendSeries2, {
+    axes: [
+      { id:'yC', opts:{display:false,min:0} },
+      { id:'yV', opts:{display:false,min:0} },
+    ]
   });
 }
 
