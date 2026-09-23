@@ -1478,6 +1478,27 @@ function renderDetail(results, summary, start, end) {
   const filtered = filterRows(ROWS, s, e, currentSite);
   const days = Math.max(1, Math.round((new Date(e+'T00:00:00') - new Date(s+'T00:00:00'))/86400000) + 1);
   const perDayFmt = v => v!=null ? (v/days).toLocaleString('id-ID',{maximumFractionDigits:1}) : '—';
+
+  // Trend Demand per Hari: pakai jalur agregasi sama persis dengan render() utama
+  // (computeAll/computeSite per site) supaya business rules (KLS excl, FBI/AHI, dst) tetap konsisten,
+  // hanya di-run per-hari alih-alih untuk seluruh periode sekaligus.
+  function isoDaysBetween(a,b){
+    const out=[]; let d=new Date(a+'T00:00:00'); const dEnd=new Date(b+'T00:00:00');
+    while(d<=dEnd){ out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+    return out;
+  }
+  function computeDayResults(day, site) {
+    if (site === 'ALL') return computeAll(filterRows(ROWS, day, day, site));
+    if (site === 'NDC_RDC') return [makeSummary(computeAll(filterRows(ROWS, day, day, site)))].map(r=>({...r, site:'NDC_RDC', label:'NDC & RDC'}));
+    if (site === 'NDC') return [makeSummary(SITES_NDC.map(x=>computeSite(filterRows(ROWS,day,day,x),x)).filter(Boolean))].map(r=>({...r,site:'NDC',label:'NDC'}));
+    if (site === 'RDC') return [makeSummary(SITES_RDC.map(x=>computeSite(filterRows(ROWS,day,day,x),x)).filter(Boolean))].map(r=>({...r,site:'RDC',label:'RDC'}));
+    return [computeSite(filterRows(ROWS, day, day, site), site)];
+  }
+  const demandDaily = isoDaysBetween(s, e).map(day => {
+    const dSum = makeSummary(computeDayResults(day, currentSite));
+    return { date: day, doCust: dSum.totalDoCust||0, cbmStore: dSum.totalCbmStore||0, doHub: dSum.totalDoHub||0 };
+  });
+
   const metrics = [
     { key:'olf',label:'OLF',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—'},
     { key:'slaHitPct',label:'On Time Fleet Fulfillment by Batch',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
@@ -1568,6 +1589,7 @@ function renderDetail(results, summary, start, end) {
       <div style="display:flex;flex-direction:column;gap:14px">
         <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
         <div class="panel"><div class="ph"><h3>Total Trip per Site</h3><span class="tag">Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:260px;position:relative"><canvas id="dTripType"></canvas></div></div></div>
+        <div class="panel"><div class="ph"><h3>Trend Demand per Hari</h3><span class="tag">DO Customer / CBM Store / DO Hub</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dDemandDaily"></canvas></div></div></div>
       </div>
     </div>
     <div class="g2">
@@ -1643,6 +1665,12 @@ function renderDetail(results, summary, start, end) {
     {label:'Hub',data:results.map(r=>r.totalTripHub),backgroundColor:'rgba(161,66,244,.7)',borderColor:'#a142f4',borderWidth:1,datalabels:{display:false}},
     {label:'Other',data:results.map(r=>r.totalTripOther),backgroundColor:'rgba(227,116,0,.7)',borderColor:'#e37400',borderWidth:1,datalabels:{anchor:'end',align:'right',color:'#1a1d23',font:{family:'Inter',size:9,weight:'600'},padding:4,formatter:(v,ctx)=>{const i=ctx.dataIndex;const tot=ctx.chart.data.datasets.reduce((s,ds)=>s+(ds.data[i]||0),0);return tot?tot.toLocaleString('id-ID'):'';}}},
   ]},options:{...co,indexAxis:'y',plugins:{...co.plugins,tooltip:{callbacks:{label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.x.toLocaleString('id-ID')}}},scales:{x:{...co.scales.x,stacked:true},y:{...co.scales.y,stacked:true}}}});
+  const demandLabs=demandDaily.map(d=>new Date(d.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short'}));
+  charts.dDemandDaily=new Chart(document.getElementById('dDemandDaily').getContext('2d'),{type:'line',data:{labels:demandLabs,datasets:[
+    {label:'DO Customer',data:demandDaily.map(d=>d.doCust),borderColor:'#1a73e8',backgroundColor:'rgba(26,115,232,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'CBM Store',data:demandDaily.map(d=>d.cbmStore),borderColor:'#34a85a',backgroundColor:'rgba(52,168,90,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'DO Hub',data:demandDaily.map(d=>d.doHub),borderColor:'#a142f4',backgroundColor:'rgba(161,66,244,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368',callbacks:{label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('id-ID')}},datalabels:{display:false}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'},beginAtZero:true}}}});
   setTimeout(function(){buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));},50);
   charts.dTAT=new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
     {label:'TAT Direct',data:results.map(r=>r.tatDirect!=null?+r.tatDirect.toFixed(2):null),backgroundColor:'rgba(52,168,90,.7)',borderColor:'#34a85a',borderWidth:1,borderRadius:4},
