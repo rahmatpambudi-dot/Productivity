@@ -1496,7 +1496,11 @@ function renderDetail(results, summary, start, end) {
   }
   const demandDaily = isoDaysBetween(s, e).map(day => {
     const dSum = makeSummary(computeDayResults(day, currentSite));
-    return { date: day, doCust: dSum.totalDoCust||0, cbmStore: dSum.totalCbmStore||0, doHub: dSum.totalDoHub||0 };
+    return {
+      date: day,
+      doCust: dSum.totalDoCust||0, cbmStore: dSum.totalCbmStore||0, doHub: dSum.totalDoHub||0,
+      tripTotal: dSum.totalTrip||0, tripCust: dSum.totalTripCustomer||0, tripStore: dSum.totalTripStore||0, tripHub: dSum.totalTripHub||0, tripOther: dSum.totalTripOther||0,
+    };
   });
 
   const metrics = [
@@ -1590,6 +1594,7 @@ function renderDetail(results, summary, start, end) {
         <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
         <div class="panel"><div class="ph"><h3>Total Trip per Site</h3><span class="tag">Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:260px;position:relative"><canvas id="dTripType"></canvas></div></div></div>
         <div class="panel"><div class="ph"><h3>Trend Demand per Hari</h3><span class="tag">DO Customer / CBM Store / DO Hub</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dDemandDaily"></canvas></div></div></div>
+        <div class="panel"><div class="ph"><h3>Trend Trip per Hari</h3><span class="tag">Total / Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dTripDaily"></canvas></div></div></div>
       </div>
     </div>
     <div class="g2">
@@ -1670,6 +1675,13 @@ function renderDetail(results, summary, start, end) {
     {label:'DO Customer',data:demandDaily.map(d=>d.doCust),borderColor:'#1a73e8',backgroundColor:'rgba(26,115,232,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
     {label:'CBM Store',data:demandDaily.map(d=>d.cbmStore),borderColor:'#34a85a',backgroundColor:'rgba(52,168,90,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
     {label:'DO Hub',data:demandDaily.map(d=>d.doHub),borderColor:'#a142f4',backgroundColor:'rgba(161,66,244,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368',callbacks:{label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('id-ID')}},datalabels:{display:false}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'},beginAtZero:true}}}});
+  charts.dTripDaily=new Chart(document.getElementById('dTripDaily').getContext('2d'),{type:'line',data:{labels:demandLabs,datasets:[
+    {label:'Total Trip',data:demandDaily.map(d=>d.tripTotal),borderColor:'#1a1d23',backgroundColor:'rgba(26,29,35,.06)',borderWidth:2.5,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Customer',data:demandDaily.map(d=>d.tripCust),borderColor:'#1a73e8',backgroundColor:'rgba(26,115,232,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Store',data:demandDaily.map(d=>d.tripStore),borderColor:'#34a85a',backgroundColor:'rgba(52,168,90,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Hub',data:demandDaily.map(d=>d.tripHub),borderColor:'#a142f4',backgroundColor:'rgba(161,66,244,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Other',data:demandDaily.map(d=>d.tripOther),borderColor:'#e37400',backgroundColor:'rgba(227,116,0,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368',callbacks:{label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('id-ID')}},datalabels:{display:false}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10}},grid:{color:'#f5f6fa'},beginAtZero:true}}}});
   setTimeout(function(){buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));},50);
   charts.dTAT=new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
