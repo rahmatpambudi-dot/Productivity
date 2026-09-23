@@ -851,6 +851,10 @@ function computeSite(rows, site) {
   const totalDoCust = ssum(drAll.map(r=>parseFloat(r.do)||0));
   const totalDpCust = ssum(drAll.map(r=>parseFloat(r.dp)||0));
 
+  // totalDoHub: DO dengan tipe kiriman (td) = hub
+  const drHub = srMain.filter(r => r.td==='hub');
+  const totalDoHub = ssum(drHub.map(r=>parseFloat(r.do)||0));
+
   // Total Trip breakdown by td — total unique LC, total to total (base sr, semua tipe delivery)
   const tripSets = {customer:new Set(), store:new Set(), hub:new Set(), other:new Set(), total:new Set()};
   sr.forEach(r => {
@@ -892,7 +896,7 @@ function computeSite(rows, site) {
     tatDirectUnder8: tatD.length ? tatD.filter(function(v){return v<=8;}).length/tatD.length*100 : null,
     tatStoreOver8: tatS.length ? tatS.filter(function(v){return v>8;}).length/tatS.length*100 : null,
     tatStoreUnder8: tatS.length ? tatS.filter(function(v){return v<=8;}).length/tatS.length*100 : null,
-    totalCbmStore, totalDoCust, totalDpCust,
+    totalCbmStore, totalDoCust, totalDpCust, totalDoHub,
     totalTrip, totalTripCustomer, totalTripStore, totalTripHub, totalTripOther,
     doTripAll, slaHitPct,
     rowCount: sr.length,
@@ -902,7 +906,7 @@ function computeSite(rows, site) {
 function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(Boolean); }
 function makeSummary(results) {
   const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDoMix','cbmDp','cbmDpMix','doTripMix','tatDirect','tatStore','doTripAll','tatDirectOver8','tatDirectUnder8','tatStoreOver8','tatStoreUnder8','slaHitPct'];
-  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust','totalTrip','totalTripCustomer','totalTripStore','totalTripHub','totalTripOther'];
+  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust','totalDoHub','totalTrip','totalTripCustomer','totalTripStore','totalTripHub','totalTripOther'];
   return {
     site:'NDC & RDC', label:'NDC & RDC',
     ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])),
@@ -1472,6 +1476,8 @@ function renderDetail(results, summary, start, end) {
   const moNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
   const {start:s, end:e} = getRange();
   const filtered = filterRows(ROWS, s, e, currentSite);
+  const days = Math.max(1, Math.round((new Date(e+'T00:00:00') - new Date(s+'T00:00:00'))/86400000) + 1);
+  const perDayFmt = v => v!=null ? (v/days).toLocaleString('id-ID',{maximumFractionDigits:1}) : '—';
   const metrics = [
     { key:'olf',label:'OLF',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—'},
     { key:'slaHitPct',label:'On Time Fleet Fulfillment by Batch',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
@@ -1494,7 +1500,11 @@ function renderDetail(results, summary, start, end) {
     { key:'tatStoreOver8',label:'TAT Store (% &gt;8 jam)',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'tatStoreUnder8',label:'TAT Store (% &le;8 jam)',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'totalCbmStore',label:'Demand CBM Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalCbmStore',label:'Demand CBM Store / Hari',fmt:perDayFmt},
     { key:'totalDoCust',label:'Demand DO Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalDoCust',label:'Demand DO Customer / Hari',fmt:perDayFmt},
+    { key:'totalDoHub',label:'Demand DO Hub',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalDoHub',label:'Demand DO Hub / Hari',fmt:perDayFmt},
     { key:'totalTrip',label:'Total Trip',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
     { key:'totalTripCustomer',label:'Total Trip Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
     { key:'totalTripStore',label:'Total Trip Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
