@@ -1613,6 +1613,10 @@ function renderDetail(results, summary, start, end) {
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND2"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
+      <div class="ph"><h3>Trendline Bulanan &mdash; Demand Average / Hari</h3><span class="tag">total bulan &divide; tanggal operasional (ada trip)</span></div>
+      <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND4"></canvas></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Trendline Bulanan &mdash; Trip per Kategori</h3><span class="tag">Customer / Hub / Store / Other</span></div>
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND3"></canvas></div>
     </div>
@@ -1733,6 +1737,7 @@ function buildTrendline(results, summary, s, e) {
       d1 = mo+'-'+String(dd1).padStart(2,'0');
       d2 = mo+'-'+String(dd2).padStart(2,'0');
     }
+    var _mo=(function(){
     if(currentSite==='ALL'){
       return makeSummary(computeAll(filterRows(ROWS,d1,d2,'ALL')));
     }
@@ -1747,6 +1752,17 @@ function buildTrendline(results, summary, s, e) {
     }
     var moRows=filterRows(ROWS,d1,d2,currentSite);
     return computeSite(moRows,currentSite)||{};
+    })();
+    // Average per hari: pembagi = jumlah tanggal unik yang ada data trip-nya di bulan tsb
+    // (ikut filter site/BU/periode yang sama) — Minggu/libur otomatis tidak terhitung,
+    // dan bulan berjalan (MTD) hanya dibagi tanggal yang sudah ada datanya.
+    var _days=new Set(filterRows(ROWS,d1,d2,currentSite).map(function(r){return r.date;})).size;
+    var _o=Object.assign({},_mo);
+    _o._days=_days;
+    ['totalDoCust','totalCbmStore','totalDoHub'].forEach(function(k){
+      _o[k+'PerDay']=(_days>0&&_o[k]!=null)?_o[k]/_days:null;
+    });
+    return _o;
   });
 
   var trendSeries=[
@@ -1763,6 +1779,11 @@ function buildTrendline(results, summary, s, e) {
     {key:'totalDoCust',       label:'Demand DO Customer', color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
     {key:'totalCbmStore',     label:'Demand CBM Store',   color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
     {key:'totalDoHub',        label:'Demand DO Hub',      color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+  ];
+  var trendSeries4=[
+    {key:'totalDoCustPerDay',   label:'Avg DO Customer / Hari', color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalCbmStorePerDay', label:'Avg CBM Store / Hari',   color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalDoHubPerDay',    label:'Avg DO Hub / Hari',      color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
   ];
   var trendSeries3=[
     {key:'totalTripCustomer', label:'Trip Customer', color:'#1a73e8', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
@@ -1963,6 +1984,12 @@ function buildTrendline(results, summary, s, e) {
     ]
   });
   renderTrendChart('dTREND2', trendSeries2, {
+    axes: [
+      { id:'yC', opts:{display:false,min:0} },
+      { id:'yV', opts:{display:false,min:0} },
+    ]
+  });
+  renderTrendChart('dTREND4', trendSeries4, {
     axes: [
       { id:'yC', opts:{display:false,min:0} },
       { id:'yV', opts:{display:false,min:0} },
