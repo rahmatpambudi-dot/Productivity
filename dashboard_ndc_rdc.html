@@ -1609,7 +1609,7 @@ function renderDetail(results, summary, start, end) {
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
-      <div class="ph"><h3>Trendline Bulanan &mdash; Demand</h3><span class="tag">DO Customer &amp; CBM Store</span></div>
+      <div class="ph"><h3>Trendline Bulanan &mdash; Demand</h3><span class="tag">DO Customer, DO Hub &amp; CBM Store</span></div>
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND2"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
@@ -1762,6 +1762,7 @@ function buildTrendline(results, summary, s, e) {
   var trendSeries2=[
     {key:'totalDoCust',       label:'Demand DO Customer', color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
     {key:'totalCbmStore',     label:'Demand CBM Store',   color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalDoHub',        label:'Demand DO Hub',      color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
   ];
   var trendSeries3=[
     {key:'totalTripCustomer', label:'Trip Customer', color:'#1a73e8', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
