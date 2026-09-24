@@ -6101,20 +6101,17 @@ function openPresentation() {
       function joinAmp(a){ return a.length<2?a.join(''):a.slice(0,-1).join(', ')+(a.length>2?',':'')+' &amp; '+a[a.length-1]; }
       // Baris atas: kalimat Demand & Trip (format formal), lalu KPI hijau/merah
       buildOpsInsight().forEach(function(l){ if(/^<b>(Demand|Trip)<\/b>/.test(l)) L.push(l); });
-      // Status mengikuti badge di KPI card (target dulu, tren sebagai keterangan):
-      // Hijau  = target tercapai (atau tanpa target) & tidak turun vs bulan lalu
-      // Kuning = target tercapai (atau tanpa target) tapi turun vs bulan lalu (watch)
-      // Merah  = di bawah target (apa pun trennya)
-      var good=[], watch=[], bad=[];
+      // Status mengikuti badge di KPI card (berbasis target, bukan tren MoM):
+      // Hijau = target tercapai (atau KPI tanpa target), walaupun turun vs bulan lalu
+      // Merah = di bawah target
+      var good=[], bad=[];
       KPI_METRICS.forEach(function(m){
         if(m.val==null) return;
-        var d=m.prev!=null?(+m.val.toFixed(m.dec))-(+m.prev.toFixed(m.dec)):0;
         var miss=m.target!=null&&m.val<m.target;
         var lbl=m.label==='OLF Armada Store'?'OLF':m.label;
-        (miss?bad:(d<0?watch:good)).push(lbl);
+        (miss?bad:good).push(lbl);
       });
       if(good.length) L.push({ic:true,t:'🟢 KPI Card: '+joinAmp(good)});
-      if(watch.length) L.push({ic:true,t:'🟡 KPI Card: '+joinAmp(watch)+' (turun vs '+(typeof mnPrev!=='undefined'&&mnPrev?mnPrev:'bulan lalu')+')'});
       if(bad.length) L.push({ic:true,t:'🔴 KPI Card: '+joinAmp(bad)});
       return L;
     }
