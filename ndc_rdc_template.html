@@ -5693,11 +5693,11 @@ function openPresentation() {
         var lbl = (i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
         if(prevMo) {
           var dp = getPrev ? getPrev(bu.key) : null;
-          rows += '<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'+cols(bu.key, prevMo, null, dp)+'</tr>';
+          rows += '<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnPrev+'</span></td>'+cols(bu.key, prevMo, null, dp)+'</tr>';
         }
         var dc = getCur(bu.key);
         var dp2 = getPrev ? getPrev(bu.key) : null;
-        rows += '<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'+cols(bu.key, curMo, prevMo, dc, dp2)+'</tr>';
+        rows += '<tr'+(i===0?' class="corp-row cur"':' class="cur"')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnCur+'</span></td>'+cols(bu.key, curMo, prevMo, dc, dp2)+'</tr>';
       });
       return rows;
     }
@@ -5729,8 +5729,8 @@ function openPresentation() {
     buList.forEach(function(bu,i) {
       if(i>0) metrikBody+='<tr><td colspan="13" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
-      if(prevMo) metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'+metrikCols(bu.key,prevMo,null)+'</tr>';
-      metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'+metrikCols(bu.key,curMo,prevMo)+'</tr>';
+      if(prevMo) metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnPrev+'</span></td>'+metrikCols(bu.key,prevMo,null)+'</tr>';
+      metrikBody+='<tr'+(i===0?' class="corp-row cur"':' class="cur"')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnCur+'</span></td>'+metrikCols(bu.key,curMo,prevMo)+'</tr>';
     });
 
     // ── Section 2: Trip per Type + Demand ──
@@ -5758,13 +5758,15 @@ function openPresentation() {
       +'<th>Other</th><th>Total</th>'
       +'</tr></thead>';
     var tripBody='';
+    var corpTrip={cur:null,prev:null}, corpDem={cur:null,prev:null};
     buList.forEach(function(bu,i){
       if(i>0) tripBody+='<tr><td colspan="7" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       var tc=getTripByType(bu.key,curMo), tp=prevMo?getTripByType(bu.key,prevMo):null;
-      if(prevMo&&tp) tripBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
+      if(i===0){ corpTrip.cur=tc; corpTrip.prev=tp; }
+      if(prevMo&&tp) tripBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnPrev+'</span></td>'
         +'<td>'+tp.c+'</td><td>'+tp.s+'</td><td>'+tp.h+'</td><td>'+tp.sat+'</td><td>'+tp.oth+'</td><td style="font-weight:700;background:#f8fafc">'+tp.tot+'</td></tr>';
-      tripBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
+      tripBody+='<tr'+(i===0?' class="corp-row cur"':' class="cur"')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnCur+'</span></td>'
         +'<td>'+tc.c+(tp?bdgN(tc.c,tp.c,false):'')+'</td>'
         +'<td>'+tc.s+(tp?bdgN(tc.s,tp.s,false):'')+'</td>'
         +'<td>'+tc.h+(tp?bdgN(tc.h,tp.h,false):'')+'</td>'
@@ -5799,12 +5801,13 @@ function openPresentation() {
         return {cbmStore, doStore, doCust, cbmCust};
       }
       var dc2=getDemand(curMo), dp3=prevMo?getDemand(prevMo):null;
-      if(prevMo&&dp3) demandBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
+      if(i===0){ corpDem.cur=dc2; corpDem.prev=dp3; }
+      if(prevMo&&dp3) demandBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnPrev+'</span></td>'
         +'<td>'+fmtD(dp3.cbmStore)+'</td>'
         +'<td>'+fmtD(dp3.doStore)+'</td>'
         +'<td>'+fmtD(dp3.doCust)+'</td>'
         +'<td>'+fmtD(dp3.cbmCust)+'</td></tr>';
-      demandBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
+      demandBody+='<tr'+(i===0?' class="corp-row cur"':' class="cur"')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnCur+'</span></td>'
         +'<td>'+fmtD(dc2.cbmStore)+(dp3?bdgN(dc2.cbmStore,dp3.cbmStore,false):'')+'</td>'
         +'<td>'+fmtD(dc2.doStore)+(dp3?bdgN(dc2.doStore,dp3.doStore,false):'')+'</td>'
         +'<td>'+fmtD(dc2.doCust)+(dp3?bdgN(dc2.doCust,dp3.doCust,false):'')+'</td>'
@@ -5825,12 +5828,12 @@ function openPresentation() {
       if(i>0) costBody+='<tr><td colspan="14" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       var cc=getCost(bu.key,curMo), cp=prevMo?getCost(bu.key,prevMo):null;
-      if(prevMo&&cp) costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;color:#94a3b8">'+mnPrev+'</span></td>'
+      if(prevMo&&cp) costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnPrev+'</span></td>'
         +'<td>'+fmtM(cp.cost)+'</td><td>'+fmtM(cp.ujp)+'</td><td>'+fmtK(cp.ujpTrip)+'</td><td>'+cp.trip+'</td>'
         +'<td>'+fmtK(cp.costTrip)+'</td><td>'+fmtK(cp.costDoCust)+'</td><td>'+fmtK(cp.costDoStore)+'</td><td>'+fmtK(cp.costDoHub)+'</td>'
         +'<td>'+fmtK(cp.costCbmCust)+'</td><td>'+fmtK(cp.costCbmStore)+'</td><td>'+fmtK(cp.costCbmHub)+'</td>'
         +'<td>'+(cp.km>0?Math.round(cp.km).toLocaleString('id-ID'):'—')+'</td><td>'+fmtK(cp.costKm)+'</td></tr>';
-      costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span style="font-size:8px;font-weight:700">'+mnCur+'</span></td>'
+      costBody+='<tr'+(i===0?' class="corp-row cur"':' class="cur"')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnCur+'</span></td>'
         +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,true,'jt',true):'')+'</td>'
         +'<td>'+fmtM(cc?.ujp)+(cp?bdgN(cc?.ujp,cp?.ujp,true,'jt',true):'')+'</td>'
         +'<td>'+fmtK(cc?.ujpTrip)+(cp?bdgN(cc?.ujpTrip,cp?.ujpTrip,true,'rb',true):'')+'</td>'
@@ -5846,17 +5849,34 @@ function openPresentation() {
         +'<td>'+fmtK(cc?.costKm)+(cp?bdgN(cc?.costKm,cp?.costKm,true,'rb',true):'')+'</td></tr>';
     });
 
+    // ── Icon set (inline SVG, stroke=currentColor) ──
+    var _sv = function(p){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+p+'</svg>'; };
+    var PRS_IC = {
+      clock: _sv('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+      truck: _sv('<path d="M3 6h11v9H3z"/><path d="M14 9h4l3 3v3h-7"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>'),
+      bars:  _sv('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+      user:  _sv('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'),
+      box:   _sv('<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>'),
+      target:_sv('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>'),
+      bulb:  _sv('<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.8.8 1 1.5 1 2.5h6c0-1 .2-1.7 1-2.5A6 6 0 0 0 12 3z"/>'),
+      chk:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3" stroke-width="2"/><path d="M8 12l3 3 5-6"/></svg>',
+      x:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>'
+    };
+    function kpiCard(cls, ic, label, valStr, badgeStr, subStr) {
+      return '<div class="prs-kpi '+cls+'"><div class="prs-kpi-head"><span class="prs-kpi-ic">'+PRS_IC[ic]+'</span><div class="prs-kpi-label">'+label+'</div></div>'
+        +'<div class="prs-kpi-body"><div class="prs-kpi-val">'+valStr+'</div>'+(badgeStr||'')+'<div class="prs-kpi-sub">'+(subStr||'')+'</div></div></div>';
+    }
     // ── KPI Achievement cards (Slide 1): Corporate-level ──
     function kpiArrow(cur, prev, isLow) {
       if(cur==null||prev==null) return '';
       var d = (+cur.toFixed(1)) - (+prev.toFixed(1)); if(Math.abs(d)<0.05) return '';
       var good = isLow ? d<0 : d>0;
-      return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(1)+' pts vs '+mnPrev+'</span>';
+      return '<span class="prs-delta '+(good?'up':'dn')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(1)+' pts vs '+mnPrev+'</span>';
     }
     function kpiBadge(val, target) {
       if(val==null||target==null) return '';
       var ok = val >= target;
-      return '<span class="prs-kpi-badge" style="background:'+(ok?'#dcfce7':'#fee2e2')+';color:'+(ok?'#166534':'#991b1b')+'">'+(ok?'✅ Achieved':'🔴 Di bawah target '+target+'%')+'</span>';
+      return '<span class="prs-kpi-badge '+(ok?'ok':'nok')+'">'+(ok?PRS_IC.chk+'Achieved':PRS_IC.x+'Target '+target+'%')+'</span>';
     }
     var dCorp = getRes(site, curMo), dCorpP = prevMo?getRes(site,prevMo):null;
     var uCorp = getUtil(site, curMo), uCorpP = prevMo?getUtil(site,prevMo):null;
@@ -5865,43 +5885,38 @@ function openPresentation() {
     function kpiBadgeNum(val, target, dec) {
       if(val==null||target==null) return '';
       var ok = val >= target;
-      return '<span class="prs-kpi-badge" style="background:'+(ok?'#dcfce7':'#fee2e2')+';color:'+(ok?'#166534':'#991b1b')+'">'+(ok?'✅ Achieved':'🔴 Di bawah target '+target.toFixed(dec||2))+'</span>';
+      return '<span class="prs-kpi-badge '+(ok?'ok':'nok')+'">'+(ok?PRS_IC.chk+'Achieved':PRS_IC.x+'Target '+target.toFixed(dec||2))+'</span>';
     }
     function kpiArrowNum(cur, prev, dec) {
       if(cur==null||prev==null) return '';
       var dd=dec||2; var d = (+cur.toFixed(dd)) - (+prev.toFixed(dd)); if(Math.abs(d)<Math.pow(10,-dd)/2) return '';
       var good = d>0;
-      return '<span style="color:'+(good?'#166534':'#991b1b')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+' vs '+mnPrev+'</span>';
+      return '<span class="prs-delta '+(good?'up':'dn')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+' vs '+mnPrev+'</span>';
     }
-    var kpiCardsHTML = '<div class="prs-kpi-row" style="grid-template-columns:repeat(6,1fr)">'
-      +'<div class="prs-kpi prs-kpi-c1"><div class="prs-kpi-label">On Time Fleet Fulfillment by Batch</div>'
-      +'<div class="prs-kpi-val">'+(dCorp&&dCorp.slaHitPct!=null?dCorp.slaHitPct.toFixed(1)+'%':'—')+'</div>'
-      +kpiBadge(dCorp?dCorp.slaHitPct:null, 99.6)
-      +'<div class="prs-kpi-sub">'+kpiArrow(dCorp?dCorp.slaHitPct:null, dCorpP?dCorpP.slaHitPct:null, false)+'</div>'
-      +'</div>'
-      +'<div class="prs-kpi prs-kpi-c2"><div class="prs-kpi-label">Availability Armada</div>'
-      +'<div class="prs-kpi-val">'+(uCorp&&uCorp.armAvailPct!=null?uCorp.armAvailPct.toFixed(1)+'%':'—')+'</div>'
-      +kpiBadge(uCorp?uCorp.armAvailPct:null, 97)
-      +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.armAvailPct:null, uCorpP?uCorpP.armAvailPct:null, false)+'</div>'
-      +'</div>'
-      +'<div class="prs-kpi prs-kpi-c3"><div class="prs-kpi-label">Fleet Utilization</div>'
-      +'<div class="prs-kpi-val">'+(uCorp&&uCorp.armUtilPct!=null?uCorp.armUtilPct.toFixed(1)+'%':'—')+'</div>'
-      +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.armUtilPct:null, uCorpP?uCorpP.armUtilPct:null, false)+'</div>'
-      +'</div>'
-      +'<div class="prs-kpi prs-kpi-c4"><div class="prs-kpi-label">Driver Utilization</div>'
-      +'<div class="prs-kpi-val">'+(uCorp&&uCorp.drvUtil!=null?uCorp.drvUtil.toFixed(1)+'%':'—')+'</div>'
-      +'<div class="prs-kpi-sub">'+kpiArrow(uCorp?uCorp.drvUtil:null, uCorpP?uCorpP.drvUtil:null, false)+'</div>'
-      +'</div>'
-      +'<div class="prs-kpi prs-kpi-c5"><div class="prs-kpi-label">OLF (Armada Store)</div>'
-      +'<div class="prs-kpi-val">'+(olfCorp!=null?olfCorp.toFixed(1)+'%':'—')+'</div>'
-      +kpiBadge(olfCorp, 85)
-      +'<div class="prs-kpi-sub">'+kpiArrow(olfCorp, olfCorpP, false)+'</div>'
-      +'</div>'
-      +'<div class="prs-kpi prs-kpi-c6"><div class="prs-kpi-label">Ritase Armada</div>'
-      +'<div class="prs-kpi-val">'+(dCorp&&dCorp.ritase!=null?dCorp.ritase.toFixed(2):'—')+'</div>'
-      +kpiBadgeNum(dCorp?dCorp.ritase:null, ({JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15), 2)
-      +'<div class="prs-kpi-sub">'+kpiArrowNum(dCorp?dCorp.ritase:null, dCorpP?dCorpP.ritase:null, 2)+'</div>'
-      +'</div>'
+    var ritTgtSite = ({JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15);
+    var kpiCardsHTML = '<div class="prs-kpi-row prs-kpi6">'
+      +kpiCard('prs-kpi-c1','clock','On Time Fleet Fulfillment by Batch',
+         (dCorp&&dCorp.slaHitPct!=null?dCorp.slaHitPct.toFixed(1)+'%':'—'),
+         kpiBadge(dCorp?dCorp.slaHitPct:null, 99.6),
+         kpiArrow(dCorp?dCorp.slaHitPct:null, dCorpP?dCorpP.slaHitPct:null, false))
+      +kpiCard('prs-kpi-c2','truck','Availability Armada',
+         (uCorp&&uCorp.armAvailPct!=null?uCorp.armAvailPct.toFixed(1)+'%':'—'),
+         kpiBadge(uCorp?uCorp.armAvailPct:null, 97),
+         kpiArrow(uCorp?uCorp.armAvailPct:null, uCorpP?uCorpP.armAvailPct:null, false))
+      +kpiCard('prs-kpi-c3','bars','Fleet Utilization',
+         (uCorp&&uCorp.armUtilPct!=null?uCorp.armUtilPct.toFixed(1)+'%':'—'), '',
+         kpiArrow(uCorp?uCorp.armUtilPct:null, uCorpP?uCorpP.armUtilPct:null, false))
+      +kpiCard('prs-kpi-c4','user','Driver Utilization',
+         (uCorp&&uCorp.drvUtil!=null?uCorp.drvUtil.toFixed(1)+'%':'—'), '',
+         kpiArrow(uCorp?uCorp.drvUtil:null, uCorpP?uCorpP.drvUtil:null, false))
+      +kpiCard('prs-kpi-c5','box','OLF (Armada Store)',
+         (olfCorp!=null?olfCorp.toFixed(1)+'%':'—'),
+         kpiBadge(olfCorp, 85),
+         kpiArrow(olfCorp, olfCorpP, false))
+      +kpiCard('prs-kpi-c6','target','Ritase Armada',
+         (dCorp&&dCorp.ritase!=null?dCorp.ritase.toFixed(2):'—'),
+         kpiBadgeNum(dCorp?dCorp.ritase:null, ritTgtSite, 2),
+         kpiArrowNum(dCorp?dCorp.ritase:null, dCorpP?dCorpP.ritase:null, 2))
       +'</div>';
 
     // ── Auto insight dari 6 KPI badge di atas ──
@@ -5930,7 +5945,7 @@ function openPresentation() {
       var belowWorsened = below.filter(function(m){ return trend(m)===-1; });
       var achievedWorsened = achieved.filter(function(m){ return trend(m)===-1; });
 
-      if(!withTarget.length && !noTarget.length) return '';
+      if(!withTarget.length && !noTarget.length) return [];
       var lines = [];
       if(below.length){
         lines.push('<b>'+below.length+' dari '+withTarget.length+' metric</b> masih di bawah target: '+below.map(function(m){return m.label+' ('+fmtV(m,m.val)+', target '+(m.dec===2?m.target.toFixed(2):m.target+'%')+')';}).join(', ')+'.');
@@ -5938,10 +5953,10 @@ function openPresentation() {
         lines.push('Semua metric yang ada targetnya <b>sudah tercapai</b> bulan ini.');
       }
       if(belowImproved.length){
-        lines.push('Trennya positif — <b>'+belowImproved.length+' dari '+below.length+'</b> metric yang di bawah target justru <b>membaik</b> vs '+mnPrev+': '+belowImproved.map(function(m){return m.label+' ▲'+fmtV(m,Math.abs(m.val-m.prev));}).join(', ')+'.');
+        lines.push('Trennya positif — <b>'+belowImproved.length+' dari '+below.length+'</b> metric yang di bawah target justru <b>membaik</b> vs '+mnPrev+': '+belowImproved.map(function(m){return m.label+' ▲'+fmtV(m,Math.abs((+m.val.toFixed(m.dec))-(+m.prev.toFixed(m.dec))));}).join(', ')+'.');
       }
       if(belowWorsened.length){
-        lines.push('Yang perlu perhatian karena arahnya <b>memburuk</b>: '+belowWorsened.map(function(m){return m.label+' ▼'+fmtV(m,Math.abs(m.val-m.prev));}).join(', ')+'.');
+        lines.push('Yang perlu perhatian karena arahnya <b>memburuk</b>: '+belowWorsened.map(function(m){return m.label+' ▼'+fmtV(m,Math.abs((+m.val.toFixed(m.dec))-(+m.prev.toFixed(m.dec))));}).join(', ')+'.');
       }
       if(achievedWorsened.length){
         lines.push('Meski masih di atas target, waspadai '+achievedWorsened.map(function(m){return m.label;}).join(', ')+' yang turun vs '+mnPrev+'.');
@@ -5949,11 +5964,54 @@ function openPresentation() {
       if(noTarget.length){
         lines.push('Metric tanpa target ('+noTarget.map(function(m){return m.label;}).join(', ')+') semuanya aman, nggak ada isu pemakaian armada/driver.');
       }
-      return '<div class="prs-insight"><div class="prs-insight-title"><span class="ic">💡</span>Insight</div><ul>'
-        +lines.map(function(l){return '<li>'+l+'</li>';}).join('')
-        +'</ul></div>';
+      return lines;
     }
-    var kpiInsightHTML = buildKpiInsight();
+    // ── Insight Demand, Trip & Produktivitas (angka corporate, MoM) ──
+    function buildOpsInsight() {
+      var L = [];
+      if(!prevMo) return L;
+      function chg(c,p){ return (c!=null&&p)?(c-p)/p*100:null; }
+      function fp(v){ return v==null?'—':(v>0?'▲':v<0?'▼':'')+Math.abs(v).toLocaleString('id-ID',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'; }
+      function fn(v,d){ return v==null?'—':(+v).toLocaleString('id-ID',{minimumFractionDigits:d||0,maximumFractionDigits:d||0}); }
+      var dc=corpDem.cur, dp=corpDem.prev;
+      if(dc&&dp){
+        L.push('<b>Demand</b>: DO Customer '+fn(dc.doCust)+' ('+fp(chg(dc.doCust,dp.doCust))+'), CBM Customer '+fp(chg(dc.cbmCust,dp.cbmCust))
+          +'; DO Store '+fn(dc.doStore)+' ('+fp(chg(dc.doStore,dp.doStore))+'), CBM Store '+fp(chg(dc.cbmStore,dp.cbmStore))+'.');
+      }
+      var tc=corpTrip.cur, tp=corpTrip.prev;
+      if(tc&&tp){
+        var tChg=chg(tc.tot,tp.tot), dChg=dc&&dp?chg(dc.doCust+dc.doStore,dp.doCust+dp.doStore):null;
+        var s='<b>Trip</b>: total '+fn(tc.tot)+' ('+fp(tChg)+' vs '+mnPrev+')';
+        if(tChg!=null&&dChg!=null){
+          if(tChg<0&&dChg>0) s+=' — trip turun di saat DO naik ('+fp(dChg)+'), muatan per trip makin padat.';
+          else if(tChg>0&&dChg<0) s+=' — trip naik di saat DO turun ('+fp(dChg)+'), muatan per trip menipis.';
+          else if(tChg>dChg+1) s+=' — trip '+(tChg<0?'turun <b>lebih landai</b>':'naik <b>lebih cepat</b>')+' dibanding DO ('+fp(dChg)+'), muatan per trip menipis.';
+          else if(tChg<dChg-1) s+=' — trip '+(tChg<0?'turun <b>lebih dalam</b>':'naik <b>lebih lambat</b>')+' dibanding DO ('+fp(dChg)+'), muatan per trip makin padat.';
+          else s+=' — sejalan dengan pergerakan DO ('+fp(dChg)+').';
+        } else s+='.';
+        L.push(s);
+      }
+      var r=getRes(site,curMo), rp=getRes(site,prevMo);
+      if(r&&rp){
+        var parts=[];
+        if(r.doTripAll!=null&&rp.doTripAll!=null) parts.push('DO/Trip Mix '+fn(rp.doTripAll,1)+' → '+fn(r.doTripAll,1));
+        if(r.dpMix!=null&&rp.dpMix!=null) parts.push('DP Mix '+fn(rp.dpMix,1)+' → '+fn(r.dpMix,1));
+        if(r.cbmDpMix!=null&&rp.cbmDpMix!=null) parts.push('CBM/DP Mix '+fn(rp.cbmDpMix,2)+' → '+fn(r.cbmDpMix,2));
+        if(parts.length) L.push('<b>Produktivitas</b>: '+parts.join(', ')+'.');
+      }
+      return L;
+    }
+    function insBox(title, lines) {
+      return '<div class="prs-ins-col"><div class="prs-ins-h">'+title+'</div>'
+        +(lines.length?'<ul contenteditable="true" spellcheck="false">'+lines.map(function(l){return '<li>'+l+'</li>';}).join('')+'</ul>'
+          :'<ul contenteditable="true" spellcheck="false"><li></li></ul>')+'</div>';
+    }
+    var kpiInsightHTML = '<div class="prs-insight"><div class="prs-insight-title"><span class="ic">'+PRS_IC.bulb+'</span>Insight</div>'
+      +'<div class="prs-ins-grid">'
+      +insBox('KPI Achievement', buildKpiInsight())
+      +insBox('Demand, Trip &amp; Produktivitas', buildOpsInsight())
+      +'<div class="prs-ins-col prs-ins-note"><div class="prs-ins-h">Catatan / Action Plan</div><div class="prs-ins-edit" contenteditable="true" spellcheck="false" data-ph="Klik untuk tulis catatan…"></div></div>'
+      +'</div></div>';
     var ccCorp = getCost(site, curMo), ccCorpP = prevMo?getCost(site,prevMo):null;
     // isCost=true → metrik biaya: turun = bagus (hijau), naik = kuning (bukan merah)
     // isCost=false → metrik non-biaya (mis. Total Trip): tetap pakai skema lama (naik=hijau/turun=merah sesuai isLow)
@@ -6001,26 +6059,28 @@ function openPresentation() {
       +costCard('Cost / KM', ccCorp?.costKm, ccCorpP?.costKm, fmtK, true, 'rb', 'prs-kpi-c9', true, ccCorp?.costKmDK, ccCorp?.costKmLK)
       +'</div>';
 
-    var headerHTML = '<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px">'
+    var headerHTML = '<div class="prs-head">'
       +'<div class="prs-site-label">'+siteName+'</div>'
-      +'<div class="prs-mom-label">'+momLabel+'</div>'
+      +'<div class="prs-per"><div class="prs-per-cap">Periode</div>'
+      +'<div class="prs-mom-label">'+(mnPrev?mnPrev+' <span>vs</span> '+mnCur:mnCur)+'</div></div>'
       +'</div>';
 
-    var slide1 = '<div class="prs-slide-inner">'
+    var SEC_IC = {
+      box: _sv('<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/>'),
+      truck: PRS_IC.truck, bars: PRS_IC.bars };
+    function secTitle(ic, t){ return '<div class="prs-sec-title"><span class="ic">'+SEC_IC[ic]+'</span>'+t+'</div>'; }
+    var slide1 = '<div class="prs-slide-inner prs-s1'+(isJAB?' prs-dense':'')+'">'
       +headerHTML
       +kpiCardsHTML
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-      +'<div class="prs-section prs-sec-demand">'
-      +'<div class="prs-sec-title"><span class="ic">📦</span>Demand</div>'
+      +'<div class="prs-grid2">'
+      +'<div class="prs-section prs-sec-demand">'+secTitle('box','Demand')
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+demandThead+'<tbody>'+demandBody+'</tbody></table></div>'
       +'</div>'
-      +'<div class="prs-section prs-sec-trip">'
-      +'<div class="prs-sec-title"><span class="ic">🚛</span>Trip per Type</div>'
+      +'<div class="prs-section prs-sec-trip">'+secTitle('truck','Trip per Type')
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+tripThead+'<tbody>'+tripBody+'</tbody></table></div>'
       +'</div>'
       +'</div>'
-      +'<div class="prs-section prs-sec-prod" style="margin-top:8px">'
-      +'<div class="prs-sec-title"><span class="ic">📊</span>Produktivitas</div>'
+      +'<div class="prs-section prs-sec-prod">'+secTitle('bars','Produktivitas')
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+metrikThead+'<tbody>'+metrikBody+'</tbody></table></div>'+metrikLegend
       +'</div>'
       +kpiInsightHTML
@@ -6126,6 +6186,7 @@ function openPresentation() {
     +'.prs-counter{color:#fff;font-size:10px;font-weight:600;min-width:34px;text-align:center}'
     +'.dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.3);cursor:pointer;margin:0 1px}'
     +'.dot.active{background:#fff}'
+    +'.prs-s1{height:100%;display:flex;flex-direction:column;gap:16px;color:#0f172a}.prs-s1 .prs-head{display:flex;align-items:center;gap:36px}.prs-s1 .prs-site-label{font-size:60px;line-height:1;font-weight:800;color:#0b2447;border-left:10px solid #4ade80;padding-left:22px;letter-spacing:-1px}.prs-s1 .prs-per-cap{font-size:18px;color:#64748b;font-weight:600}.prs-s1 .prs-mom-label{font-size:28px;color:#0b2447;font-weight:800}.prs-s1 .prs-mom-label span{font-weight:500;color:#64748b}.prs-s1 .prs-kpi6{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin:0}.prs-s1 .prs-kpi{border:1.5px solid;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}.prs-s1 .prs-kpi-head{display:flex;align-items:center;gap:12px}.prs-s1 .prs-kpi-ic{flex:0 0 46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}.prs-s1 .prs-kpi-ic svg{width:24px;height:24px}.prs-s1 .prs-kpi-label{font-size:15px;line-height:1.2;color:#0b2447;font-weight:700;margin:0}.prs-s1 .prs-kpi-body{display:flex;flex-direction:column;align-items:center;gap:8px}.prs-s1 .prs-kpi-val{font-size:50px;line-height:1;font-weight:800;color:#0b2447;letter-spacing:-1px}.prs-s1 .prs-kpi-sub{font-size:16px;margin:0;font-weight:600}.prs-s1 .prs-kpi-badge{display:inline-flex;align-items:center;gap:6px;font-size:15px;padding:4px 12px;border-radius:8px;margin:0;font-weight:600}.prs-s1 .prs-kpi-badge svg{width:16px;height:16px}.prs-s1 .prs-kpi-badge.ok{background:#dcfce7;color:#166534}.prs-s1 .prs-kpi-badge.nok{background:#fee2e2;color:#991b1b}.prs-s1 .prs-delta.up{color:#166534}.prs-s1 .prs-delta.dn{color:#b91c1c;background:#fee2e2;padding:4px 12px;border-radius:8px;display:inline-block}.prs-s1 .prs-kpi-c1{background:#f0f9ff;border-color:#7dd3fc}.prs-s1 .prs-kpi-c1 .prs-kpi-ic{background:#0ea5e9}.prs-s1 .prs-kpi-c2{background:#f0fdf4;border-color:#86efac}.prs-s1 .prs-kpi-c2 .prs-kpi-ic{background:#22c55e}.prs-s1 .prs-kpi-c3{background:#fff7ed;border-color:#fdba74}.prs-s1 .prs-kpi-c3 .prs-kpi-ic{background:#f97316}.prs-s1 .prs-kpi-c4{background:#f5f3ff;border-color:#c4b5fd}.prs-s1 .prs-kpi-c4 .prs-kpi-ic{background:#8b5cf6}.prs-s1 .prs-kpi-c4 .prs-kpi-label{color:#6d28d9}.prs-s1 .prs-kpi-c5{background:#ecfeff;border-color:#67e8f9}.prs-s1 .prs-kpi-c5 .prs-kpi-ic{background:#06b6d4}.prs-s1 .prs-kpi-c6{background:#fff1f2;border-color:#fda4af}.prs-s1 .prs-kpi-c6 .prs-kpi-ic{background:#ef4444}.prs-s1 .prs-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.prs-s1 .prs-section{border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(15,23,42,.06)}.prs-s1 .prs-sec-title{background:#0b2447;font-size:20px;padding:12px 20px;letter-spacing:.6px}.prs-s1 .prs-sec-title .ic{width:28px;height:28px;margin-right:14px;display:inline-flex}.prs-s1 .prs-sec-title .ic svg{width:28px;height:28px}.prs-s1 .prs-section .prs-tbl-wrap{padding:10px}.prs-s1 .prs-tbl{font-size:16px}.prs-s1 .prs-tbl th{background:#2d4a6b;font-size:13px;padding:10px 12px;text-align:center}.prs-s1 .prs-tbl th:first-child{text-align:left}.prs-s1 .prs-tbl td{padding:9px 12px;text-align:center;border-bottom:1px solid #eef2f7;color:#1e293b}.prs-s1 .prs-tbl td.bu-label{text-align:left!important;font-size:13px;font-weight:700;color:#0b2447}.prs-s1 .corp-row td{background:#f8fafc!important;border-top:none}.prs-s1 tr.cur td{background:#eaf2fc!important;font-weight:700;color:#0b2447}.prs-s1 .mo{font-size:.85em;color:#64748b;font-weight:500}.prs-s1 tr.cur .mo{color:#0b2447;font-weight:700}.prs-s1 .bdg{font-size:.85em;margin-left:4px}.prs-s1 .prs-tbl td.g{background:#dcfce7!important;color:#166534}.prs-s1 .prs-tbl td.y{background:#fef3c7!important;color:#92400e}.prs-s1 .prs-tbl td.r{background:#fee2e2!important;color:#991b1b}.prs-s1 .prs-insight{flex:1;min-height:0;margin:0;background:#fff;border:1px solid #e2e8f0;border-left:8px solid #f59e0b;border-radius:14px;padding:16px 22px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 3px rgba(15,23,42,.06)}.prs-s1 .prs-insight-title{font-size:20px;color:#0b2447;letter-spacing:.6px;margin:0}.prs-s1 .prs-insight-title .ic{width:28px;height:28px;margin-right:10px;color:#f59e0b;display:inline-flex}.prs-s1 .prs-insight-title .ic svg{width:28px;height:28px}.prs-s1 .prs-ins-grid{flex:1;display:grid;grid-template-columns:1.1fr 1.1fr .8fr;gap:18px;min-height:0}.prs-s1 .prs-ins-col{background:#f8fafc;border-radius:10px;padding:12px 16px;overflow:hidden}.prs-s1 .prs-ins-h{font-size:13px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}.prs-s1 .prs-insight ul{padding-left:20px;outline:none}.prs-s1 .prs-insight li{font-size:15px;line-height:1.5;margin-bottom:4px;color:#334155}.prs-s1 .prs-ins-note{background:#fffbeb;border:1.5px dashed #fcd34d}.prs-s1 .prs-ins-edit{min-height:60px;font-size:15px;line-height:1.5;color:#334155;outline:none;white-space:pre-wrap}.prs-s1 .prs-ins-edit:empty:before{content:attr(data-ph);color:#b45309;opacity:.6}.prs-s1.prs-dense{gap:10px}.prs-s1.prs-dense .prs-site-label{font-size:44px}.prs-s1.prs-dense .prs-mom-label{font-size:22px}.prs-s1.prs-dense .prs-kpi{padding:12px 16px;gap:6px}.prs-s1.prs-dense .prs-kpi-ic{flex-basis:38px;height:38px}.prs-s1.prs-dense .prs-kpi-val{font-size:38px}.prs-s1.prs-dense .prs-kpi-sub,.prs-s1.prs-dense .prs-kpi-badge{font-size:13px}.prs-s1.prs-dense .prs-sec-title{font-size:16px;padding:8px 16px}.prs-s1.prs-dense .prs-tbl{font-size:13px}.prs-s1.prs-dense .prs-tbl th{font-size:11px;padding:6px 8px}.prs-s1.prs-dense .prs-tbl td{padding:4px 8px}.prs-s1.prs-dense .prs-tbl td.bu-label{font-size:12px}.prs-s1.prs-dense .prs-section .prs-tbl-wrap{padding:6px}.prs-s1.prs-dense .prs-insight{padding:10px 16px;gap:6px}.prs-s1.prs-dense .prs-insight li,.prs-s1.prs-dense .prs-ins-edit{font-size:13px;line-height:1.4}.prs-s1.prs-dense .prs-site-label{font-size:38px;border-left-width:8px}.prs-s1.prs-dense .prs-per-cap{font-size:14px}.prs-s1.prs-dense .prs-kpi{padding:10px 14px;gap:4px;border-radius:12px}.prs-s1.prs-dense .prs-kpi-body{gap:4px}.prs-s1.prs-dense .prs-kpi-val{font-size:34px}.prs-s1.prs-dense .prs-kpi-label{font-size:13px}.prs-s1.prs-dense .prs-sec-title{padding:6px 14px;font-size:15px}.prs-s1.prs-dense .prs-sec-title .ic,.prs-s1.prs-dense .prs-sec-title .ic svg{width:22px;height:22px}.prs-s1.prs-dense .prs-tbl{font-size:12px}.prs-s1.prs-dense .prs-tbl td{padding:2px 8px}.prs-s1.prs-dense .prs-tbl th{padding:4px 8px}.prs-s1.prs-dense .prs-section .prs-tbl-wrap{padding:4px 6px}.prs-s1.prs-dense .prs-ins-col{padding:8px 12px}.prs-s1.prs-dense .prs-insight li{margin-bottom:1px}'
     +'.prs-esc{position:fixed;top:14px;right:14px;background:rgba(0,0,0,.5);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;z-index:100}'
     +'</style></head><body>'
     +slidesHTML
