@@ -694,6 +694,11 @@ function tatStr(h){
 // multi-hari (misal Jababeka->Lampung 2 hari: hari berangkat + 1 hari transit).
 const LEADTIME_MAP = {"JABABEKA":{"Bandung":1,"Sumedang":1,"Sukabumi":1,"Cianjur":1,"Cilegon":1,"Serang":1,"Subang":1,"Majalengka":1,"Indramayu":1,"Cirebon":1,"Kuningan":1,"Garut":2,"Tasikmalaya":2,"Tegal":2,"Pekalongan":2,"Semarang":3,"Kudus":3,"Yogyakarta":3,"Solo":3,"Purwokerto":3,"Cilacap":3,"Magelang":3,"Kebumen":3,"Surabaya":3,"Gresik":3,"Malang":4,"Madiun":4,"Kediri":4,"Jember":4,"Mojokerto":4,"Bali":5,"Lampung":2,"Palembang":4,"Jambi":5,"Pekanbaru":6,"Padang":5,"Bengkulu":5,"Medan":9},"CIKUPA":{"Karawang":1,"Sukabumi":1,"Cianjur":1,"Subang":1,"Purwakarta":1,"Bandung":1,"Tasikmalaya":1,"Cirebon":1,"Purwokerto":2,"Semarang":2,"Yogyakarta":2,"Surabaya":3,"Lampung":1,"Palembang":4,"Jambi":5,"Pekanbaru":6,"Padang":5,"Bengkulu":5,"Medan":9,"Garut":1},"SDA":{"Jakarta":3,"Jember":1,"Bali":2,"Banyuwangi":2,"Madiun":1,"Kediri":1,"Solo":1,"Yogyakarta":1,"Semarang":1,"Kudus":1,"Magelang":1,"Tuban":1,"Lamongan":1,"Bojonegoro":1,"Blora":1,"Probolinggo":1,"Madura":1},"TALLO":{"Palu":3,"Palopo":2,"Pare-Pare":1,"Wajo":1,"Mamuju":2,"Gorontalo":3},"TAMORA":{"Pekanbaru":2,"Banda Aceh":2,"RANTAU PARAPAT":2,"Bukittinggi":4,"Padang":4,"Jakarta":10,"Jambi":5,"Pematangsiantar":1,"Tapanuli":1,"Binjai":1,"Tebing Tinggi":1,"Langkat":1,"Samosir":2,"Sibolga":2}};
 
+// Format Date -> 'YYYY-MM-DD' pakai komponen LOKAL (bukan UTC). toISOString() di browser
+// WIB/WITA (UTC+7/+8) menggeser tanggal lokal-midnight mundur 1 hari.
+function localISO(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
 function getLeadTimeDays(site, jalur) {
   var m = LEADTIME_MAP[site];
   if (!m || !jalur) return 1;
@@ -707,7 +712,7 @@ function expandActiveDates(dateStr, leadTimeDays) {
   for (var i = 0; i < leadTimeDays; i++) {
     var dd = new Date(base.getTime());
     dd.setDate(base.getDate() + i);
-    out.push(dd.toISOString().slice(0, 10));
+    out.push(localISO(dd));
   }
   return out;
 }
@@ -1539,7 +1544,7 @@ function renderDetail(results, summary, start, end) {
   // hanya di-run per-hari alih-alih untuk seluruh periode sekaligus.
   function isoDaysBetween(a,b){
     const out=[]; let d=new Date(a+'T00:00:00'); const dEnd=new Date(b+'T00:00:00');
-    while(d<=dEnd){ out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+    while(d<=dEnd){ out.push(localISO(d)); d.setDate(d.getDate()+1); }
     return out;
   }
   function computeDayResults(day, site) {
@@ -1630,9 +1635,9 @@ function renderDetail(results, summary, start, end) {
     siteAchTable='<div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Achievement — '+(results[0]?.label||currentSite)+'</h3><span class="tag">vs target</span></div>'
       +'<div class="ach-grid" style="padding:14px 16px">'+achCards+'</div></div>';
   }
-  const today=new Date().toISOString().slice(0,10);
-  const prevMonthStart=new Date(new Date().getFullYear(),new Date().getMonth()-1,1).toISOString().slice(0,10);
-  const prevMonthEnd=new Date(new Date().getFullYear(),new Date().getMonth(),0).toISOString().slice(0,10);
+  const today=localISO(new Date());
+  const prevMonthStart=localISO(new Date(new Date().getFullYear(),new Date().getMonth()-1,1));
+  const prevMonthEnd=localISO(new Date(new Date().getFullYear(),new Date().getMonth(),0));
   if(!cmpA.start){cmpA.start=prevMonthStart;cmpA.end=prevMonthEnd;}
   if(!cmpB.start){const{start:cs,end:ce}=getRange();cmpB.start=cs;cmpB.end=ce;}
 
@@ -2543,7 +2548,7 @@ function bucketDate(dateStr, gran) {
     var day = d.getDay();
     var diffToMon = (day === 0 ? -6 : 1 - day);
     d.setDate(d.getDate() + diffToMon);
-    return d.toISOString().slice(0, 10); // Monday of that week
+    return localISO(d); // Monday of that week
   }
   return dateStr;
 }
@@ -2592,7 +2597,7 @@ function buildMasterAssetRosterByType(baseSite, ownerFilter) {
   var roster = {};
   var siteMap = MASTER_SITE_KEY_MAP[baseSite];
   if (!siteMap) return roster;
-  var monthKey = resolveMasterAssetMonth(new Date().toISOString().slice(0,7));
+  var monthKey = resolveMasterAssetMonth(localISO(new Date()).slice(0,7));
   if (!monthKey) return roster;
   var monthData = MASTER_ASSET[monthKey];
   Object.keys(siteMap).forEach(function(bu) {
@@ -2843,7 +2848,7 @@ function applyPilotLKTransitImputation(siteKey) {
   });
   var maxDate = dates[dates.length-1];
   var scanMin = new Date(dates[0]+'T00:00:00'); scanMin.setDate(scanMin.getDate()-10);
-  var scanMinStr = scanMin.toISOString().slice(0,10);
+  var scanMinStr = localISO(scanMin);
   var fixed = 0;
   ROWS.forEach(function(r) {
     if (!r.date || r.date < scanMinStr || r.date > maxDate) return;
@@ -3034,7 +3039,7 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
   var dates = [];
   var cur = new Date(periodStart+'T00:00:00');
   var endD = new Date(periodEnd+'T00:00:00');
-  while (cur <= endD && dates.length < 400) { dates.push(cur.toISOString().slice(0,10)); cur.setDate(cur.getDate()+1); }
+  while (cur <= endD && dates.length < 400) { dates.push(localISO(cur)); cur.setDate(cur.getDate()+1); }
   var capped = false;
   if (dates.length > 45) { dates = dates.slice(-45); capped = true; }
 
