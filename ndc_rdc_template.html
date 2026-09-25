@@ -5943,16 +5943,16 @@ function openPresentation() {
       if(i>0) costBody+='<tr><td colspan="14" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       var cc=getCost(bu.key,curMo), cp=prevMo?getCost(bu.key,prevMo):null;
-      if(prevMo&&cp) costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnPrev+'</span></td>'
+      if(prevMo&&cp) costBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span class="mo">'+rangeLbl(prevMo,true)+'</span></td>'
         +'<td>'+fmtM(cp.cost)+'</td><td>'+fmtM(cp.ujp)+'</td><td>'+fmtK(cp.ujpTrip)+'</td><td>'+cp.trip+'</td>'
         +'<td>'+fmtK(cp.costTrip)+'</td><td>'+fmtK(cp.costDoCust)+'</td><td>'+fmtK(cp.costDoStore)+'</td><td>'+fmtK(cp.costDoHub)+'</td>'
         +'<td>'+fmtK(cp.costCbmCust)+'</td><td>'+fmtK(cp.costCbmStore)+'</td><td>'+fmtK(cp.costCbmHub)+'</td>'
         +'<td>'+(cp.km>0?Math.round(cp.km).toLocaleString('id-ID'):'—')+'</td><td>'+fmtK(cp.costKm)+'</td></tr>';
-      costBody+='<tr'+(i===0?' class="corp-row cur"':' class="cur"')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnCur+'</span></td>'
+      costBody+='<tr'+(i===0?' class="corp-row cur"':' class="cur"')+'><td class="bu-label">'+lbl+' <span class="mo">'+rangeLbl(curMo,true)+'</span></td>'
         +'<td style="color:#1d4ed8;font-weight:700">'+fmtM(cc?.cost)+(cp?bdgN(cc?.cost,cp?.cost,true,'jt',true):'')+'</td>'
         +'<td>'+fmtM(cc?.ujp)+(cp?bdgN(cc?.ujp,cp?.ujp,true,'jt',true):'')+'</td>'
         +'<td>'+fmtK(cc?.ujpTrip)+(cp?bdgN(cc?.ujpTrip,cp?.ujpTrip,true,'rb',true):'')+'</td>'
-        +'<td>'+(cc?cc.trip:'—')+'</td>'
+        +'<td>'+(cc?cc.trip:'—')+(cp&&cc?bdgN(cc.trip,cp.trip,false,'n',false):'')+'</td>'
         +'<td>'+fmtK(cc?.costTrip)+(cp?bdgN(cc?.costTrip,cp?.costTrip,true,'rb',true):'')+'</td>'
         +'<td>'+fmtK(cc?.costDoCust)+(cp?bdgN(cc?.costDoCust,cp?.costDoCust,true,'rb',true):'')+'</td>'
         +'<td>'+fmtK(cc?.costDoStore)+(cp?bdgN(cc?.costDoStore,cp?.costDoStore,true,'rb',true):'')+'</td>'
@@ -5960,7 +5960,7 @@ function openPresentation() {
         +'<td>'+fmtK(cc?.costCbmCust)+(cp?bdgN(cc?.costCbmCust,cp?.costCbmCust,true,'rb',true):'')+'</td>'
         +'<td>'+fmtK(cc?.costCbmStore)+(cp?bdgN(cc?.costCbmStore,cp?.costCbmStore,true,'rb',true):'')+'</td>'
         +'<td>'+fmtK(cc?.costCbmHub)+(cp?bdgN(cc?.costCbmHub,cp?.costCbmHub,true,'rb',true):'')+'</td>'
-        +'<td>'+(cc&&cc.km>0?Math.round(cc.km).toLocaleString('id-ID'):'—')+'</td>'
+        +'<td>'+(cc&&cc.km>0?Math.round(cc.km).toLocaleString('id-ID'):'—')+(cp&&cc&&cc.km>0&&cp.km>0?bdgN(cc.km,cp.km,true,'n',true):'')+'</td>'
         +'<td>'+fmtK(cc?.costKm)+(cp?bdgN(cc?.costKm,cp?.costKm,true,'rb',true):'')+'</td></tr>';
     });
 
@@ -6186,7 +6186,20 @@ function openPresentation() {
     // isCost=false → metrik non-biaya (mis. Total Trip): tetap pakai skema lama (naik=hijau/turun=merah sesuai isLow)
     // Sama kayak bdgN: badge dari selisih angka yang SUDAH dibulatin, biar gak ada
     // kasus "6 rb → 7 rb" tapi badge-nya bilang ▲0 rb.
-    function costArrow(cur, prev, isLow, fmt, isCost) {
+    // Label periode MoM pakai rentang tanggal aktual (mis. "10–23 Agu 2026"); full month → "Agu 2026"
+    function rangeLbl(mo, withYear) {
+      if(!mo) return null;
+      var r = getMoMRange(mo), mN = moNames[parseInt(mo.slice(5,7))-1];
+      var lastDay = new Date(parseInt(mo.slice(0,4)), parseInt(mo.slice(5,7)), 0).getDate();
+      var d1 = parseInt(r.start.slice(8,10)), d2 = parseInt(r.end.slice(8,10));
+      var full = d1===1 && d2===lastDay;
+      if(withYear) return (full ? '' : (d1===d2 ? d1 : d1+'–'+d2)+' ') + mN + ' ' + mo.slice(0,4);
+      return mN + (full ? '' : ' ' + (d1===d2 ? d1 : d1+'–'+d2));
+    }
+    var rlCur = rangeLbl(curMo, true), rlPrev = rangeLbl(prevMo, true), rlPrevShort = rangeLbl(prevMo, false);
+    // isCost=true → metrik biaya: turun = hijau, naik = oranye. isCost=false (Total Trip): naik = hijau, turun = merah.
+    // Selisih dihitung dari angka yang SUDAH dibulatkan (hindari "▲0 rb").
+    function costPill(cur, prev, isLow, fmt, isCost) {
       if(cur==null||prev==null) return '';
       var d;
       if(fmt==='jt') { d = Math.round(cur/1e5)/10 - Math.round(prev/1e5)/10; if(Math.abs(d)<0.05) return ''; }
@@ -6197,35 +6210,43 @@ function openPresentation() {
       if(fmt==='jt') label=Math.abs(d).toFixed(1)+' jt';
       else if(fmt==='rb') label=Math.abs(d).toLocaleString('id-ID')+' rb';
       else label=Math.abs(Math.round(d)).toLocaleString('id-ID');
-      var color = good ? '#166534' : (isCost ? '#b45309' : '#991b1b');
-      return '<span style="color:'+color+'">'+(d>0?'▲':'▼')+label+' vs '+mnPrev+'</span>';
+      var cls = good ? 'good' : (isCost ? 'warn' : 'bad');
+      return '<span class="prs-ck-pill '+cls+'">'+(d>0?'▲':'▼')+' '+label+' vs '+rlPrevShort+'</span>';
     }
-    function costCard(label, val, prev, fmtFn, isLow, fmt, colorCls, isCost, dkVal, lkVal) {
-      var dklkHTML = '';
-      if(dkVal!=null || lkVal!=null) {
-        dklkHTML = '<div class="prs-kpi-dklk">'
-          +'<span><i>DK</i> '+fmtFn(dkVal)+'</span>'
-          +'<span><i>LK</i> '+fmtFn(lkVal)+'</span>'
-          +'</div>';
-      }
-      return '<div class="prs-kpi '+colorCls+'"><div class="prs-kpi-label">'+label+'</div>'
-        +'<div class="prs-kpi-val" style="font-size:18px">'+fmtFn(val)+'</div>'
-        +'<div class="prs-kpi-sub">'+costArrow(val, prev, isLow, fmt, isCost)+'</div>'
-        +dklkHTML
-        +'</div>';
+    var CK_IC = {
+      coins:  _sv('<ellipse cx="9" cy="6" rx="6" ry="2.5"/><path d="M3 6v4c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V6"/><path d="M3 10v4c0 1.4 2.7 2.5 6 2.5"/><ellipse cx="15" cy="15" rx="6" ry="2.5"/><path d="M9 15v3.5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V15"/>'),
+      truck:  _sv('<path d="M3 6h11v9H3z"/><path d="M14 9h4l3 3v3h-7"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/>'),
+      users:  _sv('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c2.2.6 3.5 2.4 3.5 5.2"/>'),
+      store:  _sv('<path d="M3 9l1.5-5h15L21 9"/><path d="M3 9c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3"/><path d="M5 12v9h14v-9M10 21v-5h4v5"/>'),
+      user:   _sv('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'),
+      shop:   _sv('<path d="M4 4h16l-1 5H5z"/><path d="M5 9v11h14V9"/><path d="M9 20v-6h6v6"/><path d="M8 4v5M12 4v5M16 4v5"/>'),
+      hub:    _sv('<path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-7h6v7M9 10h.01M15 10h.01"/>'),
+      route:  _sv('<circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H16a3 3 0 0 0 0-6H8a3 3 0 0 1 0-6h7.5"/>')
+    };
+    function costCard(label, val, prev, fmtFn, isLow, fmt, colorCls, isCost, dkVal, lkVal, ic) {
+      var dklk = '<div class="prs-ck-dklk"><span>DK '+fmtFn(dkVal)+'</span><span class="sep">|</span><span>LK '+fmtFn(lkVal)+'</span></div>';
+      return '<div class="prs-ck '+colorCls+'"><span class="prs-ck-ic">'+CK_IC[ic]+'</span>'
+        +'<div class="prs-ck-main"><div class="prs-ck-label">'+label+'</div>'
+        +'<div class="prs-ck-val">'+fmtFn(val)+'</div>'
+        +'<div class="prs-ck-pillrow">'+costPill(val, prev, isLow, fmt, isCost)+'</div>'
+        +dklk+'</div></div>';
     }
     var fmtN = function(v){ return v!=null?v.toLocaleString('id-ID'):'—'; };
-    var costKpiHTML = '<div class="prs-kpi-row">'
-      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, true, 'jt', 'prs-kpi-c1', true, ccCorp?.dkCost, ccCorp?.lkCost)
-      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, fmtN, false, 'n', 'prs-kpi-c2', false, ccCorp?.dkTrip, ccCorp?.lkTrip)
-      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb', 'prs-kpi-c3', true, ccCorp?.costTripDK, ccCorp?.costTripLK)
-      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb', 'prs-kpi-c4', true, ccCorp?.costDoCustDK, ccCorp?.costDoCustLK)
-      +'</div><div class="prs-kpi-row">'
-      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb', 'prs-kpi-c5', true, ccCorp?.costDoStoreDK, ccCorp?.costDoStoreLK)
-      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb', 'prs-kpi-c6', true, ccCorp?.costCbmCustDK, ccCorp?.costCbmCustLK)
-      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb', 'prs-kpi-c7', true, ccCorp?.costCbmStoreDK, ccCorp?.costCbmStoreLK)
-      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb', 'prs-kpi-c8', true, ccCorp?.costCbmHubDK, ccCorp?.costCbmHubLK)
-      +costCard('Cost / KM', ccCorp?.costKm, ccCorpP?.costKm, fmtK, true, 'rb', 'prs-kpi-c9', true, ccCorp?.costKmDK, ccCorp?.costKmLK)
+    var costKpiHTML = '<div class="prs-ck-grid">'
+      +costCard('Total Cost', ccCorp?.cost, ccCorpP?.cost, fmtM, true, 'jt', 'ck1', true, ccCorp?.dkCost, ccCorp?.lkCost, 'coins')
+      +costCard('Total Trip', ccCorp?.trip, ccCorpP?.trip, fmtN, false, 'n', 'ck2', false, ccCorp?.dkTrip, ccCorp?.lkTrip, 'truck')
+      +costCard('Cost / Trip', ccCorp?.costTrip, ccCorpP?.costTrip, fmtK, true, 'rb', 'ck3', true, ccCorp?.costTripDK, ccCorp?.costTripLK, 'coins')
+      +costCard('Cost / DO Customer', ccCorp?.costDoCust, ccCorpP?.costDoCust, fmtK, true, 'rb', 'ck4', true, ccCorp?.costDoCustDK, ccCorp?.costDoCustLK, 'users')
+      +costCard('Cost / DO Store', ccCorp?.costDoStore, ccCorpP?.costDoStore, fmtK, true, 'rb', 'ck5', true, ccCorp?.costDoStoreDK, ccCorp?.costDoStoreLK, 'store')
+      +costCard('Cost / CBM Customer', ccCorp?.costCbmCust, ccCorpP?.costCbmCust, fmtK, true, 'rb', 'ck6', true, ccCorp?.costCbmCustDK, ccCorp?.costCbmCustLK, 'user')
+      +costCard('Cost / CBM Store', ccCorp?.costCbmStore, ccCorpP?.costCbmStore, fmtK, true, 'rb', 'ck7', true, ccCorp?.costCbmStoreDK, ccCorp?.costCbmStoreLK, 'shop')
+      +costCard('Cost / CBM Hub', ccCorp?.costCbmHub, ccCorpP?.costCbmHub, fmtK, true, 'rb', 'ck8', true, ccCorp?.costCbmHubDK, ccCorp?.costCbmHubLK, 'hub')
+      +costCard('Cost / KM', ccCorp?.costKm, ccCorpP?.costKm, fmtK, true, 'rb', 'ck9', true, ccCorp?.costKmDK, ccCorp?.costKmLK, 'route')
+      +'</div>';
+    var costHeaderHTML = '<div class="prs-head">'
+      +'<div class="prs-site-label">'+siteName+'</div>'
+      +'<div class="prs-per"><div class="prs-per-cap">Periode</div>'
+      +'<div class="prs-mom-label">'+(rlPrev?rlPrev+' <span>vs</span> '+rlCur:rlCur)+'</div></div>'
       +'</div>';
 
     var headerHTML = '<div class="prs-head">'
@@ -6255,11 +6276,11 @@ function openPresentation() {
       +kpiInsightHTML
       +'</div>';
 
-    var slide2 = '<div class="prs-slide-inner">'
-      +headerHTML
+    var slide2 = '<div class="prs-slide-inner prs-s1 prs-s2'+(isJAB?' prs-dense':'')+'">'
+      +costHeaderHTML
       +costKpiHTML
       +'<div class="prs-section prs-sec-cost">'
-      +'<div class="prs-sec-title"><span class="ic">💰</span>Cost Delivery Analysis</div>'
+      +'<div class="prs-sec-title"><span class="ic ic-gold">'+CK_IC.coins+'</span>Cost Delivery Analysis</div>'
       +'<div class="prs-tbl-wrap"><table class="prs-tbl">'+costThead+'<tbody>'+costBody+'</tbody></table></div>'
       +'</div>'
       +'</div>';
@@ -6356,6 +6377,48 @@ function openPresentation() {
     +'.dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.3);cursor:pointer;margin:0 1px}'
     +'.dot.active{background:#fff}'
     +'.prs-s1{height:100%;display:flex;flex-direction:column;gap:16px;color:#0f172a}.prs-s1 .prs-head{display:flex;align-items:center;gap:36px}.prs-s1 .prs-site-label{font-size:60px;line-height:1;font-weight:800;color:#0b2447;border-left:10px solid #4ade80;padding-left:22px;letter-spacing:-1px}.prs-s1 .prs-per-cap{font-size:18px;color:#64748b;font-weight:600}.prs-s1 .prs-mom-label{font-size:28px;color:#0b2447;font-weight:800}.prs-s1 .prs-mom-label span{font-weight:500;color:#64748b}.prs-s1 .prs-kpi6{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin:0}.prs-s1 .prs-kpi{border:1.5px solid;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}.prs-s1 .prs-kpi-head{display:flex;align-items:center;gap:12px}.prs-s1 .prs-kpi-ic{flex:0 0 46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}.prs-s1 .prs-kpi-ic svg{width:24px;height:24px}.prs-s1 .prs-kpi-label{font-size:15px;line-height:1.2;color:#0b2447;font-weight:700;margin:0}.prs-s1 .prs-kpi-body{display:flex;flex-direction:column;align-items:center;gap:8px}.prs-s1 .prs-kpi-val{font-size:50px;line-height:1;font-weight:800;color:#0b2447;letter-spacing:-1px}.prs-s1 .prs-kpi-sub{font-size:16px;margin:0;font-weight:600}.prs-s1 .prs-kpi-badge{display:inline-flex;align-items:center;gap:6px;font-size:15px;padding:4px 12px;border-radius:8px;margin:0;font-weight:600}.prs-s1 .prs-kpi-badge svg{width:16px;height:16px}.prs-s1 .prs-kpi-badge.ok{background:#dcfce7;color:#166534}.prs-s1 .prs-kpi-badge.nok{background:#fee2e2;color:#991b1b}.prs-s1 .prs-delta.up{color:#166534}.prs-s1 .prs-delta.dn{color:#b91c1c;background:#fee2e2;padding:4px 12px;border-radius:8px;display:inline-block}.prs-s1 .prs-kpi-c1{background:#f0f9ff;border-color:#7dd3fc}.prs-s1 .prs-kpi-c1 .prs-kpi-ic{background:#0ea5e9}.prs-s1 .prs-kpi-c2{background:#f0fdf4;border-color:#86efac}.prs-s1 .prs-kpi-c2 .prs-kpi-ic{background:#22c55e}.prs-s1 .prs-kpi-c3{background:#fff7ed;border-color:#fdba74}.prs-s1 .prs-kpi-c3 .prs-kpi-ic{background:#f97316}.prs-s1 .prs-kpi-c4{background:#f5f3ff;border-color:#c4b5fd}.prs-s1 .prs-kpi-c4 .prs-kpi-ic{background:#8b5cf6}.prs-s1 .prs-kpi-c4 .prs-kpi-label{color:#6d28d9}.prs-s1 .prs-kpi-c5{background:#ecfeff;border-color:#67e8f9}.prs-s1 .prs-kpi-c5 .prs-kpi-ic{background:#06b6d4}.prs-s1 .prs-kpi-c6{background:#fff1f2;border-color:#fda4af}.prs-s1 .prs-kpi-c6 .prs-kpi-ic{background:#ef4444}.prs-s1 .prs-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.prs-s1 .prs-section{border-radius:14px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(15,23,42,.06)}.prs-s1 .prs-sec-title{background:#0b2447;font-size:20px;padding:12px 20px;letter-spacing:.6px}.prs-s1 .prs-sec-title .ic{width:28px;height:28px;margin-right:14px;display:inline-flex}.prs-s1 .prs-sec-title .ic svg{width:28px;height:28px}.prs-s1 .prs-section .prs-tbl-wrap{padding:10px}.prs-s1 .prs-tbl{font-size:16px}.prs-s1 .prs-tbl th{background:#2d4a6b;font-size:13px;padding:10px 12px;text-align:center}.prs-s1 .prs-tbl th:first-child{text-align:left}.prs-s1 .prs-tbl td{padding:9px 12px;text-align:center;border-bottom:1px solid #eef2f7;color:#1e293b}.prs-s1 .prs-tbl td.bu-label{text-align:left!important;font-size:13px;font-weight:700;color:#0b2447}.prs-s1 .corp-row td{background:#f8fafc!important;border-top:none}.prs-s1 tr.cur td{background:#eaf2fc!important;font-weight:700;color:#0b2447}.prs-s1 .mo{font-size:.85em;color:#64748b;font-weight:500}.prs-s1 tr.cur .mo{color:#0b2447;font-weight:700}.prs-s1 .bdg{font-size:.85em;margin-left:4px}.prs-s1 .prs-tbl td.g{background:#dcfce7!important;color:#166534}.prs-s1 .prs-tbl td.y{background:#fef3c7!important;color:#92400e}.prs-s1 .prs-tbl td.r{background:#fee2e2!important;color:#991b1b}.prs-s1 .prs-insight{flex:1;min-height:0;margin:0;background:#fff;border:1px solid #e2e8f0;border-left:8px solid #f59e0b;border-radius:14px;padding:16px 22px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 3px rgba(15,23,42,.06)}.prs-s1 .prs-insight-title{font-size:20px;color:#0b2447;letter-spacing:.6px;margin:0}.prs-s1 .prs-insight-title .ic{width:28px;height:28px;margin-right:10px;color:#f59e0b;display:inline-flex}.prs-s1 .prs-insight-title .ic svg{width:28px;height:28px}.prs-s1 .prs-ins-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:18px;min-height:0}.prs-s1 .prs-ins-main{background:transparent;padding:4px 4px 0 0}.prs-s1 .prs-ins-main ul{list-style:disc;padding-left:24px}.prs-s1 .prs-ins-main li.ic{list-style:none;margin-left:-24px}.prs-s1 .prs-ins-main li{font-size:17px;line-height:1.55;margin-bottom:6px}.prs-s1 .prs-ins-note .prs-insight-title{margin-bottom:8px}.prs-s1 .prs-ins-note .prs-insight-title .ic{color:#b45309}.prs-s1 .prs-ins-note .prs-ins-edit{height:calc(100% - 44px);font-size:17px}.prs-s1.prs-dense .prs-ins-main li{font-size:14px;margin-bottom:3px}.prs-s1 .prs-ins-col{background:#f8fafc;border-radius:10px;padding:12px 16px;overflow:hidden}.prs-s1 .prs-ins-h{font-size:13px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}.prs-s1 .prs-insight ul{padding-left:20px;outline:none}.prs-s1 .prs-insight li{font-size:15px;line-height:1.5;margin-bottom:4px;color:#334155}.prs-s1 .prs-ins-note{background:#fffbeb;border:1.5px dashed #fcd34d}.prs-s1 .prs-ins-edit{min-height:60px;font-size:15px;line-height:1.5;color:#334155;outline:none;white-space:pre-wrap}.prs-s1.prs-dense{gap:10px}.prs-s1.prs-dense .prs-site-label{font-size:44px}.prs-s1.prs-dense .prs-mom-label{font-size:22px}.prs-s1.prs-dense .prs-kpi{padding:12px 16px;gap:6px}.prs-s1.prs-dense .prs-kpi-ic{flex-basis:38px;height:38px}.prs-s1.prs-dense .prs-kpi-val{font-size:38px}.prs-s1.prs-dense .prs-kpi-sub,.prs-s1.prs-dense .prs-kpi-badge{font-size:13px}.prs-s1.prs-dense .prs-sec-title{font-size:16px;padding:8px 16px}.prs-s1.prs-dense .prs-tbl{font-size:13px}.prs-s1.prs-dense .prs-tbl th{font-size:11px;padding:6px 8px}.prs-s1.prs-dense .prs-tbl td{padding:4px 8px}.prs-s1.prs-dense .prs-tbl td.bu-label{font-size:12px}.prs-s1.prs-dense .prs-section .prs-tbl-wrap{padding:6px}.prs-s1.prs-dense .prs-insight{padding:10px 16px;gap:6px}.prs-s1.prs-dense .prs-insight li,.prs-s1.prs-dense .prs-ins-edit{font-size:13px;line-height:1.4}.prs-s1.prs-dense .prs-site-label{font-size:38px;border-left-width:8px}.prs-s1.prs-dense .prs-per-cap{font-size:14px}.prs-s1.prs-dense .prs-kpi{padding:10px 14px;gap:4px;border-radius:12px}.prs-s1.prs-dense .prs-kpi-body{gap:4px}.prs-s1.prs-dense .prs-kpi-val{font-size:34px}.prs-s1.prs-dense .prs-kpi-label{font-size:13px}.prs-s1.prs-dense .prs-sec-title{padding:6px 14px;font-size:15px}.prs-s1.prs-dense .prs-sec-title .ic,.prs-s1.prs-dense .prs-sec-title .ic svg{width:22px;height:22px}.prs-s1.prs-dense .prs-tbl{font-size:12px}.prs-s1.prs-dense .prs-tbl td{padding:2px 8px}.prs-s1.prs-dense .prs-tbl th{padding:4px 8px}.prs-s1.prs-dense .prs-section .prs-tbl-wrap{padding:4px 6px}.prs-s1.prs-dense .prs-ins-col{padding:8px 12px}.prs-s1.prs-dense .prs-insight li{margin-bottom:1px}'
+    +'.prs-s2 .prs-ck-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}'
+    +'.prs-s2 .prs-ck{display:flex;gap:18px;align-items:flex-start;border:1.5px solid;border-left-width:6px;border-radius:14px;padding:18px 22px}'
+    +'.prs-s2 .prs-ck-ic{flex:0 0 58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff}'
+    +'.prs-s2 .prs-ck-ic svg{width:30px;height:30px}'
+    +'.prs-s2 .prs-ck-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}'
+    +'.prs-s2 .prs-ck-label{font-size:15px;font-weight:700;color:#0b2447;text-transform:uppercase;letter-spacing:.3px}'
+    +'.prs-s2 .prs-ck-val{font-size:44px;line-height:1.05;font-weight:800;color:#0b2447;letter-spacing:-1px}'
+    +'.prs-s2 .prs-ck-pillrow{min-height:32px}'
+    +'.prs-s2 .prs-ck-pill{display:inline-block;font-size:17px;font-weight:700;padding:3px 12px;border-radius:8px;white-space:nowrap}'
+    +'.prs-s2 .prs-ck-pill.good{background:#dcfce7;color:#15803d}'
+    +'.prs-s2 .prs-ck-pill.warn{background:#ffedd5;color:#c2410c}'
+    +'.prs-s2 .prs-ck-pill.bad{background:#fee2e2;color:#b91c1c}'
+    +'.prs-s2 .prs-ck-dklk{display:flex;gap:12px;font-size:15px;font-weight:600;color:#64748b;border-top:1.5px dashed #cbd5e1;padding-top:8px;margin-top:2px}'
+    +'.prs-s2 .prs-ck-dklk .sep{color:#cbd5e1}'
+    +'.prs-s2 .ck1{background:#f0f9ff;border-color:#bae6fd;border-left-color:#0ea5e9}.prs-s2 .ck1 .prs-ck-ic{background:#0ea5e9}'
+    +'.prs-s2 .ck2{background:#f0fdf4;border-color:#bbf7d0;border-left-color:#22c55e}.prs-s2 .ck2 .prs-ck-ic{background:#22c55e}'
+    +'.prs-s2 .ck3{background:#fff7ed;border-color:#fed7aa;border-left-color:#f97316}.prs-s2 .ck3 .prs-ck-ic{background:#f97316}'
+    +'.prs-s2 .ck4{background:#f5f3ff;border-color:#ddd6fe;border-left-color:#8b5cf6}.prs-s2 .ck4 .prs-ck-ic{background:#8b5cf6}'
+    +'.prs-s2 .ck5{background:#ecfeff;border-color:#a5f3fc;border-left-color:#06b6d4}.prs-s2 .ck5 .prs-ck-ic{background:#06b6d4}'
+    +'.prs-s2 .ck6{background:#fff1f2;border-color:#fecdd3;border-left-color:#ef4444}.prs-s2 .ck6 .prs-ck-ic{background:#ef4444}'
+    +'.prs-s2 .ck7{background:#fefce8;border-color:#fde68a;border-left-color:#eab308}.prs-s2 .ck7 .prs-ck-ic{background:#eab308}'
+    +'.prs-s2 .ck8{background:#fdf2f8;border-color:#fbcfe8;border-left-color:#ec4899}.prs-s2 .ck8 .prs-ck-ic{background:#ec4899}'
+    +'.prs-s2 .ck9{background:#f0fdfa;border-color:#99f6e4;border-left-color:#14b8a6}.prs-s2 .ck9 .prs-ck-ic{background:#14b8a6}'
+    +'.prs-s2 .prs-sec-title .ic-gold{color:#fbbf24}'
+    +'.prs-s2 .prs-tbl{font-size:17px}'
+    +'.prs-s2 .prs-tbl th{font-size:14px}'
+    +'.prs-s2 tr.cur .bdg{display:block;margin:3px 0 0;font-size:.85em}'
+    +'.prs-s2 tr.cur td{color:#0b2447!important}'
+    +'.prs-s2 .bdg.up{color:#15803d}.prs-s2 .bdg.warn{color:#ea580c}.prs-s2 .bdg.dn{color:#dc2626}'
+    +'.prs-s2.prs-dense .prs-ck-grid{gap:10px}'
+    +'.prs-s2.prs-dense .prs-ck{padding:14px 18px;gap:14px;border-radius:12px}'
+    +'.prs-s2.prs-dense .prs-ck-ic{flex-basis:48px;height:48px}'
+    +'.prs-s2.prs-dense .prs-ck-ic svg{width:22px;height:22px}'
+    +'.prs-s2.prs-dense .prs-ck-main{gap:3px}'
+    +'.prs-s2.prs-dense .prs-ck-label{font-size:13px}'
+    +'.prs-s2.prs-dense .prs-ck-val{font-size:36px}'
+    +'.prs-s2.prs-dense .prs-ck-pillrow{min-height:24px}'
+    +'.prs-s2.prs-dense .prs-ck-pill{font-size:15px;padding:2px 10px}'
+    +'.prs-s2.prs-dense .prs-ck-dklk{font-size:13px;padding-top:6px}'
+    +'.prs-s2.prs-dense .prs-tbl{font-size:15px}'
+    +'.prs-s2.prs-dense .prs-tbl td{padding:4px 8px}'
+    +'.prs-s2.prs-dense .prs-tbl th{font-size:12px;padding:7px 8px}'
     +'.prs-esc{position:fixed;top:14px;right:14px;background:rgba(0,0,0,.5);color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:11px;cursor:pointer;z-index:100}'
     +'</style></head><body>'
     +slidesHTML
