@@ -584,6 +584,9 @@ async function loadData() {
       if(maRes.ok) { const maJson = await maRes.json(); MASTER_ASSET = maJson.months || {}; }
     } catch(e3b) { MASTER_ASSET = {}; }
 
+    // Step 3b-2: LK transit (lead time) → arm_util sheet Utilisasi, berlaku di Slide/Detail/Trend
+    try { applyLKTransitToUtil(); } catch(eLK) { console.warn('applyLKTransitToUtil', eLK); }
+
     // Step 3c: Load per-site NOPOL-level status pilots (heatmap: utilized/not-available/empty
     // per day). Each site's PIC-tracked sheet loads independently — a missing file for one
     // site doesn't block another. Add a new { key, file } pair here when a new site's pilot
@@ -2350,6 +2353,58 @@ function computeUtil(rows, allRows, site, rawRows) {
     ritaseArmada: avg(ritArmadaVals),
     ritaseMpp:    avg(ritMppVals),
   };
+}
+
+// ── LK transit → UTL Armada (Slide, Detail Metrik, Trend Bulanan, semua site) ──
+// Armada yang lagi jalan LK multi-hari (pairing jalur ke LEADTIME_MAP) dihitung UTILIZED
+// di hari ke-2 dst. Sheet Utilisasi PIC tetap jadi basis: arm_util cuma DINAIKKAN kalau
+// (nopol ber-LC ∪ nopol transit LK) > max(arm_util sheet, nopol ber-LC) — jadi transit yang
+// udah dihitung PIC gak dobel — dan tetap di-cap di arm_avail. Nilai asli sheet disimpan di
+// arm_util_sheet; fungsi ini idempotent (selalu mulai dari nilai sheet), aman dipanggil ulang
+// tiap kali data site di-load. Sub-BU synthetic (JAB_FBI, SDA_HCI, dst) gak disentuh karena
+// arm_avail = arm_util by construction.
+function utilSiteForTripRow(r) {
+  if (r.site === 'JABABEKA') {
+    var bu = getNopolBU(r.nopol, r.date) || (r.owner || '').toUpperCase();
+    return bu === 'HCI' ? 'HCI JABABEKA' : bu === 'AHI' ? 'AHI JABABEKA' : null;
+  }
+  return { CIKUPA:'HCI CIKUPA', SDA:'CORP SIDOARJO', TALLO:'CORP TALLO', TAMORA:'CORP TAMORA' }[r.site] || null;
+}
+function applyLKTransitToUtil() {
+  if (!UTIL_ROWS || !UTIL_ROWS.length) return 0;
+  var lcNop = {}, trNop = {};
+  Object.keys(SITE_CACHE).forEach(function(site) {
+    (SITE_CACHE[site] || []).forEach(function(r) {
+      if (!r.nopol || !r.date) return;
+      var us = utilSiteForTripRow(r);
+      if (!us) return;
+      var k = us + '|' + r.date;
+      (lcNop[k] = lcNop[k] || new Set()).add(r.nopol);
+      if (effectiveSA(r) !== 'LUAR KOTA' || !r.jalur || r.jalur === '#N/A') return;
+      var lt = getLeadTimeDays(r.site, r.jalur);
+      if (lt <= 1) return;
+      expandActiveDates(r.date, lt).slice(1).forEach(function(ed) {
+        var tk = us + '|' + ed;
+        (trNop[tk] = trNop[tk] || new Set()).add(r.nopol);
+      });
+    });
+  });
+  var bumped = 0;
+  UTIL_ROWS.forEach(function(u) {
+    if (u.arm_util_sheet === undefined) u.arm_util_sheet = u.arm_util;
+    u.arm_util = u.arm_util_sheet;
+    u.lk_transit_add = 0;
+    var tr = trNop[u.site + '|' + u.date];
+    if (!tr || u.arm_util == null || u.arm_util <= 0) return;
+    var lc = lcNop[u.site + '|' + u.date] || new Set();
+    var union = new Set(lc); tr.forEach(function(n){ union.add(n); });
+    var add = union.size - Math.max(u.arm_util, lc.size);
+    if (add <= 0) return;
+    var cap = (u.arm_avail != null && u.arm_avail > 0) ? u.arm_avail : Infinity;
+    var nv = Math.min(cap, u.arm_util + add);
+    if (nv > u.arm_util) { u.lk_transit_add = nv - u.arm_util; u.arm_util = nv; bumped++; }
+  });
+  return bumped;
 }
 
 // ── ARMADA KECIL (CDELC/CDDLC, HCI/AHI): DK / LK murni / LK+ritase / Idle / Downtime ──
