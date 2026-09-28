@@ -911,6 +911,7 @@ function computeSite(rows, site) {
     tatStoreOver8: tatS.length ? tatS.filter(function(v){return v>8;}).length/tatS.length*100 : null,
     tatStoreUnder8: tatS.length ? tatS.filter(function(v){return v<=8;}).length/tatS.length*100 : null,
     totalCbmStore, totalDoCust, totalDpCust, totalDoHub,
+    totalDoCustAll: totalDoCust + totalDoHub, // Total DO Customer = Direct (td=customer) + Via Hub (td=hub)
     totalTrip, totalTripCustomer, totalTripStore, totalTripHub, totalTripOther,
     doTripAll, slaHitPct,
     rowCount: sr.length,
@@ -920,7 +921,7 @@ function computeSite(rows, site) {
 function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(Boolean); }
 function makeSummary(results) {
   const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDoMix','cbmDp','cbmDpMix','doTripMix','tatDirect','tatStore','doTripAll','tatDirectOver8','tatDirectUnder8','tatStoreOver8','tatStoreUnder8','slaHitPct'];
-  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust','totalDoHub','totalTrip','totalTripCustomer','totalTripStore','totalTripHub','totalTripOther'];
+  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust','totalDoHub','totalDoCustAll','totalTrip','totalTripCustomer','totalTripStore','totalTripHub','totalTripOther'];
   return {
     site:'NDC & RDC', label:'NDC & RDC',
     ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])),
@@ -1561,10 +1562,17 @@ function renderDetail(results, summary, start, end) {
     const dSum = makeSummary(computeDayResults(day, currentSite));
     return {
       date: day,
-      doCust: dSum.totalDoCust||0, cbmStore: dSum.totalCbmStore||0, doHub: dSum.totalDoHub||0,
+      doCust: dSum.totalDoCust||0, cbmStore: dSum.totalCbmStore||0, doHub: dSum.totalDoHub||0, doCustAll: dSum.totalDoCustAll||0,
       tripTotal: dSum.totalTrip||0, tripCust: dSum.totalTripCustomer||0, tripStore: dSum.totalTripStore||0, tripHub: dSum.totalTripHub||0, tripOther: dSum.totalTripOther||0,
     };
   });
+
+  // Tanggal di ujung range yang belum ada datanya (mis. H-0 / Minggu belum ter-upload) → null,
+  // supaya garis berhenti di tanggal data terakhir, bukan jatuh ke 0.
+  const _dataDates = new Set(filtered.map(r=>r.date));
+  let _lastDataIdx = demandDaily.length-1;
+  while (_lastDataIdx>=0 && !_dataDates.has(demandDaily[_lastDataIdx].date)) _lastDataIdx--;
+  const dv = (d,i,k) => i>_lastDataIdx ? null : d[k];
 
   const metrics = [
     { key:'olf',label:'OLF',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—'},
@@ -1589,10 +1597,12 @@ function renderDetail(results, summary, start, end) {
     { key:'tatStoreUnder8',label:'TAT Store (% &le;8 jam)',fmt:v=>v!=null?v.toFixed(1)+'%':'—'},
     { key:'totalCbmStore',label:'Demand CBM Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
     { key:'totalCbmStore',label:'Demand CBM Store / Hari',fmt:perDayFmt},
-    { key:'totalDoCust',label:'Demand DO Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
-    { key:'totalDoCust',label:'Demand DO Customer / Hari',fmt:perDayFmt},
-    { key:'totalDoHub',label:'Demand DO Hub',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
-    { key:'totalDoHub',label:'Demand DO Hub / Hari',fmt:perDayFmt},
+    { key:'totalDoCustAll',label:'Demand Total DO Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalDoCustAll',label:'Demand Total DO Customer / Hari',fmt:perDayFmt},
+    { key:'totalDoCust',label:'Demand DO Cust – Direct',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalDoCust',label:'Demand DO Cust – Direct / Hari',fmt:perDayFmt},
+    { key:'totalDoHub',label:'Demand DO Cust – Via Hub',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalDoHub',label:'Demand DO Cust – Via Hub / Hari',fmt:perDayFmt},
     { key:'totalTrip',label:'Total Trip',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
     { key:'totalTripCustomer',label:'Total Trip Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
     { key:'totalTripStore',label:'Total Trip Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
@@ -1656,7 +1666,7 @@ function renderDetail(results, summary, start, end) {
       <div style="display:flex;flex-direction:column;gap:14px">
         <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
         <div class="panel"><div class="ph"><h3>Total Trip per Site</h3><span class="tag">Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:160px;position:relative"><canvas id="dTripType"></canvas></div></div></div>
-        <div class="panel"><div class="ph"><h3>Trend Demand per Hari</h3><span class="tag">DO Customer / CBM Store / DO Hub</span></div><div class="pb"><div style="height:250px;position:relative"><canvas id="dDemandDaily"></canvas></div></div></div>
+        <div class="panel"><div class="ph"><h3>Trend Demand per Hari</h3><span class="tag">Total DO Cust / Direct / Via Hub / CBM Store</span></div><div class="pb"><div style="height:250px;position:relative"><canvas id="dDemandDaily"></canvas></div></div></div>
         <div class="panel"><div class="ph"><h3>Trend Trip per Hari</h3><span class="tag">Total / Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:250px;position:relative"><canvas id="dTripDaily"></canvas></div></div></div>
       </div>
     </div>
@@ -1672,7 +1682,7 @@ function renderDetail(results, summary, start, end) {
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
-      <div class="ph"><h3>Trendline Bulanan &mdash; Demand</h3><span class="tag">DO Customer, DO Hub &amp; CBM Store</span></div>
+      <div class="ph"><h3>Trendline Bulanan &mdash; Demand</h3><span class="tag">Total DO Cust, Direct, Via Hub &amp; CBM Store</span></div>
       <div style="padding:4px 16px 16px;height:380px;position:relative;"><canvas id="dTREND2"></canvas></div>
     </div>
     <div class="panel" style="margin-top:14px">
@@ -1739,16 +1749,17 @@ function renderDetail(results, summary, start, end) {
   ]},options:{...co,indexAxis:'y',plugins:{...co.plugins,tooltip:{callbacks:{label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.x.toLocaleString('id-ID')}}},scales:{x:{...co.scales.x,stacked:true},y:{...co.scales.y,stacked:true}}}});
   const demandLabs=demandDaily.map(d=>new Date(d.date+'T00:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short'}));
   charts.dDemandDaily=new Chart(document.getElementById('dDemandDaily').getContext('2d'),{type:'line',data:{labels:demandLabs,datasets:[
-    {label:'DO Customer',data:demandDaily.map(d=>d.doCust),borderColor:'#1a73e8',backgroundColor:'rgba(26,115,232,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
-    {label:'CBM Store',data:demandDaily.map(d=>d.cbmStore),borderColor:'#34a85a',backgroundColor:'rgba(52,168,90,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
-    {label:'DO Hub',data:demandDaily.map(d=>d.doHub),borderColor:'#a142f4',backgroundColor:'rgba(161,66,244,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368',callbacks:{label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('id-ID')}},datalabels:{display:false}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10},stepSize:250},grid:{color:'#f5f6fa'},beginAtZero:true}}}});
+    {label:'Total DO Customer',data:demandDaily.map((d,i)=>dv(d,i,'doCustAll')),borderColor:'#1e3a8a',backgroundColor:'rgba(30,58,138,.08)',borderWidth:3,pointRadius:2.5,pointHoverRadius:5,tension:0,fill:false,yAxisID:'y',datalabels:{display:false}},
+    {label:'DO Cust – Direct',data:demandDaily.map((d,i)=>dv(d,i,'doCust')),borderColor:'#1a73e8',backgroundColor:'rgba(26,115,232,.08)',borderWidth:1.5,pointRadius:1.5,pointHoverRadius:4,tension:0,fill:false,yAxisID:'y',datalabels:{display:false}},
+    {label:'DO Cust – Via Hub',data:demandDaily.map((d,i)=>dv(d,i,'doHub')),borderColor:'#a142f4',backgroundColor:'rgba(161,66,244,.08)',borderWidth:1.5,pointRadius:1.5,pointHoverRadius:4,tension:0,fill:false,yAxisID:'y',datalabels:{display:false}},
+    {label:'CBM Store (m³)',data:demandDaily.map((d,i)=>dv(d,i,'cbmStore')),borderColor:'#34a85a',backgroundColor:'rgba(52,168,90,.08)',borderWidth:1.5,borderDash:[5,3],pointRadius:1.5,pointHoverRadius:4,tension:0,fill:false,yAxisID:'y1',datalabels:{display:false}},
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368',callbacks:{label:(ctx)=>ctx.parsed.y==null?null:ctx.dataset.label+': '+Math.round(ctx.parsed.y).toLocaleString('id-ID')}},datalabels:{display:false}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},y:{position:'left',title:{display:true,text:'DO',color:'#9aa0a6',font:{family:'Inter',size:10}},ticks:{color:'#9aa0a6',font:{family:'Inter',size:10},maxTicksLimit:7},grid:{color:'#f5f6fa'},beginAtZero:true},y1:{position:'right',title:{display:true,text:'CBM (m³)',color:'#34a85a',font:{family:'Inter',size:10}},ticks:{color:'#34a85a',font:{family:'Inter',size:10},maxTicksLimit:7},grid:{drawOnChartArea:false},beginAtZero:true}}}});
   charts.dTripDaily=new Chart(document.getElementById('dTripDaily').getContext('2d'),{type:'line',data:{labels:demandLabs,datasets:[
-    {label:'Total Trip',data:demandDaily.map(d=>d.tripTotal),borderColor:'#1a1d23',backgroundColor:'rgba(26,29,35,.06)',borderWidth:2.5,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
-    {label:'Customer',data:demandDaily.map(d=>d.tripCust),borderColor:'#1a73e8',backgroundColor:'rgba(26,115,232,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
-    {label:'Store',data:demandDaily.map(d=>d.tripStore),borderColor:'#34a85a',backgroundColor:'rgba(52,168,90,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
-    {label:'Hub',data:demandDaily.map(d=>d.tripHub),borderColor:'#a142f4',backgroundColor:'rgba(161,66,244,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
-    {label:'Other',data:demandDaily.map(d=>d.tripOther),borderColor:'#e37400',backgroundColor:'rgba(227,116,0,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Total Trip',data:demandDaily.map((d,i)=>dv(d,i,'tripTotal')),borderColor:'#1a1d23',backgroundColor:'rgba(26,29,35,.06)',borderWidth:2.5,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Customer',data:demandDaily.map((d,i)=>dv(d,i,'tripCust')),borderColor:'#1a73e8',backgroundColor:'rgba(26,115,232,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Store',data:demandDaily.map((d,i)=>dv(d,i,'tripStore')),borderColor:'#34a85a',backgroundColor:'rgba(52,168,90,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Hub',data:demandDaily.map((d,i)=>dv(d,i,'tripHub')),borderColor:'#a142f4',backgroundColor:'rgba(161,66,244,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
+    {label:'Other',data:demandDaily.map((d,i)=>dv(d,i,'tripOther')),borderColor:'#e37400',backgroundColor:'rgba(227,116,0,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368',callbacks:{label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('id-ID')}},datalabels:{display:false}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10},maxTicksLimit:6},grid:{color:'#f5f6fa'},beginAtZero:true}}}});
   setTimeout(function(){buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));},50);
   charts.dTAT=new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
@@ -1822,7 +1833,7 @@ function buildTrendline(results, summary, s, e) {
     var _days=new Set(filterRows(ROWS,d1,d2,currentSite).map(function(r){return r.date;})).size;
     var _o=Object.assign({},_mo);
     _o._days=_days;
-    ['totalDoCust','totalCbmStore','totalDoHub'].forEach(function(k){
+    ['totalDoCust','totalCbmStore','totalDoHub','totalDoCustAll'].forEach(function(k){
       _o[k+'PerDay']=(_days>0&&_o[k]!=null)?_o[k]/_days:null;
     });
     return _o;
@@ -1839,14 +1850,16 @@ function buildTrendline(results, summary, s, e) {
   // the ratio metrics above (trip/DO counts vs. CBM volume), so they get their own axes
   // (yC = counts, yV = CBM volume) in that second chart.
   var trendSeries2=[
-    {key:'totalDoCust',       label:'Demand DO Customer', color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalCbmStore',     label:'Demand CBM Store',   color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalDoHub',        label:'Demand DO Hub',      color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalDoCustAll',    label:'Total DO Customer',  color:'#1e3a8a', axis:'yC', width:3.5, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalDoCust',       label:'DO Cust – Direct',   color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalCbmStore',     label:'CBM Store (m³)',     color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalDoHub',        label:'DO Cust – Via Hub',  color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
   ];
   var trendSeries4=[
-    {key:'totalDoCustPerDay',   label:'Avg DO Customer / Hari', color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalCbmStorePerDay', label:'Avg CBM Store / Hari',   color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
-    {key:'totalDoHubPerDay',    label:'Avg DO Hub / Hari',      color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalDoCustAllPerDay',label:'Avg Total DO Cust / Hari', color:'#1e3a8a', axis:'yC', width:3.5, fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalDoCustPerDay',   label:'Avg DO Direct / Hari',   color:'#0d9488', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalCbmStorePerDay', label:'Avg CBM Store / Hari (m³)', color:'#be185d', axis:'yV', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
+    {key:'totalDoHubPerDay',    label:'Avg DO Via Hub / Hari', color:'#a142f4', axis:'yC', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
   ];
   var trendSeries3=[
     {key:'totalTripCustomer', label:'Trip Customer', color:'#1a73e8', axis:'yT', fmt:function(v){return v!=null?Math.round(v):null;}, disp:function(v){return v.toLocaleString('id-ID');}},
@@ -1926,7 +1939,7 @@ function buildTrendline(results, summary, s, e) {
         borderColor:s.color, pointBackgroundColor:'#ffffff',
         pointBorderColor:s.color, pointBorderWidth:2,
         backgroundColor:'transparent',
-        borderWidth:2.5, pointRadius:5, pointHoverRadius:7,
+        borderWidth:s.width||2.5, pointRadius:5, pointHoverRadius:7,
         tension:0.35, fill:false, yAxisID:s.axis,
         hidden: !hasData,
         datalabels:{ display:false }
@@ -2034,7 +2047,7 @@ function buildTrendline(results, summary, s, e) {
           datalabels:{display:false}
         },
         scales:scales,
-        layout:{padding:{top:20,right:80,bottom:8,left:40}}
+        layout:{padding:{top:20,right:(opts.padRight||80),bottom:8,left:40}}
       }
     });
   }
@@ -2046,17 +2059,23 @@ function buildTrendline(results, summary, s, e) {
       { id:'yR', opts:{display:false,min:0,max:100} },
     ]
   });
+  // Pisahkan band vertikal: garis DO (yC) di bagian bawah-tengah, CBM Store (yV) di atas,
+  // supaya Total DO Customer & CBM (beda sumbu) tidak saling tumpuk / label bertabrakan.
+  function _mx(k){ return Math.max.apply(null,[0].concat(trendData.map(function(d){return d[k]||0;}))); }
+  function demandAxes(doKey, cbmKey){
+    var mDo=_mx(doKey), mCbm=_mx(cbmKey);
+    return [
+      { id:'yC', opts:{display:false,min:0, max: mDo>0 ? mDo*1.6 : undefined} },
+      { id:'yV', opts:{display:false,min:0, max: mCbm>0 ? mCbm*1.12 : undefined} },
+    ];
+  }
   renderTrendChart('dTREND2', trendSeries2, {
-    axes: [
-      { id:'yC', opts:{display:false,min:0} },
-      { id:'yV', opts:{display:false,min:0} },
-    ]
+    padRight: 125,
+    axes: demandAxes('totalDoCustAll','totalCbmStore')
   });
   renderTrendChart('dTREND4', trendSeries4, {
-    axes: [
-      { id:'yC', opts:{display:false,min:0} },
-      { id:'yV', opts:{display:false,min:0} },
-    ]
+    padRight: 165,
+    axes: demandAxes('totalDoCustAllPerDay','totalCbmStorePerDay')
   });
   renderTrendChart('dTREND3', trendSeries3, {
     axes: [
