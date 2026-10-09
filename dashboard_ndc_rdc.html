@@ -105,6 +105,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .dt tbody td{padding:7px 11px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap;font-variant-numeric:tabular-nums;}
 .dt tbody tr:last-child td{border-bottom:none;}
 .dt tbody tr.sum{background:var(--gbg);font-weight:600;}
+.dt tbody tr.sec td{background:var(--bg);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--t2);border-top:2px solid var(--border);padding-top:10px;}
+.dt tbody tr.grpr td{background:var(--gbg);}
+.dt tbody tr.subr td{color:var(--t2);font-size:12px;}
 .dt tbody tr.sum td{color:var(--green);border-top:2px solid var(--gl);border-bottom:none;}
 .dt tbody tr:not(.sum):hover td{background:var(--bg);}
 .num{text-align:right;font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-.3px;}
@@ -886,6 +889,22 @@ function computeSite(rows, site) {
   const totalTripHub      = tripSets.hub.size;
   const totalTripOther    = tripSets.other.size;
 
+  // Trip Dalam Kota vs Luar Kota (effectiveSA: LK tanpa jalur = DK) → per tipe kiriman → per type armada
+  const saSets = {DK:new Set(), LK:new Set()}, saBreak = {};
+  sr.forEach(r => {
+    if(!r.lc) return;
+    const saEff = (typeof effectiveSA==='function') ? effectiveSA(r) : r.sa;
+    const sa = saEff === 'LUAR KOTA' ? 'LK' : 'DK';
+    const td0 = (r.td||'').toLowerCase().trim();
+    const td = td0==='customer' ? 'customer' : td0==='store' ? 'store' : (td0==='hub'||td0==='customer via hub') ? 'hub' : 'other';
+    const t = (typeof normalizeArmadaTypeForRow==='function') ? normalizeArmadaTypeForRow(r) : ((r.ja||'LAINNYA')+'').toUpperCase();
+    saSets[sa].add(r.lc);
+    const k1='tripSA|'+sa+'|'+td, k2=k1+'|'+t;
+    (saBreak[k1]=saBreak[k1]||new Set()).add(r.lc);
+    (saBreak[k2]=saBreak[k2]||new Set()).add(r.lc);
+  });
+  const tripSaBreak = Object.fromEntries(Object.entries(saBreak).map(([k,set])=>[k,set.size]));
+
   // On Time Fleet Fulfillment by Batch — % row dgn SLA Check In = HIT dari semua trip yang punya data sla
   // (normalisasi: "MIS" & "MISS" dua-duanya dianggap Mis, biar gak kesenggol variasi input di sheet)
   const slaRows = sr.filter(r => r.sla === 'HIT' || r.sla === 'MIS' || r.sla === 'MISS');
@@ -913,6 +932,7 @@ function computeSite(rows, site) {
     totalCbmStore, totalDoCust, totalDpCust, totalDoHub,
     totalDoCustAll: totalDoCust + totalDoHub, // Total DO Customer = Direct (td=customer) + Via Hub (td=hub)
     totalTrip, totalTripCustomer, totalTripStore, totalTripHub, totalTripOther,
+    totalTripDK: saSets.DK.size, totalTripLK: saSets.LK.size, ...tripSaBreak,
     doTripAll, slaHitPct,
     rowCount: sr.length,
   };
@@ -921,7 +941,8 @@ function computeSite(rows, site) {
 function computeAll(rows) { return SITES.map(s => computeSite(rows, s)).filter(Boolean); }
 function makeSummary(results) {
   const keys = ['ritase','olf','dpStore','dpMix','dpNonReg','dpReg','doTrip','doDp','cbmDo','cbmDoMix','cbmDp','cbmDpMix','doTripMix','tatDirect','tatStore','doTripAll','tatDirectOver8','tatDirectUnder8','tatStoreOver8','tatStoreUnder8','slaHitPct'];
-  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust','totalDoHub','totalDoCustAll','totalTrip','totalTripCustomer','totalTripStore','totalTripHub','totalTripOther'];
+  const sumKeys = ['totalCbmStore','totalDoCust','totalDpCust','totalDoHub','totalDoCustAll','totalTrip','totalTripCustomer','totalTripStore','totalTripHub','totalTripOther','totalTripDK','totalTripLK'];
+  results.forEach(r => Object.keys(r).forEach(k => { if(k.startsWith('tripSA|') && !sumKeys.includes(k)) sumKeys.push(k); }));
   return {
     site:'NDC & RDC', label:'NDC & RDC',
     ...Object.fromEntries(keys.map(k=>[k,avg(results.map(r=>r[k]))])),
@@ -1544,6 +1565,7 @@ function renderDetail(results, summary, start, end) {
   const filtered = filterRows(ROWS, s, e, currentSite);
   const days = Math.max(1, Math.round((new Date(e+'T00:00:00') - new Date(s+'T00:00:00'))/86400000) + 1);
   const perDayFmt = v => v!=null ? (v/days).toLocaleString('id-ID',{maximumFractionDigits:1}) : '—';
+  const cntFmt = v => v!=null ? Math.round(v).toLocaleString('id-ID') : '—';
 
   // Trend Demand per Hari: pakai jalur agregasi sama persis dengan render() utama
   // (computeAll/computeSite per site) supaya business rules (KLS excl, FBI/AHI, dst) tetap konsisten,
@@ -1606,11 +1628,30 @@ function renderDetail(results, summary, start, end) {
     { key:'totalDoHub',label:'Demand DO Cust – Via Hub',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
     { key:'totalDoHub',label:'Demand DO Cust – Via Hub / Hari',fmt:perDayFmt},
     { key:'totalTrip',label:'Total Trip',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTrip',label:'Trip / Hari',fmt:perDayFmt},
     { key:'totalTripCustomer',label:'Total Trip Customer',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTripCustomer',label:'Trip Customer / Hari',fmt:perDayFmt},
     { key:'totalTripStore',label:'Total Trip Store',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTripStore',label:'Trip Store / Hari',fmt:perDayFmt},
     { key:'totalTripHub',label:'Total Trip Hub',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTripHub',label:'Trip Hub / Hari',fmt:perDayFmt},
     { key:'totalTripOther',label:'Total Trip Type Other',fmt:v=>v!=null?Math.round(v).toLocaleString('id-ID'):'—'},
+    { key:'totalTripOther',label:'Trip Type Other / Hari',fmt:perDayFmt},
   ];
+  // Tabel terpisah: Trip Dalam Kota (breakdown type armada) & Trip Luar Kota
+  const tripSaMetrics = [];
+  const TD_LBL = {customer:'Trip Customer', store:'Trip Store', hub:'Trip Hub', other:'Trip Type Other'};
+  [['DK','Dalam Kota'],['LK','Luar Kota']].forEach(([sa,saLbl]) => {
+    tripSaMetrics.push({ section:'Trip '+saLbl });
+    tripSaMetrics.push({ key:'totalTrip'+sa, label:'Trip '+saLbl+' / Hari', fmt:perDayFmt });
+    ['customer','store','hub','other'].forEach(td => {
+      const k1 = 'tripSA|'+sa+'|'+td;
+      if(!summary[k1]) return;
+      tripSaMetrics.push({ key:k1, label:TD_LBL[td]+' / Hari', fmt:perDayFmt, grp:true });
+      Object.keys(summary).filter(k=>k.startsWith(k1+'|')).sort((a,b)=>(summary[b]||0)-(summary[a]||0))
+        .forEach(k => tripSaMetrics.push({ key:k, label:'&nbsp;&nbsp;&nbsp;– '+k.slice(k1.length+1), fmt:perDayFmt, sub:true }));
+    });
+  });
   const achMetrics = [
     { key:'olf',label:'OLF Store',fmt:v=>v!=null?(v*100).toFixed(1)+'%':'—',tgtFmt:'Target ≥85%'},
     { key:'slaHitPct',label:'On Time Fleet Fulfillment by Batch',fmt:v=>v!=null?v.toFixed(2)+'%':'—',tgtFmt:'Target ≥99.60%'},
@@ -1671,6 +1712,12 @@ function renderDetail(results, summary, start, end) {
         <div class="panel"><div class="ph"><h3>Trend Demand per Hari</h3><span class="tag">Total DO Cust / Direct / Via Hub / CBM Store</span></div><div class="pb"><div style="height:250px;position:relative"><canvas id="dDemandDaily"></canvas></div></div></div>
         <div class="panel"><div class="ph"><h3>Trend Trip per Hari</h3><span class="tag">Total / Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:250px;position:relative"><canvas id="dTripDaily"></canvas></div></div></div>
       </div>
+    </div>
+    <div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Trip Dalam Kota &amp; Luar Kota</h3><span class="tag">rata-rata trip / hari &middot; per tipe kiriman &amp; type armada</span></div>
+      <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">SEMUA SITE</th></tr></thead>
+      <tbody>${tripSaMetrics.map(m=>m.section?`<tr class="sec"><td colspan="${results.length+2}">${m.section}</td></tr>`:`<tr${m.sub?' class="subr"':m.grp?' class="grpr"':''}><td>${m.sub?m.label:'<strong>'+m.label+'</strong>'}</td>${results.map(r=>`<td class="num">${m.fmt(r[m.key])}</td>`).join('')}<td class="num"><strong>${m.fmt(summary[m.key])}</strong></td></tr>`).join('')}
+      </tbody></table></div>
+      <div style="font-size:11px;color:#888;padding:6px 16px 8px">LK tanpa jalur (#N/A/kosong) dihitung DK &nbsp;|&nbsp; type armada dinormalisasi (PICK UP = PICKUP, CDE Tamora = CDELC) &nbsp;|&nbsp; semua angka = trip &divide; jumlah hari periode</div>
     </div>
     <div class="g2">
       <div class="panel"><div class="ph"><h3>TAT Direct vs Store</h3><span class="tag">jam rata-rata</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dTAT"></canvas></div></div></div>
