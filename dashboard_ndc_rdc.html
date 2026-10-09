@@ -1715,11 +1715,19 @@ function renderDetail(results, summary, start, end) {
   document.getElementById('content').innerHTML=`
     ${siteAchTable}
     <div class="g2" style="margin-bottom:14px">
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
       <div class="panel"><div class="ph"><h3>Ringkasan Metrik</h3><span class="tag">range terpilih</span></div>
         <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
         <tbody>${metrics.map(m=>`<tr><td><strong>${m.label}</strong></td>${results.map(r=>`<td class="num">${m.fmt(r[m.key])}${TARGETS[m.key]?mkBadgeSm(m.key,r[m.key],r.site):''}</td>`).join('')}<td class="num"><strong>${m.fmt(summary[m.key])}</strong>${TARGETS[m.key]?mkBadgeSm(m.key,summary[m.key],'NATIONAL'):''}</td></tr>`).join('')}
         </tbody></table></div>
         <div style="font-size:11px;color:#888;padding:6px 4px 2px">* Mix = semua delivery Customer tanpa filter kategori &nbsp;|&nbsp; baris kecil di bawah angka = Target vs pencapaian (OLF, Ritase, DP Mix, DP Reg, DO/Trip Regular) — hijau ≥100%, kuning 90–99%, merah &lt;90%</div>
+      </div>
+      <div class="panel"><div class="ph"><h3>Trip Dalam Kota &amp; Luar Kota</h3><span class="tag">rata-rata trip / hari &middot; DK per tipe kiriman &amp; type armada &middot; LK per type armada</span></div>
+        <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">SEMUA SITE</th></tr></thead>
+        <tbody>${tripSaMetrics.map(m=>m.section?`<tr class="sec"><td colspan="${results.length+2}">${m.section}</td></tr>`:`<tr${m.sub?' class="subr"':m.grp?' class="grpr"':''}><td>${m.sub?m.label:'<strong>'+m.label+'</strong>'}</td>${results.map(r=>`<td class="num">${m.fmt(r[m.key])}</td>`).join('')}<td class="num"><strong>${m.fmt(summary[m.key])}</strong></td></tr>`).join('')}
+        </tbody></table></div>
+        <div style="font-size:11px;color:#888;padding:6px 16px 8px">LK tanpa jalur (#N/A/kosong) dihitung DK &nbsp;|&nbsp; type armada dinormalisasi (PICK UP = PICKUP, CDE Tamora = CDELC) &nbsp;|&nbsp; semua angka = trip &divide; jumlah hari periode; &lt;1 = kurang dari 1 trip/hari (angka kecil = total trip periode)</div>
+      </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:14px">
         <div class="panel"><div class="ph"><h3>OLF Store per Site</h3><span class="tag">% utilitas</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dOLF"></canvas></div></div></div>
@@ -1727,12 +1735,6 @@ function renderDetail(results, summary, start, end) {
         <div class="panel"><div class="ph"><h3>Trend Demand per Hari</h3><span class="tag">Total DO Cust / Direct / Via Hub / CBM Store</span></div><div class="pb"><div style="height:250px;position:relative"><canvas id="dDemandDaily"></canvas></div></div></div>
         <div class="panel"><div class="ph"><h3>Trend Trip per Hari</h3><span class="tag">Total / Customer / Store / Hub / Other</span></div><div class="pb"><div style="height:250px;position:relative"><canvas id="dTripDaily"></canvas></div></div></div>
       </div>
-    </div>
-    <div class="panel" style="margin-bottom:14px"><div class="ph"><h3>Trip Dalam Kota &amp; Luar Kota</h3><span class="tag">rata-rata trip / hari &middot; DK per tipe kiriman &amp; type armada &middot; LK per type armada</span></div>
-      <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">SEMUA SITE</th></tr></thead>
-      <tbody>${tripSaMetrics.map(m=>m.section?`<tr class="sec"><td colspan="${results.length+2}">${m.section}</td></tr>`:`<tr${m.sub?' class="subr"':m.grp?' class="grpr"':''}><td>${m.sub?m.label:'<strong>'+m.label+'</strong>'}</td>${results.map(r=>`<td class="num">${m.fmt(r[m.key])}</td>`).join('')}<td class="num"><strong>${m.fmt(summary[m.key])}</strong></td></tr>`).join('')}
-      </tbody></table></div>
-      <div style="font-size:11px;color:#888;padding:6px 16px 8px">LK tanpa jalur (#N/A/kosong) dihitung DK &nbsp;|&nbsp; type armada dinormalisasi (PICK UP = PICKUP, CDE Tamora = CDELC) &nbsp;|&nbsp; semua angka = trip &divide; jumlah hari periode; &lt;1 = kurang dari 1 trip/hari (angka kecil = total trip periode)</div>
     </div>
     <div class="g2">
       <div class="panel"><div class="ph"><h3>TAT Direct vs Store</h3><span class="tag">jam rata-rata</span></div><div class="pb"><div style="height:200px;position:relative"><canvas id="dTAT"></canvas></div></div></div>
