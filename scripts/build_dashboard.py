@@ -22,6 +22,8 @@ SPREADSHEET_ID = "1wumoDA8SrXmaEXRkI_2lNlvof9JVtsXceeE2qhLtb7A"
 MASTER_ASSET_SPREADSHEET_ID = "1R30vW1JD94RPjVhmGeyvu2uOmR9xomAfd8SfczzN7qA"
 MASTER_ASSET_TAB = "Data Verifikasi dan Tagihan"
 GOOGLE_SHEETS_EPOCH = datetime.date(1899, 12, 30)
+# { "YYYY-MM": { alokasi_site: { nopol: [from_iso|None, to_iso|None] } } } — filled by fetch_master_asset()
+MASTER_ASSET_WINDOWS = {}
 
 # NOPOL-level PIC-tracked utilization pilot ("NOPOL_PAIRED_LC"), one tab per site.
 # Add a new { key, tab } pair here when a new site's pilot tab is created.
@@ -808,6 +810,96 @@ def aggregate_monthly(all_rows, timestamp):
     return {'timestamp': timestamp, 'monthly': result}
 
 
+# ── Master Asset: in-month effective date window from "Keterangan" ──────────────
+# A roster row covers a whole month, but Keterangan often records a mid-month move
+# ("Dikirim ke Jababeka Tgl 24/10/2026", "Sewa tgl 01 Okt 2026", "Stop Sewa pertanggal
+# 12 oktober 2026"). parse_asset_window() turns that into (from, to) so the dashboard can
+# count assets per DATE. Only dates inside the row's own month apply; unrecognized text
+# = active the whole month (safe default).
+import calendar
+MONTHS_ID = {
+    'jan':1,'januari':1,'january':1,
+    'feb':2,'februari':2,'february':2,'peb':2,
+    'mar':3,'maret':3,'march':3,
+    'apr':4,'april':4,
+    'mei':5,'may':5,
+    'jun':6,'juni':6,'june':6,
+    'jul':7,'juli':7,'july':7,
+    'agu':8,'agt':8,'ags':8,'agus':8,'agustus':8,'aug':8,'august':8,
+    'sep':9,'sept':9,'september':9,
+    'okt':10,'oktober':10,'oct':10,'october':10,
+    'nov':11,'november':11,'nop':11,'nopember':11,
+    'des':12,'desember':12,'dec':12,'december':12,
+}
+_MON_ALT = '|'.join(sorted(MONTHS_ID, key=len, reverse=True))
+DATE_RE = re.compile(
+    r'(?P<d1>\d{1,2})\s*[/\-.]\s*(?P<m1>\d{1,2})\s*[/\-.]\s*(?P<y1>\d{2,4})'
+    r'|(?P<d2>\d{1,2})\s+(?P<m2>' + _MON_ALT + r')\.?(?:\s+(?P<y2>\d{4}))?(?![a-z])',
+    re.I)
+EXIT_RE  = re.compile(r'dikirim\s+ke|stop\s+sewa|mutasi\s+ke|di\s*tarik|tidak\s+di\s*pakai|off\s*hire|di\s*kembalikan|dikembalikan', re.I)
+ENTRY_RE = re.compile(r'sewa|aktif|mutasi\s+dari|pindah', re.I)
+GENERIC_PLACE = {'HUB','NDC','RDC','SDC','WH','SITE','BU','ALOKASI','SEMENTARA'}
+BU_CODES = ('HCI', 'AHI', 'FBI', 'KLS', 'TGI')
+
+
+def _dates(text, year):
+    out = []
+    for m in DATE_RE.finditer(text):
+        try:
+            if m.group('d1'):
+                y = int(m.group('y1')); y = y + 2000 if y < 100 else y
+                out.append((m.start(), datetime.date(y, int(m.group('m1')), int(m.group('d1')))))
+            else:
+                y = int(m.group('y2')) if m.group('y2') else year
+                out.append((m.start(), datetime.date(y, MONTHS_ID[m.group('m2').lower()], int(m.group('d2')))))
+        except ValueError:
+            pass
+    return out
+
+
+def parse_asset_window(keterangan, year, month, alokasi_site=''):
+    txt = (keterangan or '').strip()
+    if not txt:
+        return None, None
+    first = datetime.date(year, month, 1)
+    last = datetime.date(year, month, calendar.monthrange(year, month)[1])
+    dates = [(p, d) for p, d in _dates(txt, year) if first <= d <= last]
+    if not dates:
+        return None, None
+    f = t = None
+    for pos, d in dates:
+        before = txt[:pos]
+        ex = list(EXIT_RE.finditer(before))
+        ex_spans = [(m.start(), m.end()) for m in ex]
+        en = [m for m in ENTRY_RE.finditer(before)
+              if not any(a <= m.start() < b for a, b in ex_spans)]  # "sewa" inside "stop sewa"
+        last_ex = ex[-1].start() if ex else -1
+        last_en = en[-1].start() if en else -1
+        if last_ex < 0 and last_en < 0:
+            continue
+        is_exit = last_ex > last_en
+        if is_exit:
+            # destination named after the exit phrase ("ke <X>") is this row's own site/BU →
+            # the unit is ARRIVING here (e.g. "mutasi ke Hub Balikpapan" on the Balikpapan row)
+            seg = txt[ex[-1].start():].upper()
+            site_words = set(re.findall(r'[A-Z]+', (alokasi_site or '').upper())) - GENERIC_PLACE
+            dests = []
+            for mm in re.finditer(r'\bKE\s+((?:[A-Z]+\s+){0,2}[A-Z]+)', seg):
+                words = [w for w in mm.group(1).split() if w not in GENERIC_PLACE]
+                if words: dests.append(words[0])
+            if any(d in site_words for d in dests):
+                is_exit = False
+        if is_exit:
+            nd = d - datetime.timedelta(days=1)
+            if nd >= first:
+                t = nd if t is None else min(t, nd)
+            else:
+                t = first - datetime.timedelta(days=1)  # exited on day 1 → never active this month
+        else:
+            f = d if f is None else max(f, d)
+    return (f.isoformat() if f and f > first else None), (t.isoformat() if t and t < last else None)
+
+
 def fetch_master_asset(service):
     """Fetch Master Asset roster from the new spreadsheet: a single long roster table
     (one row per nopol per month, 'Bulan' column marks the month) instead of the old
@@ -838,6 +930,7 @@ def fetch_master_asset(service):
     i_nopol   = col('NOPOL')
     i_alokasi = col('ALOKASI SITE')
     i_typearm = col('TYPE ARMADA')
+    i_ket     = col('KETERANGAN')
     if -1 in (i_bulan, i_nopol, i_alokasi, i_typearm):
         print(f"  ✗ Master Asset: missing BULAN/NOPOL/ALOKASI SITE/TYPE ARMADA column (found: {headers})")
         return {}
@@ -863,6 +956,13 @@ def fetch_master_asset(service):
         if 'TAMORA' in site_key.upper() and typ == 'CDE':
             typ = 'CDELC'
         by_month[month_key][site_key][typ].append(nopol)
+        if i_ket >= 0 and i_ket < len(r):
+            try:
+                wf, wt = parse_asset_window(str(r[i_ket] or ''), d.year, d.month, site_key)
+            except Exception:
+                wf = wt = None
+            if wf or wt:
+                MASTER_ASSET_WINDOWS.setdefault(month_key, {}).setdefault(site_key, {})[nopol] = [wf, wt]
 
     months_out = {m: {s: dict(t) for s, t in st.items()} for m, st in by_month.items()}
     for month_key, sites in sorted(months_out.items()):
@@ -870,6 +970,8 @@ def fetch_master_asset(service):
         print(f"  ✓ Master Asset {month_key}: {total_nopol} nopol, {len(sites)} site")
     if skipped_bad_date:
         print(f"  (skipped {skipped_bad_date} rows with unparseable Bulan value)")
+    n_win = sum(len(v) for st in MASTER_ASSET_WINDOWS.values() for v in st.values())
+    print(f"  ✓ Master Asset date windows (dari Keterangan): {n_win} nopol-bulan")
     return months_out
 
 
@@ -978,7 +1080,7 @@ def build():
     out_path      = os.path.join(base, '..', 'dashboard_ndc_rdc.html')
 
     with open(master_asset_path, 'w', encoding='utf-8') as f:
-        json.dump({"timestamp": timestamp, "months": master_asset}, f, ensure_ascii=False, separators=(',',':'))
+        json.dump({"timestamp": timestamp, "months": master_asset, "windows": MASTER_ASSET_WINDOWS}, f, ensure_ascii=False, separators=(',',':'))
     print(f"data_master_asset.json: {os.path.getsize(master_asset_path)/1024:.1f} KB, {len(master_asset)} bulan")
 
     for site_key, site_data in pilot_data.items():
