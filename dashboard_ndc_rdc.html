@@ -434,6 +434,7 @@ function exportCostJalurCSV() {
 let ROWS = [];
 let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
 let MASTER_ASSET = {}; // { 'YYYY-MM': { site: { type: [nopol,...] } } } from data_master_asset.json
+let MASTER_ASSET_WINDOWS = {}; // { 'YYYY-MM': { site: { nopol: [fromISO|null, toISO|null] } } } — in-month effective dates parsed from Master Asset 'Keterangan' (e.g. 'Dikirim ke Jababeka Tgl 24/10/2026')
 let PILOT_DATA = { JABABEKA: null, CIKUPA: null }; // per-site NOPOL-level pilot status (data_<site>_nopol_status.json). Add a new key here + a fetch in Step 3c when a new site's pilot sheet arrives.
 let currentNav  = 'overview';
 let currentSite = 'ALL';
@@ -584,8 +585,8 @@ async function loadData() {
     // Step 3b: Load Master Asset roster (per-month fleet count for accurate Util Armada)
     try {
       const maRes = await fetch('data_master_asset.json?t=' + Date.now());
-      if(maRes.ok) { const maJson = await maRes.json(); MASTER_ASSET = maJson.months || {}; }
-    } catch(e3b) { MASTER_ASSET = {}; }
+      if(maRes.ok) { const maJson = await maRes.json(); MASTER_ASSET = maJson.months || {}; MASTER_ASSET_WINDOWS = maJson.windows || {}; }
+    } catch(e3b) { MASTER_ASSET = {}; MASTER_ASSET_WINDOWS = {}; }
 
     // Step 3b-2: LK transit (lead time) → arm_util sheet Utilisasi, berlaku di Slide/Detail/Trend
     try { applyLKTransitToUtil(); } catch(eLK) { console.warn('applyLKTransitToUtil', eLK); }
@@ -2729,28 +2730,77 @@ function getMasterSiteKey(site, owner) {
   if (o === 'NKA' || o === 'TGI') o = 'AHI';
   return m[o] || null;
 }
-// Roster per normalized armada type from Master Asset's latest available month for a
-// given base site, optionally restricted to a BU/owner subset. Excludes PASSENGER
-// (staff/manager cars that sit in the roster but were never meant to carry deliveries).
-// Returns {} if Master Asset has no data at all for this site (caller should fall back).
-function buildMasterAssetRosterByType(baseSite, ownerFilter) {
+// Is this nopol actually in the site's fleet on `date`? The Master Asset roster is
+// monthly, but 'Keterangan' often records a mid-month move (dikirim ke site lain / stop
+// sewa / mulai sewa). The build script parses those into MASTER_ASSET_WINDOWS; a nopol
+// with no window is in the fleet the whole month. Comparing the date against the window
+// directly also works for carry-forward months (e.g. Nov forward-filled from Oct: a unit
+// that left on 24 Okt stays out, a unit that started 12 Okt stays in).
+function masterNopolInFleet(monthKey, siteKey, nopol, date) {
+  var mw = MASTER_ASSET_WINDOWS[monthKey];
+  var w = mw && mw[siteKey] && mw[siteKey][nopol];
+  if (!w || !date) return true;
+  if (w[0] && date < w[0]) return false;
+  if (w[1] && date > w[1]) return false;
+  return true;
+}
+function filterMasterListByDate(list, monthKey, siteKey, date) {
+  if (!list || !MASTER_ASSET_WINDOWS[monthKey] || !MASTER_ASSET_WINDOWS[monthKey][siteKey]) return list;
+  return list.filter(function(np){ return masterNopolInFleet(monthKey, siteKey, np, date); });
+}
+// Roster per normalized armada type from Master Asset for the selected periode
+// [periodStart, periodEnd] (date picker) for a given base site, optionally restricted to a
+// BU/owner subset. A nopol is included if it's in the fleet on at least one day of the
+// periode. Returns { roster: {type: Set}, inFleet: fn(nopol, date) -> bool }.
+// Excludes PASSENGER (staff/manager cars that sit in the roster but were never meant to
+// carry deliveries). roster is {} if Master Asset has no data for this site (caller falls back).
+function buildMasterAssetRosterByType(baseSite, ownerFilter, periodStart, periodEnd) {
   var roster = {};
+  var siteKeysOf = {}; // nopol -> [{monthKey, siteKey}] (for inFleet lookups)
   var siteMap = MASTER_SITE_KEY_MAP[baseSite];
-  if (!siteMap) return roster;
-  var monthKey = resolveMasterAssetMonth(localISO(new Date()).slice(0,7));
-  if (!monthKey) return roster;
-  var monthData = MASTER_ASSET[monthKey];
-  Object.keys(siteMap).forEach(function(bu) {
-    if (ownerFilter && ownerFilter.indexOf(bu) === -1) return;
-    var sd = monthData[siteMap[bu]];
-    if (!sd) return;
-    Object.keys(sd).forEach(function(typ) {
-      if (typ === 'PASSENGER') return;
-      if (!roster[typ]) roster[typ] = new Set();
-      sd[typ].forEach(function(np){ roster[typ].add(np); });
+  var todayIso = localISO(new Date());
+  periodStart = periodStart || todayIso; periodEnd = periodEnd || periodStart;
+  function inFleet(np, date) {
+    var mk = resolveMasterAssetMonth(date.slice(0,7));
+    var refs = siteKeysOf[np];
+    if (!refs || !mk) return false;
+    for (var i = 0; i < refs.length; i++) {
+      if (refs[i].monthKey === mk && masterNopolInFleet(mk, refs[i].siteKey, np, date)) return true;
+    }
+    return false;
+  }
+  if (!siteMap) return { roster: roster, inFleet: inFleet };
+  // every distinct resolved month touched by the periode
+  var monthSpans = {}; // monthKey -> [firstDateInPeriode, lastDateInPeriode]
+  var cur = new Date(periodStart+'T00:00:00'), endD = new Date(periodEnd+'T00:00:00');
+  var guard = 0;
+  while (cur <= endD && guard++ < 800) {
+    var iso = localISO(cur), mk = resolveMasterAssetMonth(iso.slice(0,7));
+    if (mk) { if (!monthSpans[mk]) monthSpans[mk] = [iso, iso]; else monthSpans[mk][1] = iso; }
+    cur.setDate(cur.getDate()+1);
+  }
+  Object.keys(monthSpans).forEach(function(mk) {
+    var monthData = MASTER_ASSET[mk];
+    var a = monthSpans[mk][0], b = monthSpans[mk][1];
+    Object.keys(siteMap).forEach(function(bu) {
+      if (ownerFilter && ownerFilter.indexOf(bu) === -1) return;
+      var sk = siteMap[bu];
+      var sd = monthData[sk];
+      if (!sd) return;
+      Object.keys(sd).forEach(function(typ) {
+        if (typ === 'PASSENGER') return;
+        sd[typ].forEach(function(np){
+          var mw = MASTER_ASSET_WINDOWS[mk], w = mw && mw[sk] && mw[sk][np];
+          if (w && ((w[0] && w[0] > b) || (w[1] && w[1] < a))) return; // not in fleet any day of the periode
+          if (!roster[typ]) roster[typ] = new Set();
+          roster[typ].add(np);
+          if (!siteKeysOf[np]) siteKeysOf[np] = [];
+          siteKeysOf[np].push({ monthKey: mk, siteKey: sk });
+        });
+      });
     });
   });
-  return roster;
+  return { roster: roster, inFleet: inFleet };
 }
 function getMasterAssetTotalCount(date, site, owner) {
   var monthKey = resolveMasterAssetMonth(date.slice(0, 7));
@@ -2761,7 +2811,7 @@ function getMasterAssetTotalCount(date, site, owner) {
   var siteData = monthData[siteKey];
   if (!siteData) return 0;
   var total = 0;
-  Object.keys(siteData).forEach(function(typ) { total += siteData[typ].length; });
+  Object.keys(siteData).forEach(function(typ) { total += filterMasterListByDate(siteData[typ], monthKey, siteKey, date).length; });
   return total;
 }
 // Resolves a 'YYYY-MM' key to the best available Master Asset month: exact match if it
@@ -2795,7 +2845,7 @@ function getMasterAssetNopol(date, site, owner, type) {
   if (!siteKey) return null;
   var siteData = monthData[siteKey];
   if (!siteData) return null;
-  return siteData[type] || [];
+  return filterMasterListByDate(siteData[type] || [], monthKey, siteKey, date);
 }
 
 // Returns array of nopol across ALL BUs at a site (or null if no master data at all) —
@@ -2813,7 +2863,7 @@ function getMasterAssetNopolSiteWide(date, site, type) {
   Object.keys(siteMap).forEach(function(bu) {
     var sk = siteMap[bu];
     var sd = monthData[sk];
-    if (sd && sd[type]) { found = true; combined = combined.concat(sd[type]); }
+    if (sd && sd[type]) { found = true; combined = combined.concat(filterMasterListByDate(sd[type], monthKey, sk, date)); }
   });
   return found ? combined : null;
 }
@@ -3153,7 +3203,10 @@ function buildPilotHeatmapHtml(siteKey) {
 const GENERIC_KNOWN_NA = {
   'BK8022LM': 'Downtime/MR (armada pengganti: BK8112LM)',
 };
-function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart, periodEnd) {
+function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart, periodEnd, inFleet) {
+  // inFleet(nopol, date): from Master Asset + Keterangan date windows (e.g. a unit "Dikirim ke
+  // Jababeka Tgl 24/10" is out of this site's fleet from 24 Okt). Fallback roster = always in.
+  if (typeof inFleet !== 'function') inFleet = function(){ return true; };
   if (!typeNames.length) {
     return '<div class="panel"><div class="ph"><h3>Trend Utilisasi Armada per Type</h3></div>'
       + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Belum ada data armada untuk site/filter ini.</p></div>';
@@ -3189,15 +3242,21 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
   function dowLabel(iso) { return DOW_ID2[new Date(iso+'T00:00:00').getDay()]; }
   function isExcludedDate(iso) { return (new Date(iso+'T00:00:00').getDay() === 0) || HOLIDAYS_2026.has(iso); }
   var excludedIdx = dates.map(isExcludedDate);
+  // Unit count shown on pills/card = fleet AS OF the last date of the periode (date picker),
+  // so a unit that left mid-periode no longer inflates the count; it still gets a heatmap
+  // row (its days before leaving are real asset-days).
+  var asOfDate = dates.length ? dates[dates.length-1] : periodEnd;
+  function countAsOf(set) { var n = 0; set.forEach(function(np){ if (inFleet(np, asOfDate)) n++; }); return n; }
+  var allNopolAsOf = countAsOf(allNopolSet);
 
   function pillBtn(label, active, onclick) {
     return '<button onclick="'+onclick+'" style="padding:4px 10px;font-size:10.5px;font-weight:600;border-radius:14px;border:1px solid '+(active?'#7e22ce':'var(--border)')+';background:'+(active?'#7e22ce':'transparent')+';color:'+(active?'#fff':'var(--t2)')+';cursor:pointer;margin-right:5px;margin-bottom:4px">'+label+'</button>';
   }
   var typeBar = '<div style="display:flex;flex-wrap:wrap;gap:0;align-items:center;padding:10px 16px;border-top:1px solid var(--border)">'
     + '<span style="font-size:11px;color:var(--t3);margin-right:8px">Type Armada:</span>'
-    + pillBtn('Semua ('+allNopolSet.size+')', selType==='ALL', "setGenericUtilType('ALL')");
+    + pillBtn('Semua ('+allNopolAsOf+')', selType==='ALL', "setGenericUtilType('ALL')");
   typeNames.forEach(function(t) {
-    typeBar += pillBtn(t + ' ('+assetsByType[t].size+')', t===selType, "setGenericUtilType('"+t+"')");
+    typeBar += pillBtn(t + ' ('+countAsOf(assetsByType[t])+')', t===selType, "setGenericUtilType('"+t+"')");
   });
   typeBar += '</div>';
 
@@ -3247,6 +3306,9 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
         return '<td style="padding:0;text-align:center"><div title="Minggu/libur \u2014 di-exclude dari perhitungan" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:var(--bg);border:1px dashed var(--border)"></div></td>';
       }
       var isUtil = active[nopol] && active[nopol].has(d);
+      if (!isUtil && nopolTypeLabel[nopol] && !inFleet(nopol, d)) {
+        return '<td style="padding:0;text-align:center"><div title="Bukan armada site ini di tanggal ini (Master Asset: mutasi/stop sewa/belum mulai sewa) \u2014 di-exclude dari UTL%" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:repeating-linear-gradient(45deg,#f1f5f9 0 3px,#cbd5e1 3px 5px)"></div></td>';
+      }
       if (isUtil) {
         var title = 'Ada trip (' + (nopolTypeLabel[nopol] || selTypeLabel) + ')';
         return '<td style="padding:0;text-align:center"><div title="'+title+'" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:#22c55e"></div></td>';
@@ -3271,8 +3333,10 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
     var knownReason = GENERIC_KNOWN_NA[nopol];
     dates.forEach(function(d, idx) {
       if (excludedIdx[idx]) return;
+      var hasTrip = active[nopol] && active[nopol].has(d);
+      if (!hasTrip && nopolTypeLabel[nopol] && !inFleet(nopol, d)) return; // not this site's asset that day
       totalCells++;
-      if (active[nopol] && active[nopol].has(d)) util++;
+      if (hasTrip) util++;
       else if (knownReason) na++;
       else idle++;
     });
@@ -3280,11 +3344,21 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
   var denom = util + idle;
   var utlPct = denom > 0 ? (100*util/denom) : null;
 
+  var penggantiCount = rosterNopols.filter(function(np){ return !nopolTypeLabel[np]; }).length;
+  var selSet = selType === 'ALL' ? allNopolSet : (assetsByType[selType] || new Set());
+  var outT = 0, inT = 0;
+  selSet.forEach(function(np){ if (!inFleet(np, asOfDate)) outT++; else if (dates.length && !inFleet(np, dates[0])) inT++; });
+  var armadaAsOf = countAsOf(selSet) + penggantiCount;
+  var armadaSubParts = ['per ' + asOfDate.slice(8,10) + '/' + asOfDate.slice(5,7)];
+  if (outT) armadaSubParts.push(outT + ' unit keluar dlm periode');
+  if (inT) armadaSubParts.push(inT + ' unit masuk dlm periode');
+  if (penggantiCount) armadaSubParts.push('incl. ' + penggantiCount + ' non-roster');
+  var armadaSub = '<div style="font-size:10.5px;color:var(--t3);margin-top:2px">' + armadaSubParts.join(' &middot; ') + '</div>';
   var summaryHtml = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,220px));gap:14px;padding:14px 16px;justify-content:start">'
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">UTL Armada ('+selTypeLabel+')</div><div style="font-size:24px;font-weight:700;color:'+(utlPct!=null && utlPct<85?'#dc2626':'#0f9d58')+'">'+(utlPct!=null?utlPct.toFixed(1)+'%':'—')+'</div></div>'
     + (na>0 ? '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Not Available (known reason)</div><div style="font-size:24px;font-weight:700;color:#dc2626">'+na+'</div></div>' : '')
     + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Unutilized (total hari-armada idle)</div><div style="font-size:24px;font-weight:700;color:#d97706">'+idle+'</div></div>'
-    + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Armada</div><div style="font-size:24px;font-weight:700">'+rosterNopols.length+' unit</div></div>'
+    + '<div style="background:var(--bg);border-radius:10px;padding:14px 16px"><div style="font-size:11px;color:var(--t3)">Armada</div><div style="font-size:24px;font-weight:700">'+armadaAsOf+' unit</div>'+armadaSub+'</div>'
     + '</div>';
 
   var naHtml = '';
@@ -3334,7 +3408,7 @@ function buildGenericUtilHeatmapHtml(rows, assetsByType, typeNames, periodStart,
     + '<span class="tag">'+dates[0]+' s/d '+dates[dates.length-1]+(capped?' (dibatasi 45 hari terakhir)':'')+(noDataAfter?' \u2014 data trip terbaru sampai '+latestDataDate:'')+'</span></div>'
     + typeBar
     + summaryHtml
-    + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail &middot; kotak abu = Unutilized (idle, ga ada trip) &middot; kotak merah = Not Available (alasan diketahui) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%)</div>'
+    + '<div style="padding:6px 16px 6px;font-size:11px;color:var(--t3)">Hover kotak buat lihat detail &middot; kotak abu = Unutilized (idle, ga ada trip) &middot; kotak merah = Not Available (alasan diketahui) &middot; kotak putih putus-putus = Minggu/libur (excluded dari UTL%) &middot; kotak arsir = bukan armada site ini di tanggal tsb (mutasi/stop sewa/belum mulai sewa, dari Keterangan Master Asset) &mdash; excluded dari UTL%</div>'
     + '<div style="overflow-x:auto;overflow-y:auto;max-height:520px;padding:4px 16px 16px"><table style="border-collapse:collapse"><thead><tr><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 12px;position:sticky;top:0;left:0;z-index:3;background:var(--white)">NOPOL</th><th style="text-align:left;font-size:11px;color:var(--t3);padding:4px 10px;position:sticky;top:0;z-index:2;background:var(--white);border-right:1px solid var(--border)">Type</th>'+dateHeaders+'</tr></thead><tbody>'+heatRows+'</tbody></table></div>'
     + '<div style="display:flex;gap:18px;padding:4px 16px 16px;font-size:12px;color:var(--t3);border-top:1px solid var(--border);flex-wrap:wrap">'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#22c55e;vertical-align:-1px;margin-right:6px"></span>Utilized</span>'
@@ -3393,14 +3467,15 @@ function buildArmadaTypeTrend(container) {
   // meant to carry deliveries).
   var heatmapBaseSite = SUB_SITES[currentSite] ? SUB_SITES[currentSite].baseSite : currentSite;
   var heatmapOwnerFilter = SUB_SITES[currentSite] ? SUB_SITES[currentSite].owners : null;
-  var masterRosterByType = buildMasterAssetRosterByType(heatmapBaseSite, heatmapOwnerFilter);
+  var masterRosterRes = buildMasterAssetRosterByType(heatmapBaseSite, heatmapOwnerFilter, s, e);
+  var masterRosterByType = masterRosterRes.roster;
   var masterAvailableTypes = Object.keys(masterRosterByType).sort(function(a,b){ return masterRosterByType[b].size - masterRosterByType[a].size; });
 
   // Heatmap builder for non-pilot sites runs on the PRE type-filter rows/roster so its
   // own type pills work independently of the "Type Armada" filter below (same design
   // as the Jababeka pilot heatmap, which also has its own independent type selector).
   var heatmapHtml = jabaMode ? jabaHtml
-    : (masterAvailableTypes.length ? buildGenericUtilHeatmapHtml(rows, masterRosterByType, masterAvailableTypes, s, e)
+    : (masterAvailableTypes.length ? buildGenericUtilHeatmapHtml(rows, masterRosterByType, masterAvailableTypes, s, e, masterRosterRes.inFleet)
                                     : buildGenericUtilHeatmapHtml(rows, typeAssetPre, availableTypes, s, e)); // fallback if Master Asset has no data for this site at all
 
   if (filterType !== 'ALL') {
