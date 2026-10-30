@@ -1109,8 +1109,15 @@ function render() {
 function renderOverview(results, summary, start, end) {
   const best  = results.reduce((a,b)=>(b.olf||0)>(a.olf||0)?b:a, results[0]||{});
   const worst = results.reduce((a,b)=>(b.olf??Infinity)<(a.olf??Infinity)?b:a, results[0]||{});
+  // Utilisasi Armada — sumber & rumus sama dgn Detail Metrik (filterUtilRows + computeUtil)
+  var uSiteKey = currentSite === 'ALL' ? 'NDC_RDC' : currentSite;
+  var uResOv = UTIL_SUBSITE_MAP.hasOwnProperty(uSiteKey) ? filterUtilRows(start, end, uSiteKey) : {rows:[]};
+  var uCalcOv = uResOv.rows && uResOv.rows.length ? computeUtil(uResOv.rows, uResOv.allRows, uSiteKey, uResOv.rawRows) : null;
+  var armUtlOv = uCalcOv ? uCalcOv.armUtilPct : null;
+  var armUtlCls = armUtlOv==null ? '' : armUtlOv>=95 ? 'green' : armUtlOv>=85 ? '' : 'red';
   const kpis = [
     {l:'RITASE',v:pf(summary.ritase),s:'Avg NDC & RDC',c:''},
+    {l:'UTILISASI ARMADA',v:armUtlOv!=null?armUtlOv.toFixed(1)+'%':'—',s:uCalcOv&&uCalcOv.armAvailPct!=null?'Avail '+uCalcOv.armAvailPct.toFixed(1)+'%':'Util ÷ Avail',c:armUtlCls},
     {l:'OLF STORE',v:pp(summary.olf),s:'Avg NDC & RDC',c:'green'},
     {l:'OLF TERBAIK',v:pp(best.olf),s:best.label||'—',c:'green'},
     {l:'OLF RENDAH',v:pp(worst.olf),s:worst.label||'—',c:'red'},
