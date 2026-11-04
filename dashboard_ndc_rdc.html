@@ -1115,9 +1115,12 @@ function renderOverview(results, summary, start, end) {
   var uCalcOv = uResOv.rows && uResOv.rows.length ? computeUtil(uResOv.rows, uResOv.allRows, uSiteKey, uResOv.rawRows) : null;
   var armUtlOv = uCalcOv ? uCalcOv.armUtilPct : null;
   var armUtlCls = armUtlOv==null ? '' : armUtlOv>=95 ? 'green' : armUtlOv>=85 ? '' : 'red';
+  var armAvbOv = uCalcOv ? uCalcOv.armAvailPct : null;
+  var armAvbCls = armAvbOv==null ? '' : armAvbOv>=97 ? 'green' : 'red';
   const kpis = [
     {l:'RITASE',v:pf(summary.ritase),s:'Avg NDC & RDC',c:''},
-    {l:'UTILISASI ARMADA',v:armUtlOv!=null?armUtlOv.toFixed(1)+'%':'—',s:uCalcOv&&uCalcOv.armAvailPct!=null?'Avail '+uCalcOv.armAvailPct.toFixed(1)+'%':'Util ÷ Avail',c:armUtlCls},
+    {l:'AVAILABILITY ARMADA',v:armAvbOv!=null?armAvbOv.toFixed(1)+'%':'—',s:'Avg, target 97%',c:armAvbCls},
+    {l:'UTILISASI ARMADA',v:armUtlOv!=null?armUtlOv.toFixed(1)+'%':'—',s:'Util ÷ Avail',c:armUtlCls},
     {l:'OLF STORE',v:pp(summary.olf),s:'Avg NDC & RDC',c:'green'},
     {l:'OLF TERBAIK',v:pp(best.olf),s:best.label||'—',c:'green'},
     {l:'OLF RENDAH',v:pp(worst.olf),s:worst.label||'—',c:'red'},
