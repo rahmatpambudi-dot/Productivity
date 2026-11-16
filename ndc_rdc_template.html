@@ -798,6 +798,7 @@ function computeSite(rows, site) {
   const ritTotalLC     = new Set(ritRows.map(r=>r.lc).filter(Boolean)).size;
   const ritTotalNopol  = Object.values(byDate).reduce(function(s,v){return s+v.nopols.size;},0);
   const ritaseVal      = ritTotalNopol > 0 ? ritTotalLC / ritTotalNopol : null;
+  if (window._rtCap) Array.prototype.push.apply(window._rtCap, ritRows); // dipakai panel Ritase per Type Armada
 
   // srMain: corporate Jababeka include semua BU; BU filter uses sr directly
   const srMain = isBU ? sr : (isJAB && !isSub && !isKLS) ? sr : (isJAB && isKLS) ? sr.filter(r => r.sheet === 'KLS JABABEKA') : sr;
@@ -1100,7 +1101,7 @@ function render() {
   charts = {};
   if(currentNav === 'overview') renderOverview(results, summary, start, end);
   else if(currentNav === 'slide') renderSlide(results, summary, start, end);
-  else renderDetail(results, summary, start, end);
+  else { renderDetail(results, summary, start, end); renderRitTypePanel(start, end); }
 }
 </script>
 
@@ -6627,6 +6628,113 @@ function openPresentation() {
 }
 
 
+
+// ── RITASE PER TYPE ARMADA (Site × Own BU × Type) — panel bawah Detail Metrik ──
+// Ritase = LC unik ÷ nopol-hari aktif (total-to-total), rule sama dgn computeSite():
+// exclude Minggu, HOLIDAYS_2026, td=satelite, Cikupa MIN VAN OPS.
+// Own BU per baris: Jababeka ikut Master Asset per bulan (getNopolBU), site lain owner di data trip (NKA/TGI → AHI).
+// Type armada = ta dominan per nopol dalam periode (ta per baris noisy).
+function _rtScope() {
+  var s = currentSite || 'ALL', sub = SUB_SITES[s], bu = null, sites;
+  if (sub) { sites = [sub.baseSite]; bu = sub.owners[0]; }
+  else if (s.indexOf('BU_') === 0) { sites = SITES.slice(); bu = s.slice(3); }
+  else if (s === 'ALL' || s === 'NDC_RDC') sites = SITES.slice();
+  else if (s === 'NDC') sites = SITES_NDC.slice();
+  else if (s === 'RDC') sites = SITES_RDC.slice();
+  else sites = [s];
+  if (!bu && currentBU && currentBU !== '_all') bu = currentBU;
+  var lbl = (sub ? (SL[sub.baseSite] || sub.baseSite) : (s.indexOf('BU_') === 0 ? 'Semua Site' : (SL[s] || (s === 'ALL' ? 'Semua Site' : s)))) + (bu ? ' · ' + bu : ' · Semua BU');
+  return { sites: sites, bu: bu, label: lbl };
+}
+function _rtOwnBU(r) {
+  if (r.site === 'JABABEKA') { var b = getNopolBU(r.nopol, r.date); if (b) return b; }
+  var o = (r.owner || '').toUpperCase();
+  return (o === 'NKA' || o === 'TGI') ? 'AHI' : (o || '—');
+}
+function computeRitType(rows, forcedBU) {
+  var rr = rows.filter(function (r) {
+    if (!r.date || !r.nopol || !r.lc) return false;
+    if (HOLIDAYS_2026.has(r.date)) return false;
+    if (new Date(r.date + 'T00:00:00').getDay() === 0) return false;
+    if (r.td === 'satelite') return false;
+    if (r.site === 'CIKUPA' && (r.ja || '').toUpperCase() === 'MIN VAN OPS') return false;
+    return true;
+  });
+  var taCnt = {};
+  rr.forEach(function (r) { var k = r.site + '|' + r.nopol; (taCnt[k] = taCnt[k] || {})[r.ta || '#N/A'] = (taCnt[k][r.ta || '#N/A'] || 0) + 1; });
+  var domTa = {};
+  Object.keys(taCnt).forEach(function (k) { var b = null, n = -1; for (var t in taCnt[k]) if (taCnt[k][t] > n) { n = taCnt[k][t]; b = t; } domTa[k] = (b === '#N/A' || !b) ? 'Lainnya' : b; });
+  // Site non-JAB: owner per baris = owner shipment, jadi BU armada = owner dominan per nopol di periode
+  // (supaya 1 nopol-hari cuma masuk 1 grup & total grup = KPI Ritase site)
+  var buCnt = {};
+  rr.forEach(function (r) { if (r.site === 'JABABEKA') return; var k = r.site + '|' + r.nopol, o = _rtOwnBU(r); (buCnt[k] = buCnt[k] || {})[o] = (buCnt[k][o] || 0) + 1; });
+  var domBU = {};
+  Object.keys(buCnt).forEach(function (k) { var b = null, n = -1; for (var t in buCnt[k]) if (buCnt[k][t] > n) { n = buCnt[k][t]; b = t; } domBU[k] = b; });
+  var g = {};
+  rr.forEach(function (r) {
+    var type = domTa[r.site + '|' + r.nopol], bu = forcedBU || (r.site === 'JABABEKA' ? _rtOwnBU(r) : domBU[r.site + '|' + r.nopol]), key = r.site + '|' + bu + '|' + type, m = r.date.slice(0, 7);
+    var a = g[key] || (g[key] = { site: r.site, bu: bu, type: type, lc: new Set(), nd: new Set(), nopol: new Set(), mon: {} });
+    a.lc.add(r.lc); a.nd.add(r.nopol + '|' + r.date); a.nopol.add(r.nopol);
+    var mm = a.mon[m] || (a.mon[m] = { lc: new Set(), nd: new Set() }); mm.lc.add(r.lc); mm.nd.add(r.nopol + '|' + r.date);
+  });
+  return Object.values(g).map(function (a) {
+    var mon = {}; for (var m in a.mon) mon[m] = { lc: a.mon[m].lc.size, nd: a.mon[m].nd.size };
+    return { site: a.site, bu: a.bu, type: a.type, nopol: a.nopol.size, lc: a.lc.size, nd: a.nd.size, rit: a.lc.size / a.nd.size, tgt: getTarget('ritase', a.site), mon: mon };
+  });
+}
+function renderRitTypePanel(start, end) {
+  var host = document.getElementById('content'); if (!host) return;
+  var old = document.getElementById('ritTypePanel'); if (old) old.remove();
+  // Scope ikut sidebar: Site (termasuk sub-BU spt JAB_HCI) + Filter BU global.
+  // BU di-filter by Own BU armada (bukan owner shipment), jadi baris diambil per site dulu tanpa filter owner.
+  // Baris diambil persis dari ritRows computeSite() (sumber KPI Ritase), jadi total panel = KPI Ritase utk filter yg sama.
+  var sc = _rtScope();
+  window._rtCap = [];
+  try {
+    var multi = ['ALL', 'NDC_RDC', 'NDC', 'RDC'].indexOf(currentSite) >= 0;
+    if (multi) sc.sites.forEach(function (s) { computeSite(filterRows(ROWS, start, end, s), s); });
+    else computeSite(filterRows(ROWS, start, end, currentSite), currentSite);
+  } finally { var rowsScope = window._rtCap; window._rtCap = null; }
+  var list = computeRitType(rowsScope, sc.bu);
+  var months = []; for (var d = new Date(start.slice(0, 7) + '-01T00:00:00'); d <= new Date(end + 'T00:00:00'); d.setMonth(d.getMonth() + 1))
+    months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'));
+  var showMon = months.length > 1 && months.length <= 12;
+  var BU_ORD = { HCI: 1, AHI: 2, FBI: 3, KLS: 4 };
+  var sites = SITES.filter(function (s) { return list.some(function (x) { return x.site === s; }); });
+  var th = 'style="padding:7px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#fff;background:#1E3448;white-space:nowrap;text-align:center"';
+  var cell = function (lc, nd, t, bold) {
+    if (!nd) return '<td style="text-align:center;color:var(--t3)">—</td>';
+    var v = lc / nd, ok = Math.round(v * 100) / 100 >= t;
+    return '<td style="text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:11.5px;' + (bold ? 'font-weight:700;' : '') + 'background:' + (ok ? '#D4EDDA' : '#F8D7DA') + ';color:' + (ok ? '#155724' : '#721c24') + '">' + v.toFixed(2) + '</td>';
+  };
+  var row = function (lbl1, lbl2, o, isTot) {
+    var st = isTot ? 'background:#EEF2F6;font-weight:700;' : '';
+    return '<tr style="border-bottom:1px solid var(--border);' + st + '">' +
+      '<td style="padding:6px 10px">' + lbl1 + '</td><td style="padding:6px 10px;text-align:center">' + lbl2 + '</td><td style="padding:6px 10px">' + (o.type || '') + '</td>' +
+      '<td style="text-align:center">' + o.nopol + '</td><td style="text-align:center">' + o.nd.toLocaleString('id-ID') + '</td><td style="text-align:center">' + o.lc.toLocaleString('id-ID') + '</td>' +
+      cell(o.lc, o.nd, o.tgt, true) + '<td style="text-align:center;color:var(--t3)">' + o.tgt.toFixed(2) + '</td>' +
+      '<td style="text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:11px;color:' + (Math.round(o.lc / o.nd * 100) / 100 >= o.tgt ? 'var(--green)' : 'var(--red)') + '">' + (function (g) { return (g >= 0 ? '+' : '') + g.toFixed(2); })(Math.round((Math.round(o.lc / o.nd * 100) / 100 - o.tgt) * 100) / 100) + '</td>' +
+      (showMon ? months.map(function (m) { var x = o.mon[m]; return cell(x ? x.lc : 0, x ? x.nd : 0, o.tgt, false); }).join('') : '') + '</tr>';
+  };
+  var body = sites.map(function (s) {
+    var items = list.filter(function (x) { return x.site === s; }).sort(function (a, b) { return (BU_ORD[a.bu] || 9) - (BU_ORD[b.bu] || 9) || a.bu.localeCompare(b.bu) || b.nd - a.nd; });
+    var tot = { type: '', nopol: 0, lc: 0, nd: 0, tgt: getTarget('ritase', s), mon: {} };
+    items.forEach(function (x) { tot.nopol += x.nopol; tot.lc += x.lc; tot.nd += x.nd; for (var m in x.mon) { var t = tot.mon[m] || (tot.mon[m] = { lc: 0, nd: 0 }); t.lc += x.mon[m].lc; t.nd += x.mon[m].nd; } });
+    return row('<b>' + (SL[s] || s) + '</b>', '<b>Total' + (sc.bu ? ' ' + sc.bu : '') + '</b>', tot, true) +
+      items.map(function (x) { return row('<span style="color:var(--t3);padding-left:10px">' + (SL[s] || s) + '</span>', x.bu, x, false); }).join('');
+  }).join('');
+  var div = document.createElement('div');
+  div.id = 'ritTypePanel'; div.className = 'panel'; div.style.marginTop = '18px';
+  div.innerHTML = '<div class="ph"><h3>🚚 Ritase per Type Armada</h3><span class="tag">' + sc.label + ' · ikut filter sidebar &amp; periode</span></div>' +
+
+    '<div style="overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr>' +
+    '<th ' + th + '>Site</th><th ' + th + '>Own BU</th><th ' + th + '>Type Armada</th><th ' + th + '>Jml Nopol</th><th ' + th + '>Nopol-Hari</th><th ' + th + '>Trip (LC)</th><th ' + th + '>Ritase</th><th ' + th + '>Target</th><th ' + th + '>Gap</th>' +
+    (showMon ? months.map(function (m) { return '<th ' + th + '>' + new Date(m + '-01T00:00:00').toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }) + '</th>'; }).join('') : '') +
+    '</tr></thead><tbody>' + (body || '<tr><td colspan="20" style="padding:20px;text-align:center;color:var(--t3)">Tidak ada data</td></tr>') + '</tbody></table></div>' +
+    '<div style="font-size:11px;color:var(--t2);padding:10px 16px">Ritase = LC unik ÷ nopol-hari aktif (total-to-total), sama dgn KPI Ritase. Minggu, libur nasional, TD satelite &amp; Cikupa MIN VAN OPS dikecualikan. ' +
+    'Ikut filter Site &amp; BU di sidebar; baris sama persis dgn KPI Ritase, jadi Total = KPI Ritase. Tampilan Semua BU: Jababeka dipecah by Master Asset per bulan, site lain by owner dominan per nopol (NKA/TGI → AHI). Type = type armada (ta) dominan per nopol di periode. Hijau ≥ target site, merah &lt; target.</div>';
+  host.appendChild(div);
+}
 
 </script>
 </body>
