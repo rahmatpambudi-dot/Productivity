@@ -56,6 +56,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .ctrl-lbl{font-size:11px;color:var(--t3);}
 .date-in{border:1px solid var(--border);border-radius:6px;padding:5px 9px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--white);outline:none;cursor:pointer;}
 .date-in:focus{border-color:var(--green);}
+.mon-sel{border:1px solid var(--border);border-radius:8px;background:var(--white);color:var(--text);font-size:12px;font-weight:600;font-family:'Inter',sans-serif;padding:6px 8px;cursor:pointer;min-width:110px;}
+.mon-sel:focus{outline:none;border-color:var(--green);}
 .mon-bar{display:flex;align-items:center;gap:1px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px;}
 .mon-bar button{border:none;background:transparent;color:var(--t3);font-size:11px;font-weight:500;font-family:'Inter',sans-serif;padding:4px 8px;border-radius:6px;cursor:pointer;transition:all .15s;}
 .mon-bar button:hover{background:var(--white);color:var(--green);}
@@ -343,7 +345,7 @@ body.export-mode #exitExport { display:block; }
       <input type="date" class="date-in" id="startDate" value="2026-04-01">
       <span class="ctrl-lbl">—</span>
       <input type="date" class="date-in" id="endDate" value="2026-04-30">
-      <div class="mon-bar" id="monBar" title="Klik = pilih 1 bulan penuh · Shift+klik = rentang bulan"></div>
+      <select class="mon-sel" id="monBar" onchange="pickMonth(this.value)" title="Pilih bulan penuh / YTD — rentang lain pakai tanggal di kiri"></select>
       <button class="btn-apply" onclick="applyFilter()">Terapkan</button>
       <button class="btn-fm" id="btnFM" onclick="toggleFM()" title="Full Month — semua bulan pakai hari penuh">FM</button>
       <select class="s-filter" id="siteSelect" onchange="onSiteChange()">
@@ -961,41 +963,33 @@ var MON_LBL = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov'
 function _monLastDay(y,m){ return new Date(y,m,0).getDate(); }
 function _monYear(){ var e=document.getElementById('endDate').value; return e?parseInt(e.slice(0,4)):new Date().getFullYear(); }
 function buildMonBar(){
-  var bar=document.getElementById('monBar'); if(!bar) return;
+  var sel=document.getElementById('monBar'); if(!sel) return;
   var y=_monYear(), now=new Date();
-  // tampilkan Jan s/d bulan berjalan (tahun berjalan) atau Jan–Des (tahun lampau)
+  // Jan s/d bulan berjalan (tahun berjalan) atau Jan–Des (tahun lampau)
   var maxM = (y < now.getFullYear()) ? 12 : (y > now.getFullYear() ? 0 : now.getMonth()+1);
-  var h='';
-  for(var m=1;m<=maxM;m++) h+='<button type="button" data-m="'+m+'" onclick="pickMonth('+m+',event)">'+MON_LBL[m-1]+'</button>';
-  bar.innerHTML=h; bar.dataset.y=y; syncMonBar();
+  var h='<option value="custom">Custom</option>';
+  for(var m=maxM;m>=1;m--) h+='<option value="'+m+'">'+MON_LBL[m-1]+' '+y+'</option>';
+  if(maxM>1) h+='<option value="ytd" title="Jan–'+MON_LBL[maxM-1]+'">YTD '+y+'</option>';
+  sel.innerHTML=h; sel.dataset.y=y; sel.dataset.maxm=maxM; syncMonBar();
 }
-function pickMonth(m,ev){
-  var y=parseInt(document.getElementById('monBar').dataset.y);
-  var mm=String(m).padStart(2,'0');
-  var sEl=document.getElementById('startDate'), eEl=document.getElementById('endDate');
-  if(ev && ev.shiftKey && sEl.value){
-    // Shift+klik: perluas rentang dari bulan start yang sekarang ke bulan yg diklik
-    var sm=parseInt(sEl.value.slice(5,7)), a=Math.min(sm,m), b=Math.max(sm,m);
-    sEl.value=y+'-'+String(a).padStart(2,'0')+'-01';
-    eEl.value=y+'-'+String(b).padStart(2,'0')+'-'+String(_monLastDay(y,b)).padStart(2,'0');
-  } else {
-    sEl.value=y+'-'+mm+'-01';
-    eEl.value=y+'-'+mm+'-'+String(_monLastDay(y,m)).padStart(2,'0');
-  }
+function pickMonth(v){
+  var sel=document.getElementById('monBar'); if(v==='custom') return;
+  var y=parseInt(sel.dataset.y), sEl=document.getElementById('startDate'), eEl=document.getElementById('endDate');
+  var a, b;
+  if(v==='ytd'){ a=1; b=parseInt(sel.dataset.maxm); } else { a=b=parseInt(v); }
+  sEl.value=y+'-'+String(a).padStart(2,'0')+'-01';
+  eEl.value=y+'-'+String(b).padStart(2,'0')+'-'+String(_monLastDay(y,b)).padStart(2,'0');
   syncMonBar(); render();
 }
 function syncMonBar(){
-  var bar=document.getElementById('monBar'); if(!bar) return;
-  if(parseInt(bar.dataset.y)!==_monYear()){ buildMonBar(); return; }
+  var sel=document.getElementById('monBar'); if(!sel) return;
+  if(parseInt(sel.dataset.y)!==_monYear()){ buildMonBar(); return; }
   var s=document.getElementById('startDate').value, e=document.getElementById('endDate').value;
-  var y=parseInt(bar.dataset.y);
-  bar.querySelectorAll('button').forEach(function(b){
-    var m=parseInt(b.dataset.m), ms=y+'-'+String(m).padStart(2,'0');
-    var full = s===ms+'-01' && e===ms+'-'+String(_monLastDay(y,m)).padStart(2,'0');
-    var covered = s && e && s<=ms+'-'+String(_monLastDay(y,m)).padStart(2,'0') && e>=ms+'-01';
-    b.classList.toggle('active', full);
-    b.classList.toggle('inrange', !full && covered);
-  });
+  var y=parseInt(sel.dataset.y), maxM=parseInt(sel.dataset.maxm), val='custom';
+  var full=function(a,b){ return s===y+'-'+String(a).padStart(2,'0')+'-01' && e===y+'-'+String(b).padStart(2,'0')+'-'+String(_monLastDay(y,b)).padStart(2,'0'); };
+  for(var m=1;m<=maxM;m++) if(full(m,m)) val=String(m);
+  if(val==='custom' && maxM>1 && full(1,maxM)) val='ytd';
+  sel.value=val;
 }
 function _initMonBar(){
   buildMonBar();
