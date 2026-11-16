@@ -1781,6 +1781,7 @@ function renderDetail(results, summary, start, end) {
     <div id="armadaKecilPanel" style="margin-top:14px"></div>
     <div id="tripTypePanel" style="margin-top:14px"></div>
     <div id="demandPanel" style="margin-top:14px"></div>
+    <div id="ritTypeHost"></div>
     <div class="panel" style="margin-top:14px">
       <div class="ph"><h3>Perbandingan Periode</h3><span class="tag">MoM / custom</span></div>
       <div style="padding:12px 16px">
@@ -6733,7 +6734,8 @@ function renderRitTypePanel(start, end) {
     '</tr></thead><tbody>' + (body || '<tr><td colspan="20" style="padding:20px;text-align:center;color:var(--t3)">Tidak ada data</td></tr>') + '</tbody></table></div>' +
     '<div style="font-size:11px;color:var(--t2);padding:10px 16px">Ritase = LC unik ÷ nopol-hari aktif (total-to-total), sama dgn KPI Ritase. Minggu, libur nasional, TD satelite &amp; Cikupa MIN VAN OPS dikecualikan. ' +
     'Ikut filter Site &amp; BU di sidebar; baris sama persis dgn KPI Ritase, jadi Total = KPI Ritase. Tampilan Semua BU: Jababeka dipecah by Master Asset per bulan, site lain by owner dominan per nopol (NKA/TGI → AHI). Type = type armada (ta) dominan per nopol di periode. Hijau ≥ target site, merah &lt; target.</div>';
-  host.appendChild(div);
+  var slot = document.getElementById('ritTypeHost'); // slot di atas Perbandingan Periode
+  if (slot) { slot.innerHTML = ''; slot.appendChild(div); } else host.appendChild(div);
 }
 
 </script>
