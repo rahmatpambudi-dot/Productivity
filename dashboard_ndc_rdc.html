@@ -3072,10 +3072,20 @@ function buildPilotHeatmapHtml(siteKey) {
   var siteLabel = (SL && SL[siteKey]) ? SL[siteKey] : siteKey;
   var ownerFilter = SUB_SITES[currentSite] ? SUB_SITES[currentSite].owners : null; // null = Corporate (semua BU)
   var buLabel = ownerFilter ? ownerFilter.join('/') : 'Corporate (semua BU)';
-  var dates = nopolStatus.dates; // ISO yyyy-mm-dd, ascending
+  // Follow the sidebar date picker: the pilot sheet now spans several months, so only
+  // show the selected range. If the range has no pilot dates, fall back to the latest month.
+  var allDates = nopolStatus.dates; // ISO yyyy-mm-dd, ascending
+  var rg = getRange();
+  var keepIdx = [];
+  allDates.forEach(function(d,i){ if ((!rg.start || d >= rg.start) && (!rg.end || d <= rg.end)) keepIdx.push(i); });
+  if (!keepIdx.length) {
+    var lastMo = allDates[allDates.length-1].slice(0,7);
+    allDates.forEach(function(d,i){ if (d.slice(0,7) === lastMo) keepIdx.push(i); });
+  }
+  var dates = keepIdx.map(function(i){ return allDates[i]; });
   var types = {};
   Object.keys(nopolStatus.types).forEach(function(t) {
-    var rs = nopolStatus.types[t];
+    var rs = nopolStatus.types[t].map(function(r){ return { nopol:r.nopol, owner:r.owner, cells: keepIdx.map(function(i){ return r.cells[i]; }) }; });
     var filtered = ownerFilter ? rs.filter(function(r){ return ownerFilter.indexOf(r.owner) !== -1; }) : rs;
     if (filtered.length) types[t] = filtered;
   });
