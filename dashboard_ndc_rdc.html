@@ -2304,6 +2304,7 @@ function filterUtilRows(start, end, site) {
   // Per-site SO (Shut Out) dates — exclude dari UTL tapi bukan dari assets
   var SO_DATES = {
     'CORP SIDOARJO': new Set(['2026-05-20','2026-05-21','2026-05-22','2026-05-23']),
+    'CORP TALLO':    new Set(['2026-11-10','2026-11-11','2026-11-12','2026-11-13','2026-11-14']), // SO RDC Tallo Makassar
   };
 
   // ACTIVE rows — exclude holidays + Minggu (semua site) + SO dates + arm_util null/0
