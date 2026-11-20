@@ -2396,6 +2396,7 @@ function computeUtil(rows, allRows, site, rawRows) {
   rawAssets.sort(function(a,b){return a-b;});
   var medAssets = rawAssets.length ? rawAssets[Math.floor(rawAssets.length/2)] : null;
 
+  var armAvailTot = 0, armIdleTot = 0, armIdleDays = {}, armActDays = {}; // total idle (unit-hari) dlm periode filter
   rows.forEach(function(r) {
     var hasActivity = r.arm_util != null && r.arm_util > 0;
     var assetOk = !medAssets || !r.arm_assets || (r.arm_assets <= medAssets * 2.0);
@@ -2407,6 +2408,12 @@ function computeUtil(rows, allRows, site, rawRows) {
       if(r.arm_assets != null) armAssetsList.push(r.arm_assets);
       if(r.arm_avail  != null) armAvailList.push(r.arm_avail);
       if(r.arm_util   != null) armUtilList.push(r.arm_util);
+      if(r.arm_avail != null && r.arm_util != null) {
+        var _idl = Math.max(0, r.arm_avail - r.arm_util);
+        armIdleTot += _idl;
+        armAvailTot += r.arm_avail;
+        if(r.date) { armIdleDays[r.date] = (armIdleDays[r.date]||0) + _idl; armActDays[r.date] = 1; }
+      }
     }
   });
 
@@ -2442,6 +2449,10 @@ function computeUtil(rows, allRows, site, rawRows) {
     armAvailAbs:  avgAvail,
     armAvailPct:  (avgAssets && avgAvail) ? avgAvail / avgAssets * 100 : null,
     armUtilPct:   (avgAvail  && avgUtil)  ? Math.min(100, avgUtil  / avgAvail  * 100) : null,
+    armIdleTot:   armUtilList.length ? armIdleTot : null, // TOTAL unit-hari idle (available − utilized) dlm periode date picker
+    armIdlePct:   armAvailTot > 0 ? armIdleTot / armAvailTot * 100 : null, // % idle thd total armada available (unit-hari)
+    armIdleDayCnt: Object.keys(armIdleDays).filter(function(d){ return armIdleDays[d] >= 0.5; }).length, // jml hari yg ada idle
+    armActDayCnt:  Object.keys(armActDays).length,
     ritaseArmada: avg(ritArmadaVals),
     ritaseMpp:    avg(ritMppVals),
   };
@@ -6187,6 +6198,21 @@ function openPresentation() {
       var good = d>0;
       return '<span class="prs-delta '+(good?'up':'dn')+'">'+(d>0?'▲':'▼')+Math.abs(d).toFixed(dec||2)+' vs '+mnPrev+'</span>';
     }
+    // Armada idle: TOTAL unit-hari (available − utilized) dlm periode date picker, + berapa hari kejadian.
+    // Sengaja bukan rata2/hari — biar gak kesan tiap hari ada yg idle. Jababeka: breakdown per BU.
+    function idleNote() {
+      if(!uCorp || uCorp.armIdleTot==null) return '';
+      var tot = Math.round(uCorp.armIdleTot);
+      if(tot < 1) return '<div class="prs-idle">Tanpa armada idle</div>';
+      var bus = [];
+      if(site==='JABABEKA') JAB_BUS.forEach(function(b, i){
+        if(i===0) return;
+        var ub = getUtil(b.key, curMo);
+        if(ub && ub.armIdleTot!=null && Math.round(ub.armIdleTot) >= 1) bus.push(b.label);
+      });
+      var pctS = uCorp.armIdlePct!=null ? ' / '+uCorp.armIdlePct.toFixed(1).replace('.',',')+'%' : '';
+      return '<div class="prs-idle">Idle <b>'+tot.toLocaleString('id-ID')+' unit-hari'+pctS+'</b>'+(bus.length?' ('+bus.join(', ')+')':'')+'</div>';
+    }
     var ritTgtSite = ({JABABEKA:1.15,CIKUPA:1.05,SDA:1.07,TALLO:1.25,TAMORA:1.25}[site]||1.15);
     var kpiCardsHTML = '<div class="prs-kpi-row prs-kpi6">'
       +kpiCard('prs-kpi-c1','clock','On Time Fleet Fulfillment by Batch',
@@ -6199,7 +6225,7 @@ function openPresentation() {
          kpiArrow(uCorp?uCorp.armAvailPct:null, uCorpP?uCorpP.armAvailPct:null, false))
       +kpiCard('prs-kpi-c3','bars','Fleet Utilization',
          (uCorp&&uCorp.armUtilPct!=null?uCorp.armUtilPct.toFixed(1)+'%':'—'), '',
-         kpiArrow(uCorp?uCorp.armUtilPct:null, uCorpP?uCorpP.armUtilPct:null, false))
+         kpiArrow(uCorp?uCorp.armUtilPct:null, uCorpP?uCorpP.armUtilPct:null, false)+idleNote())
       +kpiCard('prs-kpi-c4','user','Driver Utilization',
          (uCorp&&uCorp.drvUtil!=null?uCorp.drvUtil.toFixed(1)+'%':'—'), '',
          kpiArrow(uCorp?uCorp.drvUtil:null, uCorpP?uCorpP.drvUtil:null, false))
@@ -6540,6 +6566,7 @@ function openPresentation() {
     +'.prs-kpi-label{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}'
     +'.prs-kpi-val{font-size:24px;font-weight:800;color:#0f172a}'
     +'.prs-kpi-sub{font-size:10px;margin-top:4px;font-weight:600}'
+    +'.prs-idle{font-size:.95em;color:#9a3412;font-weight:600;margin-top:4px;line-height:1.3;text-align:center}.prs-idle b{font-weight:800}'
     +'.prs-kpi-dklk{display:flex;gap:10px;font-size:10px;color:#64748b;margin-top:6px;padding-top:6px;border-top:1px dashed #e2e8f0;font-weight:600}'
     +'.prs-kpi-dklk i{font-style:normal;color:#94a3b8;font-weight:700;margin-right:2px}'
     +'.prs-kpi-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;border-radius:99px;margin-top:5px}'
