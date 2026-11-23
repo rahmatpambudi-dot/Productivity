@@ -604,7 +604,7 @@ async function loadData() {
     for (const ps of PILOT_SITE_FILES) {
       try {
         const psRes = await fetch(ps.file + '?t=' + Date.now());
-        if (psRes.ok) { PILOT_DATA[ps.key] = await psRes.json(); applyPilotLKTransitImputation(ps.key); }
+        if (psRes.ok) { PILOT_DATA[ps.key] = await psRes.json(); applyPilotLKTransitImputation(ps.key); applyPilotLongIdleNA(ps.key); }
       } catch (e3c) { PILOT_DATA[ps.key] = null; }
     }
 
@@ -3045,6 +3045,49 @@ function pilotSiteKey() {
 // Utilized for the whole transit/kembali window, not just the departure day — mirrors
 // the legacy expandActiveDates() imputation used elsewhere in the dashboard. Runs once
 // per data load per site (idempotent: only ever promotes a cell to UTIL, never demotes).
+// Blok idle panjang: sel kosong (EMPTY) yang nyambung >= PILOT_LONG_IDLE_DAYS hari kerja
+// (Minggu/libur di tengah gak mutus & gak ikut dihitung) dianggap Not Available, bukan idle —
+// realistisnya unit lagi downtime/ditarik tapi PIC berhenti ngisi. Sel yang ADA keterangannya
+// tetap ikut statusnya sendiri. Jalan setelah imputasi transit LK, jadi hari transit tetap UTIL.
+var PILOT_LONG_IDLE_DAYS = 5;
+var PILOT_MIN_FILL = 0.5;
+function applyPilotLongIdleNA(siteKey) {
+  var data = PILOT_DATA[siteKey];
+  if (!data || !data.dates || !data.dates.length) return 0;
+  var off = data.dates.map(function(d){ return (new Date(d+'T00:00:00').getDay() === 0) || (typeof HOLIDAYS_2026 !== 'undefined' && HOLIDAYS_2026.has(d)); });
+  // Kolom yang isiannya < PILOT_MIN_FILL (mis. H-0 yg baru setengah diisi, atau bulan yg PIC belum isi
+  // sama sekali) = "belum diisi PIC": gak dihitung idle/NA & di-exclude dari UTL%, dan gak mutus streak.
+  var allRows = [];
+  Object.keys(data.types).forEach(function(t){ allRows = allRows.concat(data.types[t]); });
+  data.unfilled = {};
+  data.dates.forEach(function(d, i) {
+    if (off[i] || !allRows.length) return;
+    var filled = allRows.filter(function(r){ var c = r.cells[i]; return c && (c.s !== 'EMPTY' || c.d); }).length;
+    if (filled / allRows.length < PILOT_MIN_FILL) data.unfilled[d] = true;
+  });
+  var skip = data.dates.map(function(d, i){ return off[i] || !!data.unfilled[d]; });
+  var fixed = 0;
+  Object.keys(data.types).forEach(function(t) {
+    data.types[t].forEach(function(r) {
+      var run = [], work = 0;
+      function flush() {
+        if (work >= PILOT_LONG_IDLE_DAYS) run.forEach(function(i){
+          if (skip[i]) return;
+          r.cells[i] = { s:'NA', d:'Idle panjang ' + work + ' hari kerja tanpa keterangan — dianggap Not Available (konfirmasi ke PIC)' };
+          fixed++;
+        });
+        run = []; work = 0;
+      }
+      r.cells.forEach(function(c, i) {
+        if (skip[i]) { if (run.length) run.push(i); } // Minggu/libur/kolom belum diisi: gak mutus & gak dihitung
+        else if (c && c.s === 'EMPTY' && !c.d) { run.push(i); work++; }
+        else flush();
+      });
+      flush();
+    });
+  });
+  return fixed;
+}
 function applyPilotLKTransitImputation(siteKey) {
   var data = PILOT_DATA[siteKey];
   if (!data || !data.dates || !data.dates.length) return;
@@ -3136,12 +3179,13 @@ function buildPilotHeatmapHtml(siteKey) {
   function isExcludedDate(iso) {
     return (new Date(iso+'T00:00:00').getDay() === 0) || HOLIDAYS_2026.has(iso);
   }
-  var excludedIdx = dates.map(function(d){ return isExcludedDate(d); });
+  var unfilledIdx = dates.map(function(d){ return !isExcludedDate(d) && !!(nopolStatus.unfilled && nopolStatus.unfilled[d]); });
+  var excludedIdx = dates.map(function(d, i){ return isExcludedDate(d) || unfilledIdx[i]; });
   var DOW_ID = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
   function dowLabel(iso) { return DOW_ID[new Date(iso+'T00:00:00').getDay()]; }
   var dateHeaders = dates.map(function(d,idx){
     var sunday = excludedIdx[idx];
-    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'var(--white)')+';position:sticky;top:0;z-index:2" title="'+(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':'')+'"><div style="font-size:9px;font-weight:500;color:var(--t3);margin-bottom:1px">'+dowLabel(d)+'</div>'+dayLabel(d)+'</th>';
+    return '<th style="font-size:11px;color:'+(sunday?'#94a3b8':'var(--t3)')+';font-weight:600;padding:4px 0;width:30px;background:'+(sunday?'var(--bg)':'var(--white)')+';position:sticky;top:0;z-index:2" title="'+(unfilledIdx[idx]?'Belum diisi PIC (<50% nopol terisi) \u2014 di-exclude dari perhitungan UTL%':(sunday?'Minggu/libur \u2014 di-exclude dari perhitungan UTL%':''))+'"><div style="font-size:9px;font-weight:500;color:var(--t3);margin-bottom:1px">'+dowLabel(d)+'</div>'+dayLabel(d)+'</th>';
   }).join('');
 
   var heatRows = '';
@@ -3149,6 +3193,10 @@ function buildPilotHeatmapHtml(siteKey) {
   rows.forEach(function(r) {
     var naCount = 0, reasons = {};
     var cellsHtml = r.cells.map(function(c, idx) {
+      if (unfilledIdx[idx]) {
+        var ut = c && c.s !== 'EMPTY' ? (c.d ? esc(c.d) : c.s) + ' \u2014 ' : '';
+        return '<td style="padding:0;text-align:center"><div title="'+ut+'Belum diisi PIC \u2014 di-exclude dari perhitungan" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:repeating-linear-gradient(45deg,#fff7ed,#fff7ed 3px,#fed7aa 3px,#fed7aa 5px);border:1px dashed #fdba74"></div></td>';
+      }
       if (excludedIdx[idx]) {
         return '<td style="padding:0;text-align:center"><div title="Minggu/libur \u2014 di-exclude dari perhitungan" style="width:24px;height:24px;margin:2px auto;border-radius:5px;background:var(--bg);border:1px dashed var(--border)"></div></td>';
       }
@@ -3213,6 +3261,7 @@ function buildPilotHeatmapHtml(siteKey) {
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ef4444;vertical-align:-1px;margin-right:6px"></span>Not Available</span>'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#e2e8f0;vertical-align:-1px;margin-right:6px"></span>Unutilized (idle, no LC/status)</span>'
     + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;border:1px dashed var(--border);vertical-align:-1px;margin-right:6px"></span>Minggu/libur (excluded)</span>'
+    + '<span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:repeating-linear-gradient(45deg,#fff7ed,#fff7ed 3px,#fed7aa 3px,#fed7aa 5px);border:1px dashed #fdba74;vertical-align:-1px;margin-right:6px"></span>Belum diisi PIC (excluded)</span>'
     + '</div>'
     + '<div style="border-top:1px solid var(--border)">' + problemHtml + '</div>'
     + '<div style="padding:10px 16px;font-size:10.5px;color:var(--t3);border-top:1px solid var(--border)">Sumber: sheet NOPOL_PAIRED_LC (PIC '+siteLabel+') &middot; pilot Sept 2026, site lain masih pakai perhitungan estimasi lama</div>'
