@@ -1589,7 +1589,7 @@ function renderLkDestPanel() {
     return '<button onclick="setLkDestSA(\''+code+'\')" style="padding:5px 14px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:'+(on?'#1a1d23':'transparent')+';color:'+(on?'#fff':'var(--t2)')+'">'+label+'</button>';
   }
   var saToggle = '<span style="display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">' + saBtn('DK','Dalam Kota') + saBtn('LK','Luar Kota') + '</span>';
-  var head = '<div class="ph"><h3>Trip per Hari &amp; Tujuan &mdash; ' + saName + '</h3><span style="display:flex;align-items:center;gap:10px"><span class="tag">jumlah trip (LC unik) &middot; ikut filter site &amp; periode</span>' + saToggle + '</span></div>';
+  var head = '<div class="ph"><span style="display:flex;align-items:center;gap:12px"><h3>Trip per Hari &amp; Tujuan &mdash; ' + saName + '</h3>' + saToggle + '</span><span class="tag">jumlah trip (LC unik) &middot; ikut filter site &amp; periode</span></div>';
   if (!all.length || !dates.length) { el.innerHTML = head + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada trip ' + saName + ' di periode/site ini.</p>'; return; }
 
   // type pills (hitung trip unik per type)
