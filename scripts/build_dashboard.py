@@ -104,7 +104,7 @@ def fetch_pilot_data(service, today_iso):
         try:
             result = service.spreadsheets().values().get(
                 spreadsheetId=PILOT_SPREADSHEET_ID,
-                range=f"'{ps['tab']}'!A:AZ",
+                range=f"'{ps['tab']}'!A:ZZ",
                 valueRenderOption="FORMATTED_VALUE",
             ).execute()
             rows = result.get("values", [])
