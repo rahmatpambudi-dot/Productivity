@@ -1571,9 +1571,12 @@ function buildMonthlyTrendTable(container) {
 // Pakai aturan sama dgn tabel Trip DK & LK: effectiveSA (LK tanpa jalur = DK) + type armada dinormalisasi.
 // Ikut filter site/BU & date picker (rows = filtered di renderDetail). Pill type armada = filter lokal panel.
 var LK_DEST_CTX = { rows: [], dates: [] };
-var LK_DEST_STATE = { type: 'ALL', sa: 'LK' };
+var LK_DEST_STATE = { type: 'ALL', sa: 'LK', td: 'ALL' };
+var LK_DEST_TD_LIST = [];
+var LK_DEST_TD_LABEL = { customer:'Customer', store:'Store', hub:'Hub', satelite:'Satelit', transfer:'Transfer', 'other delivery':'Other Delivery', 'ndc/rdc/sdc':'NDC/RDC/SDC' };
+function setLkDestTD(i) { LK_DEST_STATE.td = i < 0 ? 'ALL' : LK_DEST_TD_LIST[i]; LK_DEST_STATE.type = 'ALL'; renderLkDestPanel(); }
 function setLkDestType(t) { LK_DEST_STATE.type = t; renderLkDestPanel(); }
-function setLkDestSA(sa) { LK_DEST_STATE.sa = sa; LK_DEST_STATE.type = 'ALL'; renderLkDestPanel(); }
+function setLkDestSA(sa) { LK_DEST_STATE.sa = sa; LK_DEST_STATE.type = 'ALL'; LK_DEST_STATE.td = 'ALL'; renderLkDestPanel(); }
 function renderLkDestPanel() {
   var el = document.getElementById('lkDestPanel');
   if (!el) return;
@@ -1592,6 +1595,21 @@ function renderLkDestPanel() {
   var head = '<div class="ph"><span style="display:flex;align-items:center;gap:12px"><h3>Trip per Hari &amp; Tujuan &mdash; ' + saName + '</h3>' + saToggle + '</span><span class="tag">jumlah trip (LC unik) &middot; ikut filter site &amp; periode</span></div>';
   if (!all.length || !dates.length) { el.innerHTML = head + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada trip ' + saName + ' di periode/site ini.</p>'; return; }
 
+  // type delivery pills (dari trip DK/LK terpilih); kalau td terpilih gak ada di mode ini → balik ke Semua
+  var tdLc = {};
+  all.forEach(function(r){ var t = r.td || '(kosong)'; (tdLc[t] = tdLc[t] || new Set()).add(r.lc); });
+  LK_DEST_TD_LIST = Object.keys(tdLc).sort(function(a,b){ return tdLc[b].size - tdLc[a].size; });
+  if (LK_DEST_STATE.td !== 'ALL' && !tdLc[LK_DEST_STATE.td]) LK_DEST_STATE.td = 'ALL';
+  var tdSel = LK_DEST_STATE.td;
+  var allSaLc = new Set(all.map(function(r){ return r.lc; }));
+  function tdPill(label, active, i) {
+    return '<button onclick="setLkDestTD('+i+')" style="padding:4px 10px;font-size:10.5px;font-weight:600;border-radius:14px;border:1px solid '+(active?'#1a73e8':'var(--border)')+';background:'+(active?'#1a73e8':'transparent')+';color:'+(active?'#fff':'var(--t2)')+';cursor:pointer;margin-right:5px;margin-bottom:4px">'+label+'</button>';
+  }
+  var tdBar = '<div style="display:flex;flex-wrap:wrap;align-items:center;padding:10px 16px 0;border-top:1px solid var(--border)"><span style="font-size:11px;color:var(--t3);margin-right:8px;min-width:88px">Type Delivery:</span>'
+    + tdPill('Semua ('+allSaLc.size+')', tdSel==='ALL', -1)
+    + LK_DEST_TD_LIST.map(function(t,i){ return tdPill(esc(LK_DEST_TD_LABEL[t] || t)+' ('+tdLc[t].size+')', tdSel===t, i); }).join('') + '</div>';
+  if (tdSel !== 'ALL') all = all.filter(function(r){ return (r.td || '(kosong)') === tdSel; });
+
   // type pills (hitung trip unik per type)
   var typeLc = {};
   all.forEach(function(r){ var t = normalizeArmadaTypeForRow(r); (typeLc[t] = typeLc[t] || new Set()).add(r.lc); });
@@ -1602,7 +1620,7 @@ function renderLkDestPanel() {
   function pill(label, active, t) {
     return '<button onclick="setLkDestType(\''+t+'\')" style="padding:4px 10px;font-size:10.5px;font-weight:600;border-radius:14px;border:1px solid '+(active?'#7e22ce':'var(--border)')+';background:'+(active?'#7e22ce':'transparent')+';color:'+(active?'#fff':'var(--t2)')+';cursor:pointer;margin-right:5px;margin-bottom:4px">'+label+'</button>';
   }
-  var bar = '<div style="display:flex;flex-wrap:wrap;align-items:center;padding:10px 16px;border-top:1px solid var(--border)"><span style="font-size:11px;color:var(--t3);margin-right:8px">Type Armada:</span>'
+  var bar = tdBar + '<div style="display:flex;flex-wrap:wrap;align-items:center;padding:6px 16px 10px"><span style="font-size:11px;color:var(--t3);margin-right:8px;min-width:88px">Type Armada:</span>'
     + pill('Semua ('+allLc.size+')', sel==='ALL', 'ALL')
     + typeNames.map(function(t){ return pill(esc(t)+' ('+typeLc[t].size+')', sel===t, t); }).join('') + '</div>';
 
@@ -1651,7 +1669,7 @@ function renderLkDestPanel() {
       + '<td style="text-align:center;padding:3px 8px;color:var(--t2)">'+(o.lc.size/nDays).toLocaleString('id-ID',{maximumFractionDigits:1})+'</td></tr>';
   });
   html += '</tbody></table></div>';
-  var note = '<div style="font-size:11px;color:#888;padding:6px 16px 10px">Hover kotak buat lihat breakdown type armada &middot; kolom abu = Minggu/libur &middot; aturan sama dgn tabel Trip DK &amp; LK (LK tanpa jalur dihitung DK, tampil sbg &quot;(tanpa jalur)&quot;) &middot; 1 trip multi-tujuan muncul di tiap tujuannya, baris Total = trip unik &middot; /Hari = total &divide; jumlah hari periode</div>';
+  var note = '<div style="font-size:11px;color:#888;padding:6px 16px 10px">Hover kotak buat lihat breakdown type armada &middot; kolom abu = Minggu/libur &middot; aturan sama dgn tabel Trip DK &amp; LK (LK tanpa jalur dihitung DK, tampil sbg &quot;(tanpa jalur)&quot;) &middot; Type Delivery &amp; Type Armada = filter lokal panel &middot; 1 trip multi-tujuan muncul di tiap tujuannya, baris Total = trip unik &middot; /Hari = total &divide; jumlah hari periode</div>';
   el.innerHTML = head + bar + html + note;
 }
 function renderDetail(results, summary, start, end) {
