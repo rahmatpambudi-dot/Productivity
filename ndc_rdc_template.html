@@ -1567,20 +1567,30 @@ function buildMonthlyTrendTable(container) {
 </script>
 
 <script>
-// Trip Luar Kota per Hari & Tujuan — matriks Tujuan (jalur) × Tanggal, isi = jumlah trip (LC unik).
+// Trip per Hari & Tujuan (toggle DK/LK) — matriks Tujuan (jalur) × Tanggal, isi = jumlah trip (LC unik).
 // Pakai aturan sama dgn tabel Trip DK & LK: effectiveSA (LK tanpa jalur = DK) + type armada dinormalisasi.
 // Ikut filter site/BU & date picker (rows = filtered di renderDetail). Pill type armada = filter lokal panel.
 var LK_DEST_CTX = { rows: [], dates: [] };
-var LK_DEST_STATE = { type: 'ALL' };
+var LK_DEST_STATE = { type: 'ALL', sa: 'LK' };
 function setLkDestType(t) { LK_DEST_STATE.type = t; renderLkDestPanel(); }
+function setLkDestSA(sa) { LK_DEST_STATE.sa = sa; LK_DEST_STATE.type = 'ALL'; renderLkDestPanel(); }
 function renderLkDestPanel() {
   var el = document.getElementById('lkDestPanel');
   if (!el) return;
   var DOW = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
   var esc = function(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); };
-  var dates = LK_DEST_CTX.dates, all = LK_DEST_CTX.rows;
-  var head = '<div class="ph"><h3>Trip Luar Kota per Hari &amp; Tujuan</h3><span class="tag">jumlah trip (LC unik) &middot; ikut filter site &amp; periode</span></div>';
-  if (!all.length || !dates.length) { el.innerHTML = head + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada trip Luar Kota di periode/site ini.</p>'; return; }
+  var saSel = LK_DEST_STATE.sa === 'DK' ? 'DK' : 'LK';
+  var saName = saSel === 'DK' ? 'Dalam Kota' : 'Luar Kota';
+  var dates = LK_DEST_CTX.dates;
+  var all = LK_DEST_CTX.rows.filter(function(r){ return (effectiveSA(r) === 'LUAR KOTA') === (saSel === 'LK'); });
+  var jl = function(r){ return (!r.jalur || r.jalur === '#N/A') ? '(tanpa jalur)' : r.jalur; };
+  function saBtn(code, label) {
+    var on = saSel === code;
+    return '<button onclick="setLkDestSA(\''+code+'\')" style="padding:5px 14px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:'+(on?'#1a1d23':'transparent')+';color:'+(on?'#fff':'var(--t2)')+'">'+label+'</button>';
+  }
+  var saToggle = '<span style="display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">' + saBtn('DK','Dalam Kota') + saBtn('LK','Luar Kota') + '</span>';
+  var head = '<div class="ph"><h3>Trip per Hari &amp; Tujuan &mdash; ' + saName + '</h3><span style="display:flex;align-items:center;gap:10px"><span class="tag">jumlah trip (LC unik) &middot; ikut filter site &amp; periode</span>' + saToggle + '</span></div>';
+  if (!all.length || !dates.length) { el.innerHTML = head + '<p style="color:var(--t3);font-size:12px;padding:14px 16px">Tidak ada trip ' + saName + ' di periode/site ini.</p>'; return; }
 
   // type pills (hitung trip unik per type)
   var typeLc = {};
@@ -1602,7 +1612,7 @@ function renderLkDestPanel() {
   var dest = {}, dayTot = dates.map(function(){ return new Set(); }), grand = new Set();
   rows.forEach(function(r) {
     var i = dIdx[r.date]; if (i === undefined) return;
-    var j = r.jalur;
+    var j = jl(r);
     var o = dest[j] || (dest[j] = { lc: new Set(), days: dates.map(function(){ return {}; }) });
     var cell = o.days[i], t = normalizeArmadaTypeForRow(r);
     (cell[t] = cell[t] || new Set()).add(r.lc);
@@ -1623,7 +1633,7 @@ function renderLkDestPanel() {
     + '<th style="'+th+';background:var(--white);color:var(--t2);padding:4px 8px">TOTAL</th><th style="'+th+';background:var(--white);color:var(--t2);padding:4px 8px">/HARI</th></tr></thead><tbody>';
   var nDays = dates.length;
   // baris total
-  html += '<tr><td style="'+stickL+'font-weight:700;padding:5px 12px 5px 0;border-bottom:1px solid var(--border)">Total Trip LK</td>'
+  html += '<tr><td style="'+stickL+'font-weight:700;padding:5px 12px 5px 0;border-bottom:1px solid var(--border)">Total Trip '+saSel+'</td>'
     + dayTot.map(function(set,i){ return '<td style="text-align:center;font-weight:700;padding:5px 0;border-bottom:1px solid var(--border);background:'+(off[i]?'var(--bg)':'transparent')+'" title="'+lbl(dates[i])+': '+set.size+' trip">'+(set.size||'<span style="color:var(--border)">&middot;</span>')+'</td>'; }).join('')
     + '<td style="text-align:center;font-weight:700;padding:5px 8px;border-bottom:1px solid var(--border)">'+grand.size.toLocaleString('id-ID')+'</td>'
     + '<td style="text-align:center;font-weight:700;padding:5px 8px;border-bottom:1px solid var(--border)">'+(grand.size/nDays).toLocaleString('id-ID',{maximumFractionDigits:1})+'</td></tr>';
@@ -1641,7 +1651,7 @@ function renderLkDestPanel() {
       + '<td style="text-align:center;padding:3px 8px;color:var(--t2)">'+(o.lc.size/nDays).toLocaleString('id-ID',{maximumFractionDigits:1})+'</td></tr>';
   });
   html += '</tbody></table></div>';
-  var note = '<div style="font-size:11px;color:#888;padding:6px 16px 10px">Hover kotak buat lihat breakdown type armada &middot; kolom abu = Minggu/libur &middot; aturan sama dgn tabel Trip DK &amp; LK (LK tanpa jalur dihitung DK) &middot; 1 trip multi-tujuan muncul di tiap tujuannya, baris Total = trip unik &middot; /Hari = total &divide; jumlah hari periode</div>';
+  var note = '<div style="font-size:11px;color:#888;padding:6px 16px 10px">Hover kotak buat lihat breakdown type armada &middot; kolom abu = Minggu/libur &middot; aturan sama dgn tabel Trip DK &amp; LK (LK tanpa jalur dihitung DK, tampil sbg &quot;(tanpa jalur)&quot;) &middot; 1 trip multi-tujuan muncul di tiap tujuannya, baris Total = trip unik &middot; /Hari = total &divide; jumlah hari periode</div>';
   el.innerHTML = head + bar + html + note;
 }
 function renderDetail(results, summary, start, end) {
@@ -1914,7 +1924,7 @@ function renderDetail(results, summary, start, end) {
     {label:'Hub',data:demandDaily.map((d,i)=>dv(d,i,'tripHub')),borderColor:'#a142f4',backgroundColor:'rgba(161,66,244,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
     {label:'Other',data:demandDaily.map((d,i)=>dv(d,i,'tripOther')),borderColor:'#e37400',backgroundColor:'rgba(227,116,0,.08)',borderWidth:2,pointRadius:2,pointHoverRadius:4,tension:0.3,fill:false,datalabels:{display:false}},
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#5f6368',font:{family:'Inter',size:10},boxWidth:10}},tooltip:{backgroundColor:'#fff',borderColor:'#e8eaed',borderWidth:1,titleColor:'#1a1d23',bodyColor:'#5f6368',callbacks:{title:_dailyTitle,label:(ctx)=>ctx.dataset.label+': '+ctx.parsed.y.toLocaleString('id-ID')}},datalabels:{display:false}},scales:{x:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10},grid:{display:false}},y:{ticks:{color:'#9aa0a6',font:{family:'Inter',size:10},maxTicksLimit:6},grid:{color:'#f5f6fa'},beginAtZero:true}}}});
-  LK_DEST_CTX = { rows: filtered.filter(function(r){ return r.lc && effectiveSA(r) === 'LUAR KOTA'; }), dates: isoDaysBetween(s, e) };
+  LK_DEST_CTX = { rows: filtered.filter(function(r){ return r.lc; }), dates: isoDaysBetween(s, e) };
   renderLkDestPanel();
   setTimeout(function(){buildMonthlyTrendTable(document.getElementById('monthlyTrendTable'));},50);
   charts.dTAT=new Chart(document.getElementById('dTAT').getContext('2d'),{type:'bar',data:{labels:labs,datasets:[
@@ -2700,6 +2710,8 @@ function buildArmadaKecilTable(container) {
 // ── TREND DAILY UTILISASI ARMADA per TYPE (based on r.ja) ──────
 // Utilisasi % = nopol aktif (ada trip) hari itu / total asset (unique nopol) type tsb dalam periode filter
 const ARMADA_TYPE_NORMALIZE = {
+  // typo/varian dari sheet sumber
+  'CDE LONG CHASIS': 'CDELC', 'CONT40': 'CONT-40', 'MINIVAN BOX': 'MINI VAN BOX', 'MINIVANBOK': 'MINI VAN BOX', 'WINGBOX GENAP': 'WINGBOX',
   'CDD': 'CDD',
   'CDD LONG CHASSIS': 'CDDLC',
   'CDD PICK UP': 'CDD PICKUP',
