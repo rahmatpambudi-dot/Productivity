@@ -2570,6 +2570,7 @@ function computeUtil(rows, allRows, site, rawRows) {
     armIdlePct:   armAvailTot > 0 ? armIdleTot / armAvailTot * 100 : null, // % idle thd total armada available (unit-hari)
     armIdleDayCnt: Object.keys(armIdleDays).filter(function(d){ return armIdleDays[d] >= 0.5; }).length, // jml hari yg ada idle
     armActDayCnt:  Object.keys(armActDays).length,
+    armIdleByDate: armIdleDays, // {date: unit idle} hari kerja (dipakai insight Present)
     ritaseArmada: avg(ritArmadaVals),
     ritaseMpp:    avg(ritMppVals),
   };
@@ -6243,19 +6244,29 @@ function openPresentation() {
         +'<td>'+fmtTAT(d.tatDirect)+badge(d.tatDirect,p?.tatDirect,true,true,1)+'</td>'
         +'<td>'+fmtTAT(d.tatStore)+badge(d.tatStore,p?.tatStore,true,true,1)+'</td>'
         +'<td class="'+(u&&u.drvUtil!=null?(u.drvUtil>=95?'g':u.drvUtil>=85?'y':'r'):'')+'">'+(u&&u.drvUtil!=null?pct(u.drvUtil/100):'—')+(u&&up&&u.drvUtil!=null&&up.drvUtil!=null?badge(u.drvUtil/100,up.drvUtil/100,false,false):'')+'</td>'
+        +'<td class="'+(u&&u.armAvailPct!=null?(u.armAvailPct>=97?'g':u.armAvailPct>=90?'y':'r'):'')+'">'+(u&&u.armAvailPct!=null?pct(u.armAvailPct/100):'—')+(u&&up&&u.armAvailPct!=null&&up.armAvailPct!=null?badge(u.armAvailPct/100,up.armAvailPct/100,false,false):'')+'</td>'
         +'<td class="'+(u&&u.armUtilPct!=null?(u.armUtilPct>=95?'g':u.armUtilPct>=85?'y':'r'):'')+'">'+(u&&u.armUtilPct!=null?pct(u.armUtilPct/100):'—')+(u&&up&&u.armUtilPct!=null&&up.armUtilPct!=null?badge(u.armUtilPct/100,up.armUtilPct/100,false,false):'')+'</td>'
+        +'<td>'+idleDayCell(u,up)+'</td>'
         +'<td>'+num(d.ritase,2)+'</td>'
         +'<td>'+(u?num(u.ritaseMpp,2):'—')+'</td>';
+    }
+    // Idle/Hari = total unit-hari idle (available − utilized) ÷ jml hari aktif di periode, dibulatin ke unit utuh.
+    // Badge pakai selisih angka bulat; turun = bagus (hijau).
+    function idlePerDay(u){ return (u && u.armIdleTot!=null && u.armActDayCnt>0) ? Math.round(u.armIdleTot/u.armActDayCnt) : null; }
+    function idleDayCell(u,up){
+      var c=idlePerDay(u); if(c==null) return '—';
+      var pv=idlePerDay(up);
+      return c.toLocaleString('id-ID')+(pv!=null?bdgN(c,pv,true):'');
     }
     var metrikThead = '<thead><tr><th style="text-align:left">BU</th>'
       +'<th>OLF</th><th>DP Store</th><th>DP Mix</th><th>DP Reg</th><th>CBM/DP Mix</th><th>DO/Trip Mix</th>'
       +'<th>TAT Direct</th><th>TAT Store</th>'
-      +'<th>UTL Driver</th><th>UTL Armada</th><th>Rit.Armada</th><th>Rit.MPP</th>'
+      +'<th>UTL Driver</th><th>AVL Armada</th><th>UTL Armada</th><th>Idle/Hari</th><th>Rit.Armada</th><th>Rit.MPP</th>'
       +'</tr></thead>';
     var metrikLegend = '';
     var metrikBody = '';
     buList.forEach(function(bu,i) {
-      if(i>0) metrikBody+='<tr><td colspan="13" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
+      if(i>0) metrikBody+='<tr><td colspan="15" style="padding:1px 0;border:none;background:#f1f5f9"></td></tr>';
       var lbl=(i===0?'<b>':'')+bu.label+(i===0?'</b>':'');
       if(prevMo) metrikBody+='<tr'+(i===0?' class="corp-row"':'')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnPrev+'</span></td>'+metrikCols(bu.key,prevMo,null)+'</tr>';
       metrikBody+='<tr'+(i===0?' class="corp-row cur"':' class="cur"')+'><td class="bu-label">'+lbl+' <span class="mo">'+mnCur+'</span></td>'+metrikCols(bu.key,curMo,prevMo)+'</tr>';
@@ -6572,6 +6583,28 @@ function openPresentation() {
       }
       return L;
     }
+    // ── Insight Idle Armada (ringkas, weekly-friendly): angka = kolom Idle/Hari, + hari kejadian dari sheet Utilisasi.
+    //    Hari kerja saja — Minggu, libur nasional & SO udah di-exclude di filterUtilRows. Tipe/nopol gak ada di sheet Utilisasi.
+    function buildIdleInsight() {
+      var uc=getUtil(site,curMo); var c=idlePerDay(uc); if(c==null) return null;
+      if(Math.round(uc.armIdleTot)<1) return '<b>Idle Armada</b>: 0 — tidak ada armada idle.';
+      var HR=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+      var byD=uc.armIdleByDate||{};
+      var days=Object.keys(byD).filter(function(d){ return Math.round(byD[d])>=1; }).sort();
+      if(days.length>6) days=days.slice().sort(function(x,y){ return byD[y]-byD[x] || (x<y?-1:1); }).slice(0,5).sort();
+      var dTxt=days.map(function(d){ return HR[new Date(d+'T00:00:00').getDay()]+' '+parseInt(d.slice(8,10))+' ('+Math.round(byD[d])+')'; }).join(', ');
+      var who='';
+      if(isJAB){
+        var bus=[];
+        JAB_BUS.forEach(function(b,i){
+          if(i===0) return; var ub=getUtil(b.key,curMo);
+          if(ub && ub.armIdleTot!=null && Math.round(ub.armIdleTot)>=1) bus.push(b.label);
+        });
+        if(bus.length) who=' ('+bus.join(', ')+')';
+      }
+      var total=Object.keys(byD).filter(function(d){ return Math.round(byD[d])>=1; }).length;
+      return '<b>Idle Armada</b>: <b>'+(c>=1?c.toLocaleString('id-ID'):'&lt;1')+' unit/hari</b>'+who+' — '+(total>6?'terbanyak ':'')+dTxt+'.';
+    }
     function insBox(title, lines) {
       return '<div class="prs-ins-col"><div class="prs-ins-h">'+title+'</div>'
         +(lines.length?'<ul contenteditable="true" spellcheck="false">'+lines.map(function(l){return '<li>'+l+'</li>';}).join('')+'</ul>'
@@ -6589,6 +6622,7 @@ function openPresentation() {
       function joinAmp(a){ return a.length<2?a.join(''):a.slice(0,-1).join(', ')+(a.length>2?',':'')+' &amp; '+a[a.length-1]; }
       // Baris atas: kalimat Demand & Trip (format formal), lalu KPI hijau/merah
       buildOpsInsight().forEach(function(l){ if(/^<b>(Demand|Trip)<\/b>/.test(l)) L.push(l); });
+      var idl=buildIdleInsight(); if(idl) L.push(idl);
       // Status mengikuti badge di KPI card (berbasis target, bukan tren MoM):
       // Hijau = target tercapai (atau KPI tanpa target), walaupun turun vs bulan lalu
       // Merah = di bawah target
