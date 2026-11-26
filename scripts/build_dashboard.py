@@ -174,6 +174,138 @@ def _parse_pilot_date_header(h):
     except ValueError:
         return None
 
+# ── SDA: status harian per nopol (sheet Availability SDA, PIC Sidoarjo) ──────────
+# Sheet Utilisasi PIC Sidoarjo cuma level site (CORP SIDOARJO). File ini dipakai template
+# (applySdaBuFromNopolStatus) untuk membagi angka CORP SIDOARJO ke BU per hari.
+SDA_AVAIL_SPREADSHEET_ID = "17AcqFBwTOTydCfTkGFaVoH53bcP-nr3nuxuWn6eybK4"
+SDA_AVAIL_TAB = "SDA"
+SDA_CODE_UTIL = {'DCS', 'DST', 'PLN', 'PST', 'KIR', 'LOD'}   # Delivery customer/store, Perbantuan, Uji KIR, Loading
+SDA_CODE_IDLE = {'IDL'}
+SDA_CODE_NA   = {'SVC', 'SVB', 'SVL', 'RBR', 'GCL', 'POL'}   # Service, Service Besar/Luar, Rebranding, General Cleaning, urus dokumen
+SDA_CODE_REPLACED = {'SAP'}                                  # Service, slot diisi armada pengganti (MRP) → unit gak dihitung
+SDA_BU_GROUP = {'HCI': 'HCI', 'AHI': 'AHI', 'TGI': 'AHI', 'FBI': 'FBI', 'KLS': 'KLS'}
+
+def _sda_type_group(t):
+    t = (t or '').strip().upper()
+    return 'CDE' if t.startswith('CDE') and 'PICK' not in t else t
+
+def fetch_sda_bu_status(service, master_asset, today_iso):
+    """Baca tab SDA (Site, Type, Kode Armada, Nopol, lalu kolom tanggal) dan kembalikan
+    { 'bu_counts': { 'YYYY-MM-DD': { BU: [asset, utilize, idle, na] } }, ... }.
+    BU = tag Master Asset bulan itu (TGI digabung AHI). Unit MRP (Kode Armada 'MRP…') dipasangkan
+    per hari ke unit sendiri ber-type sama yang lagi SAP / NA / kosong di tengah masa aktifnya, dan
+    ikut BU unit yang digantikan; MRP tanpa pasangan ikut BU-nya di Master Asset, kalau tidak ada → 'MRP'.
+    Sel kosong & SAP = unit tidak dihitung hari itu (slotnya diisi MRP / unit belum-sudah di site)."""
+    result = service.spreadsheets().values().get(
+        spreadsheetId=SDA_AVAIL_SPREADSHEET_ID,
+        range=f"'{SDA_AVAIL_TAB}'!A:ZZ",
+        valueRenderOption="FORMATTED_VALUE",
+    ).execute()
+    rows = result.get("values", [])
+    if len(rows) < 2:
+        return None
+    hdr = [str(h).strip() for h in rows[0]]
+    hdr_up = [h.upper() for h in hdr]
+    def col(name):
+        return hdr_up.index(name) if name in hdr_up else -1
+    i_type, i_kode, i_nopol = col('TYPE'), col('KODE ARMADA'), col('NOPOL')
+    if -1 in (i_type, i_kode, i_nopol):
+        print("  ✗ SDA availability: kolom Type/Kode Armada/Nopol tidak ketemu")
+        return None
+    date_cols = [(i, _parse_pilot_date_header(h)) for i, h in enumerate(hdr) if i > i_nopol]
+    date_cols = [(i, d) for i, d in date_cols if d and d <= today_iso]
+    units = []
+    for r in rows[1:]:
+        nopol = str(r[i_nopol]).strip().upper() if i_nopol < len(r) else ''
+        if not nopol:
+            continue
+        units.append({
+            'nopol': nopol,
+            'type': str(r[i_type]).strip() if i_type < len(r) else '',
+            'mrp': (str(r[i_kode]).strip().upper() if i_kode < len(r) else '').startswith('MRP'),
+            'cells': {d: (str(r[i]).strip().upper() if i < len(r) and r[i] is not None else '') for i, d in date_cols},
+        })
+    # BU per nopol per bulan dari Master Asset
+    bu_month, bu_any = {}, {}
+    for mk in sorted(master_asset):
+        for site_key, types in master_asset[mk].items():
+            if not site_key.upper().startswith('NDC SIDOARJO'):
+                continue
+            bu = site_key.upper().replace('NDC SIDOARJO', '').strip()
+            for _typ, nps in types.items():
+                for np_ in nps:
+                    np_ = str(np_).strip().upper()
+                    bu_month[(mk, np_)] = bu
+                    bu_any[np_] = bu
+    def bu_of(np_, d):
+        return bu_month.get((d[:7], np_)) or bu_any.get(np_)
+    # Masa aktif unit sendiri (sel terisi pertama s/d terakhir)
+    span = {}
+    for u in units:
+        filled = [d for _, d in date_cols if u['cells'].get(d)]
+        span[u['nopol']] = (filled[0], filled[-1]) if filled else None
+    own = [u for u in units if not u['mrp']]
+    mrp = [u for u in units if u['mrp']]
+    prev, unknown, out = {}, defaultdict(int), {}
+    for _, d in date_cols:
+        # 1) pairing MRP → unit yang digantikan
+        cands = defaultdict(list)
+        for u in own:
+            v, sp = u['cells'].get(d, ''), span[u['nopol']]
+            if not sp:
+                continue
+            if v in SDA_CODE_REPLACED or v in SDA_CODE_NA or (not v and sp[0] <= d <= sp[1]):
+                rank = 0 if v in SDA_CODE_REPLACED else 1
+                cands[_sda_type_group(u['type'])].append((rank, u['nopol']))
+        for g in cands:
+            cands[g].sort()
+        used, partner = set(), {}
+        for m in mrp:
+            if not m['cells'].get(d, ''):
+                prev.pop(m['nopol'], None)
+                continue
+            cs = [n for _, n in cands[_sda_type_group(m['type'])] if n not in used]
+            p = prev.get(m['nopol'])
+            pick = p if p in cs else (cs[0] if cs else None)
+            if pick:
+                used.add(pick); prev[m['nopol']] = pick; partner[m['nopol']] = pick
+            else:
+                prev.pop(m['nopol'], None)
+        # 2) hitung status per BU
+        day = {}
+        for u in units:
+            v = u['cells'].get(d, '')
+            if not v or v in SDA_CODE_REPLACED:
+                continue
+            if u['mrp']:
+                p = partner.get(u['nopol'])
+                bu = bu_of(p, d) if p else bu_of(u['nopol'], d)
+            else:
+                bu = bu_of(u['nopol'], d)
+            g = SDA_BU_GROUP.get(bu or '', 'MRP')
+            if v in SDA_CODE_UTIL:   k = 1
+            elif v in SDA_CODE_IDLE: k = 2
+            else:
+                k = 3
+                if v not in SDA_CODE_NA:
+                    unknown[v] += 1
+            x = day.setdefault(g, [0, 0, 0, 0])
+            x[0] += 1; x[k] += 1
+        if day:
+            out[d] = day
+    if unknown:
+        print(f"  ! SDA availability: kode tidak dikenal (dihitung NA): {dict(unknown)}")
+    dates = sorted(out)
+    print(f"  ✓ SDA availability: {len(units)} nopol ({len(mrp)} MRP), {len(dates)} hari"
+          + (f" ({dates[0]} s/d {dates[-1]})" if dates else ""))
+    return {
+        'source': f"Availability SDA Google Sheet - {SDA_AVAIL_TAB} tab",
+        'fields': ['asset', 'utilize', 'idle', 'na'],
+        'codes': {'utilize': sorted(SDA_CODE_UTIL), 'idle': sorted(SDA_CODE_IDLE),
+                  'na': sorted(SDA_CODE_NA), 'replaced': sorted(SDA_CODE_REPLACED)},
+        'bu_counts': out,
+    }
+
 ARMADA_TYPE_NORMALIZE = {
     'CDD': 'CDD', 'CDD LONG CHASSIS': 'CDDLC', 'CDD LC': 'CDDLC', 'CDD PICK UP': 'CDD PICKUP', 'CDD PICKUP': 'CDD PICKUP',
     'CDE': 'CDE', 'CDE LONG CHASSIS': 'CDELC', 'CDE LC': 'CDELC', 'CDELC': 'CDELC', 'CDE PICK UP': 'CDE PICKUP', 'CDE PICKUP': 'CDE PICKUP',
@@ -1071,6 +1203,13 @@ def build():
         print(f"  ✗ Pilot data: {e}")
         pilot_data = {}
 
+    print("  Fetching SDA availability (status harian per nopol)...")
+    try:
+        sda_bu_status = fetch_sda_bu_status(service, master_asset, today_iso_wib)
+    except Exception as e:
+        print(f"  ✗ SDA availability: {e}")
+        sda_bu_status = None
+
     base = os.path.dirname(os.path.abspath(__file__))
     data_path     = os.path.join(base, '..', 'data.json')
     monthly_path  = os.path.join(base, '..', 'data_monthly.json')
@@ -1088,6 +1227,13 @@ def build():
         with open(pilot_path, 'w', encoding='utf-8') as f:
             json.dump(site_data, f, ensure_ascii=False, separators=(',',':'))
         print(f"data_{site_key.lower()}_nopol_status.json: {os.path.getsize(pilot_path)/1024:.1f} KB")
+
+    if sda_bu_status:
+        sda_path = os.path.join(base, '..', 'data_sda_bu_status.json')
+        sda_bu_status['timestamp'] = timestamp
+        with open(sda_path, 'w', encoding='utf-8') as f:
+            json.dump(sda_bu_status, f, ensure_ascii=False, separators=(',',':'))
+        print(f"data_sda_bu_status.json: {os.path.getsize(sda_path)/1024:.1f} KB")
 
     # Encode string fields to integer codes to reduce file size
     ENCODE_FIELDS = ['sheet','site','td','kat','ta','sa','owner','nopol','jalur','ja','sat','od','drvId','crewId','sla']
