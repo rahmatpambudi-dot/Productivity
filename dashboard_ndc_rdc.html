@@ -6592,16 +6592,39 @@ function openPresentation() {
       var byD=uc.armIdleByDate||{};
       var days=Object.keys(byD).filter(function(d){ return Math.round(byD[d])>=1; }).sort();
       if(days.length>6) days=days.slice().sort(function(x,y){ return byD[y]-byD[x] || (x<y?-1:1); }).slice(0,5).sort();
-      var dTxt=days.map(function(d){ return HR[new Date(d+'T00:00:00').getDay()]+' '+parseInt(d.slice(8,10))+' ('+Math.round(byD[d])+')'; }).join(', ');
-      var who='';
+      var who='', bus=[];
       if(isJAB){
-        var bus=[];
         JAB_BUS.forEach(function(b,i){
           if(i===0) return; var ub=getUtil(b.key,curMo);
           if(ub && ub.armIdleTot!=null && Math.round(ub.armIdleTot)>=1) bus.push(b.label);
         });
         if(bus.length) who=' ('+bus.join(', ')+')';
       }
+      // Jenis armada per hari dari pilot NOPOL_PAIRED_LC (sel EMPTY, setelah aturan idle panjang ≥5 hari kerja → NA).
+      // Jababeka: cuma nopol milik BU yg idle di sheet Utilisasi. Catatan: jumlah nopol pilot bisa beda sama angka sheet Utilisasi.
+      var pd=(typeof PILOT_DATA!=='undefined')?PILOT_DATA[site]:null;
+      function tLbl(t){ return t.split(' ').map(function(w){ return (w.length<=3||w==='LC')?w:w.charAt(0)+w.slice(1).toLowerCase(); }).join(' ').replace(/ Pick UP$/,' Pick Up'); }
+      function typesOn(d){
+        if(!pd||!pd.dates||!pd.types) return '';
+        var ix=pd.dates.indexOf(d); if(ix<0) return '';
+        // hari yg belum diisi PIC sama sekali (semua sel EMPTY tanpa keterangan) → skip, sama kayak aturan heatmap
+        var filled=false;
+        Object.keys(pd.types).forEach(function(t){ (pd.types[t]||[]).forEach(function(r){ var c=r.cells&&r.cells[ix]; if(c&&(c.s!=='EMPTY'||c.d)&&!/^Transit LK/.test(c.d||'')) filled=true; }); }); // sel imputasi Transit LK bukan isian PIC
+        if(!filled) return '';
+        var cnt={}, order=[];
+        Object.keys(pd.types).forEach(function(t){
+          (pd.types[t]||[]).forEach(function(r){
+            if(bus.length && bus.indexOf(r.owner)<0) return;
+            var c=r.cells&&r.cells[ix]; if(!c||c.s!=='EMPTY') return;
+            var l=tLbl(t); if(!cnt[l]){ cnt[l]=0; order.push(l); } cnt[l]++;
+          });
+        });
+        return order.map(function(l){ return l+(cnt[l]>1?' ×'+cnt[l]:''); }).join(', ');
+      }
+      var dTxt=days.map(function(d){
+        var ty=typesOn(d);
+        return HR[new Date(d+'T00:00:00').getDay()]+' '+parseInt(d.slice(8,10))+' ('+Math.round(byD[d])+(ty?': '+ty:'')+')';
+      }).join('; ');
       var total=Object.keys(byD).filter(function(d){ return Math.round(byD[d])>=1; }).length;
       return '<b>Idle Armada</b>: <b>'+(c>=1?c.toLocaleString('id-ID'):'&lt;1')+' unit/hari</b>'+who+' — '+(total>6?'terbanyak ':'')+dTxt+'.';
     }
