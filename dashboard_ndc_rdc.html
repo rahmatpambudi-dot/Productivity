@@ -592,6 +592,12 @@ async function loadData() {
 
     // Step 3b-2: LK transit (lead time) → arm_util sheet Utilisasi, berlaku di Slide/Detail/Trend
     try { applyLKTransitToUtil(); } catch(eLK) { console.warn('applyLKTransitToUtil', eLK); }
+    // Step 3b-3: SDA per BU dari status harian per nopol (dikunci ke total CORP SIDOARJO sheet Utilisasi)
+    try {
+      const sdaRes = await fetch('data_sda_bu_status.json?t=' + Date.now());
+      if(sdaRes.ok) { SDA_NOPOL_STATUS = await sdaRes.json(); }
+    } catch(eSDA) { SDA_NOPOL_STATUS = null; }
+    try { applySdaBuFromNopolStatus(); } catch(eSB) { console.warn('applySdaBuFromNopolStatus', eSB); }
 
     // Step 3c: Load per-site NOPOL-level status pilots (heatmap: utilized/not-available/empty
     // per day). Each site's PIC-tracked sheet loads independently — a missing file for one
@@ -2619,6 +2625,61 @@ function applyLKTransitToUtil() {
     if (nv > u.arm_util) { u.lk_transit_add = nv - u.arm_util; u.arm_util = nv; bumped++; }
   });
   return bumped;
+}
+
+// ── SDA per BU dari status harian per nopol (sheet Availability SDA PIC) ──
+// Sheet Utilisasi PIC Sidoarjo cuma level site (CORP SIDOARJO). Breakdown per BU dibuat dari
+// data_sda_bu_status.json (dibuat build_dashboard.py dari sheet Availability SDA): jumlah nopol per BU per hari dgn status utilize/idle/NA (BU ikut tag
+// Master Asset; unit MRP ikut BU unit yang lagi digantikan). Angka CORP SIDOARJO hari itu (asset,
+// available, utilize SESUDAH LK transit) dibagi ke BU sesuai porsi tsb, dibulatkan ke unit utuh
+// (largest remainder) → jumlah HCI+AHI+FBI+KLS+MRP = persis sheet UTL. Menimpa baris sintetis
+// SDA_HCI/SDA_AHI(+TGI)/SDA_FBI (arm_*) utk tanggal yg ada di file; tanggal lain tetap cara lama.
+// WAJIB dipanggil sesudah applyLKTransitToUtil().
+let SDA_NOPOL_STATUS = null;
+const SDA_BU_ROWS = { HCI:'SDA_HCI', AHI:'SDA_AHI', FBI:'SDA_FBI' };
+function lrInt(total, weights) {
+  var keys = Object.keys(weights), sw = keys.reduce(function(a,k){ return a + weights[k]; }, 0);
+  var out = {}; if (!keys.length) return out;
+  if (sw <= 0) { keys.forEach(function(k){ out[k] = 0; }); return out; }
+  var rem = total, fr = [];
+  keys.forEach(function(k){ var v = total * weights[k] / sw; out[k] = Math.floor(v); rem -= out[k]; fr.push([k, v - out[k]]); });
+  fr.sort(function(a,b){ return b[1] - a[1]; });
+  for (var i = 0; i < rem && i < fr.length; i++) out[fr[i][0]]++;
+  return out;
+}
+function applySdaBuFromNopolStatus() {
+  if (!SDA_NOPOL_STATUS || !SDA_NOPOL_STATUS.bu_counts || !UTIL_ROWS || !UTIL_ROWS.length) return 0;
+  var bc = SDA_NOPOL_STATUS.bu_counts, idx = {}, n = 0;
+  UTIL_ROWS.forEach(function(u){ if (u.site && u.site.indexOf('SDA_') === 0) idx[u.site + '|' + u.date] = u; });
+  UTIL_ROWS.forEach(function(c) {
+    if (c.site !== 'CORP SIDOARJO' || !bc[c.date]) return;
+    if (c.arm_assets == null || c.arm_avail == null || c.arm_util == null || !(c.arm_util > 0)) return;
+    var cnt = bc[c.date], bus = Object.keys(cnt);
+    var wA = {}, wI = {}, wN = {}, sI = 0, sN = 0;
+    bus.forEach(function(b){ wA[b] = cnt[b][0]; wI[b] = cnt[b][2]; wN[b] = cnt[b][3]; sI += cnt[b][2]; sN += cnt[b][3]; });
+    var idle = Math.max(0, c.arm_avail - c.arm_util), na = Math.max(0, c.arm_assets - c.arm_avail);
+    var A = lrInt(c.arm_assets, wA), I = lrInt(idle, sI > 0 ? wI : wA), N = lrInt(na, sN > 0 ? wN : wA);
+    // pastikan idle + NA <= asset per BU; kelebihan dipindah ke BU lain yg masih ada ruang
+    bus.forEach(function(b) {
+      var over = I[b] + N[b] - A[b];
+      while (over > 0) {
+        var to = bus.filter(function(x){ return x !== b && A[x] - I[x] - N[x] > 0; })
+                    .sort(function(x,y){ return (A[y]-I[y]-N[y]) - (A[x]-I[x]-N[x]); })[0];
+        if (!to) break;
+        if (I[b] > 0) { I[b]--; I[to]++; } else { N[b]--; N[to]++; }
+        over--;
+      }
+    });
+    Object.keys(SDA_BU_ROWS).forEach(function(b) {
+      var site = SDA_BU_ROWS[b], key = site + '|' + c.date, u = idx[key];
+      if (!u) { u = { site: site, date: c.date }; UTIL_ROWS.push(u); idx[key] = u; }
+      var a = A[b] || 0, i = I[b] || 0, nn = N[b] || 0;
+      u.arm_assets = a; u.arm_avail = a - nn; u.arm_util = a - nn - i; u.arm_idle = i; u.arm_service = nn;
+      u.sda_nopol_status = true; n++;
+    });
+  });
+  if (n) ['SDA_HCI','SDA_AHI','SDA_FBI'].forEach(function(s){ delete UTIL_HARDCODED_ASSETS[s]; });
+  return n;
 }
 
 // ── ARMADA KECIL (CDELC/CDDLC, HCI/AHI): DK / LK murni / LK+ritase / Idle / Downtime ──
