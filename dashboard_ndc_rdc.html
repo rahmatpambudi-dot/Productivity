@@ -552,7 +552,7 @@ function getSiteFiles(site) {
 var SITE_CACHE = {};
 // Versi data = waktu build. Browser boleh cache file data (~40 MB) sampai build berikutnya,
 // jadi buka ulang dashboard gak download ulang semua. Tombol Refresh tetap paksa ambil terbaru.
-var DATA_VER = '27 Nov 2026 17:06 WIB';
+var DATA_VER = '27 Nov 2026 17:38 WIB';
 var FORCE_FRESH = false;
 function dataVer() {
   if (FORCE_FRESH || DATA_VER.indexOf('{{') === 0) return String(Date.now());
