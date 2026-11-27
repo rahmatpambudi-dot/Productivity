@@ -189,6 +189,44 @@ def _sda_type_group(t):
     t = (t or '').strip().upper()
     return 'CDE' if t.startswith('CDE') and 'PICK' not in t else t
 
+# ── Status harian per nopol dari tab lain di sheet Availability (format sama dgn tab SDA) ──
+# Dipakai template buat nyebut nopol/jenis idle (jumlah idle tetap dari sheet Utilisasi).
+AVAIL_EXTRA_TABS = {'CIKUPA': 'Cikupa'}
+
+def fetch_avail_tab_status(service, tab, today_iso):
+    """Baca tab (Site, Type, Kode Armada, Nopol, kolom tanggal m/d/yyyy) →
+    { 'dates': [YYYY-MM-DD...], 'units': [ {'nopol','type','kode','c':[kode per tanggal]} ] }."""
+    result = service.spreadsheets().values().get(
+        spreadsheetId=SDA_AVAIL_SPREADSHEET_ID,
+        range=f"'{tab}'!A:ZZ",
+        valueRenderOption="FORMATTED_VALUE",
+    ).execute()
+    rows = result.get("values", [])
+    if len(rows) < 2:
+        return None
+    hdr = [str(h).strip() for h in rows[0]]
+    hdr_up = [h.upper() for h in hdr]
+    def col(name):
+        return hdr_up.index(name) if name in hdr_up else -1
+    i_type, i_kode, i_nopol = col('TYPE'), col('KODE ARMADA'), col('NOPOL')
+    if -1 in (i_type, i_nopol):
+        print(f"  ✗ Availability tab {tab}: kolom Type/Nopol tidak ketemu")
+        return None
+    date_cols = [(i, _parse_pilot_date_header(h)) for i, h in enumerate(hdr) if i > i_nopol]
+    date_cols = [(i, d) for i, d in date_cols if d and d <= today_iso]
+    units = []
+    for r in rows[1:]:
+        nopol = str(r[i_nopol]).strip().upper() if i_nopol < len(r) else ''
+        if not nopol:
+            continue
+        units.append({
+            'nopol': nopol,
+            'type': str(r[i_type]).strip().upper() if i_type < len(r) else '',
+            'kode': (str(r[i_kode]).strip().upper() if i_kode >= 0 and i_kode < len(r) else ''),
+            'c': [(str(r[i]).strip().upper() if i < len(r) and r[i] is not None else '') for i, _ in date_cols],
+        })
+    return {'tab': tab, 'dates': [d for _, d in date_cols], 'units': units}
+
 def fetch_sda_bu_status(service, master_asset, today_iso):
     """Baca tab SDA (Site, Type, Kode Armada, Nopol, lalu kolom tanggal) dan kembalikan
     { 'bu_counts': { 'YYYY-MM-DD': { BU: [asset, utilize, idle, na] } }, ... }.
@@ -1210,6 +1248,16 @@ def build():
         print(f"  ✗ SDA availability: {e}")
         sda_bu_status = None
 
+    avail_extra = {}
+    for site_key, tab in AVAIL_EXTRA_TABS.items():
+        print(f"  Fetching availability tab {tab} (status harian per nopol)...")
+        try:
+            r_ = fetch_avail_tab_status(service, tab, today_iso_wib)
+            if r_:
+                avail_extra[site_key] = r_
+        except Exception as e:
+            print(f"  ✗ Availability tab {tab}: {e}")
+
     base = os.path.dirname(os.path.abspath(__file__))
     data_path     = os.path.join(base, '..', 'data.json')
     monthly_path  = os.path.join(base, '..', 'data_monthly.json')
@@ -1227,6 +1275,13 @@ def build():
         with open(pilot_path, 'w', encoding='utf-8') as f:
             json.dump(site_data, f, ensure_ascii=False, separators=(',',':'))
         print(f"data_{site_key.lower()}_nopol_status.json: {os.path.getsize(pilot_path)/1024:.1f} KB")
+
+    for site_key, av in avail_extra.items():
+        av_path = os.path.join(base, '..', f'data_{site_key.lower()}_avail.json')
+        av['timestamp'] = timestamp
+        with open(av_path, 'w', encoding='utf-8') as f:
+            json.dump(av, f, ensure_ascii=False, separators=(',',':'))
+        print(f"data_{site_key.lower()}_avail.json: {os.path.getsize(av_path)/1024:.1f} KB, {len(av['dates'])} tanggal")
 
     if sda_bu_status:
         sda_path = os.path.join(base, '..', 'data_sda_bu_status.json')
