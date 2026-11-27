@@ -6727,9 +6727,14 @@ function openPresentation() {
         var ks=Object.keys(g.cnt); if(!ks.length) return '';
         var big=0, all=0; ks.forEach(function(l){ all+=g.cnt[l]; if(BIG.test(l)) big+=g.cnt[l]; });
         var uq=ks.reduce(function(a,l){ return a+Object.keys(g.nop[l]).length; },0);
-        var top=ks.sort(function(a,b){ return g.cnt[b]-g.cnt[a]; }).slice(0, uq<=3?ks.length:3).map(function(l){ return l+(uq<=3?' '+Object.keys(g.nop[l]).join(', '):''); }).join(', ');
-        var dom = big*2===all ? 'campuran armada besar & kecil' : 'dominan armada '+(big*2>all?'besar':'kecil');
-        return lbl+' '+dom+' ('+top+')';
+        // isi kurung = jenis dari kelompok itu saja (CDD LC ke bawah = armada kecil, gak pernah masuk kurung armada besar)
+        function list(isBig){
+          var kk=ks.filter(function(l){ return BIG.test(l)===isBig; }).sort(function(a,b){ return g.cnt[b]-g.cnt[a]; });
+          var u=kk.reduce(function(a,l){ return a+Object.keys(g.nop[l]).length; },0);
+          return kk.slice(0, u<=3?kk.length:3).map(function(l){ return l+(u<=3?' '+Object.keys(g.nop[l]).join(', '):''); }).join(', ');
+        }
+        if(big*2===all) return lbl+' campuran armada besar ('+list(true)+') & kecil ('+list(false)+')';
+        return big*2>all ? lbl+' dominan armada besar ('+list(true)+')' : lbl+' dominan armada kecil ('+list(false)+')';
       }
       var segs=[segTxt(seg.wk,'Sen–Jum'), segTxt(seg.sat,'Sabtu')].filter(Boolean);
       var types=segs.join('; ');
