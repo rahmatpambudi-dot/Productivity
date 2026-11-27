@@ -376,7 +376,7 @@ body.export-mode #exitExport { display:block; }
         <option value="TAMORA_KLS">Tamora — KLS</option>
       </select>
       <div class="upd-info">Update: <span id="updTime">14 May 2026 18:30 WIB</span></div>
-      <button class="btn-ref" onclick="loadData()">
+      <button class="btn-ref" onclick="FORCE_FRESH=true; SITE_CACHE={}; loadData()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
         Refresh
       </button>
@@ -546,10 +546,18 @@ function getSiteFiles(site) {
 }
 
 var SITE_CACHE = {};
+// Versi data = waktu build. Browser boleh cache file data (~40 MB) sampai build berikutnya,
+// jadi buka ulang dashboard gak download ulang semua. Tombol Refresh tetap paksa ambil terbaru.
+var DATA_VER = '{{BUILD_TIMESTAMP}}';
+var FORCE_FRESH = false;
+function dataVer() {
+  if (FORCE_FRESH || DATA_VER.indexOf('{{') === 0) return String(Date.now());
+  return encodeURIComponent(DATA_VER);
+}
 
 async function loadSiteData(site) {
   if(SITE_CACHE[site]) return SITE_CACHE[site];
-  var res = await fetch('data_'+site+'.json?t='+Date.now());
+  var res = await fetch('data_'+site+'.json?v=' + dataVer());
   if(!res.ok) throw new Error('data_'+site+'.json not found');
   var json = await res.json();
   if(!DEC_MAPS && json.maps) DEC_MAPS = json.maps;
@@ -563,7 +571,7 @@ async function loadData() {
   try {
     // Step 1: Load monthly (7KB) — render Overview instantly
     try {
-      const mRes = await fetch('data_monthly.json?t=' + Date.now());
+      const mRes = await fetch('data_monthly.json?v=' + dataVer());
       if(mRes.ok) {
         const mJson = await mRes.json();
         MONTHLY = mJson.monthly || [];
@@ -582,13 +590,13 @@ async function loadData() {
 
     // Step 3: Load utilisasi
     try {
-      const uRes = await fetch('data_utilisasi.json?t=' + Date.now());
+      const uRes = await fetch('data_utilisasi.json?v=' + dataVer());
       if(uRes.ok) { const uJson = await uRes.json(); UTIL_ROWS = uJson.rows || []; }
     } catch(e3) { UTIL_ROWS = []; }
 
     // Step 3b: Load Master Asset roster (per-month fleet count for accurate Util Armada)
     try {
-      const maRes = await fetch('data_master_asset.json?t=' + Date.now());
+      const maRes = await fetch('data_master_asset.json?v=' + dataVer());
       if(maRes.ok) { const maJson = await maRes.json(); MASTER_ASSET = maJson.months || {}; MASTER_ASSET_WINDOWS = maJson.windows || {}; }
     } catch(e3b) { MASTER_ASSET = {}; MASTER_ASSET_WINDOWS = {}; }
 
@@ -596,7 +604,7 @@ async function loadData() {
     try { applyLKTransitToUtil(); } catch(eLK) { console.warn('applyLKTransitToUtil', eLK); }
     // Step 3b-3: SDA per BU dari status harian per nopol (dikunci ke total CORP SIDOARJO sheet Utilisasi)
     try {
-      const sdaRes = await fetch('data_sda_bu_status.json?t=' + Date.now());
+      const sdaRes = await fetch('data_sda_bu_status.json?v=' + dataVer());
       if(sdaRes.ok) { SDA_NOPOL_STATUS = await sdaRes.json(); }
     } catch(eSDA) { SDA_NOPOL_STATUS = null; }
     try { applySdaBuFromNopolStatus(); } catch(eSB) { console.warn('applySdaBuFromNopolStatus', eSB); }
@@ -610,11 +618,11 @@ async function loadData() {
       { key: 'CIKUPA', file: 'data_cikupa_nopol_status.json' }
     ];
     for (const ak of Object.keys(AVAIL_TAB)) {
-      try { const aRes = await fetch('data_'+ak.toLowerCase()+'_avail.json?t=' + Date.now()); if (aRes.ok) AVAIL_TAB[ak] = await aRes.json(); } catch (eAv) { AVAIL_TAB[ak] = null; }
+      try { const aRes = await fetch('data_'+ak.toLowerCase()+'_avail.json?v=' + dataVer()); if (aRes.ok) AVAIL_TAB[ak] = await aRes.json(); } catch (eAv) { AVAIL_TAB[ak] = null; }
     }
     for (const ps of PILOT_SITE_FILES) {
       try {
-        const psRes = await fetch(ps.file + '?t=' + Date.now());
+        const psRes = await fetch(ps.file + '?v=' + dataVer());
         if (psRes.ok) { PILOT_DATA[ps.key] = await psRes.json(); applyPilotLKTransitImputation(ps.key); applyPilotLongIdleNA(ps.key); }
       } catch (e3c) { PILOT_DATA[ps.key] = null; }
     }
@@ -623,7 +631,7 @@ async function loadData() {
 
     // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
     try {
-      const ioRes = await fetch('data_insentif_ot.json?t=' + Date.now());
+      const ioRes = await fetch('data_insentif_ot.json?v=' + dataVer());
       if(ioRes.ok) {
         const ioJson = await ioRes.json();
         INSENTIF_OT_MAP = ioJson.by_lc || {};
