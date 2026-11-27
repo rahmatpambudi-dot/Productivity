@@ -46,7 +46,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 .s-sub-item:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.8);}
 .s-sub-item.active{background:rgba(255,255,255,.1);color:#fff;font-weight:600;}
 .s-sub-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.3);flex-shrink:0;margin-right:7px;}
-.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;}
+.main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-width:0;}
+/* layout guard: konten lebar (tabel/heatmap) scroll di dalam panel, bukan bikin halaman melebar */
+.content{min-width:0;max-width:100%;}
+.content .panel{max-width:100%;}
+.g2>*,.g3>*,.g4>*{min-width:0;}
 .topbar{background:var(--white);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5;gap:10px;flex-wrap:wrap;}
 .topbar h2{font-size:15px;font-weight:600;}
 .topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
@@ -1868,7 +1872,7 @@ function renderDetail(results, summary, start, end) {
 
   document.getElementById('content').innerHTML=`
     ${siteAchTable}
-    <div class="g2" style="margin-bottom:14px">
+    <div class="g2" style="margin-bottom:14px;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)">
       <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
       <div class="panel"><div class="ph"><h3>Ringkasan Metrik</h3><span class="tag">range terpilih</span></div>
         <div class="tw"><table class="dt"><thead><tr><th>METRIK</th>${results.map(r=>`<th class="num">${r.label}</th>`).join('')}<th class="num">AVG</th></tr></thead>
