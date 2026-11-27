@@ -191,7 +191,7 @@ def _sda_type_group(t):
 
 # ── Status harian per nopol dari tab lain di sheet Availability (format sama dgn tab SDA) ──
 # Dipakai template buat nyebut nopol/jenis idle (jumlah idle tetap dari sheet Utilisasi).
-AVAIL_EXTRA_TABS = {'CIKUPA': 'Cikupa'}
+AVAIL_EXTRA_TABS = {'CIKUPA': 'Cikupa', 'SDA': 'SDA'}
 
 def fetch_avail_tab_status(service, tab, today_iso):
     """Baca tab (Site, Type, Kode Armada, Nopol, kolom tanggal m/d/yyyy) →
