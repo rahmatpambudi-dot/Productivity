@@ -618,6 +618,8 @@ async function loadData() {
         if (psRes.ok) { PILOT_DATA[ps.key] = await psRes.json(); applyPilotLKTransitImputation(ps.key); applyPilotLongIdleNA(ps.key); }
       } catch (e3c) { PILOT_DATA[ps.key] = null; }
     }
+    // Step 3c-2: Avl/Utl FBI & KLS Jababeka dari status per nopol (NOPOL_PAIRED_LC), bukan dari trip data
+    try { applyJabSyntheticFromPilot(); } catch(eJP) { console.warn('applyJabSyntheticFromPilot', eJP); }
 
     // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
     try {
@@ -3286,6 +3288,38 @@ function applyPilotLongIdleNA(siteKey) {
     });
   });
   return fixed;
+}
+// ── FBI & KLS Jababeka: Avl/Utl dari status harian per nopol (pilot NOPOL_PAIRED_LC) ──
+// Baris sintetis JAB_FBI/JAB_KLS dari trip data cuma tau nopol yg jalan (arm_avail = arm_util = nopol ber-LC,
+// asset hardcode) → "Availability" sebenarnya utilisasi & UTL selalu 100%. Utk tanggal yg ada di pilot
+// (sesudah imputasi transit LK + aturan idle panjang = NA), angkanya diganti: asset = unit owner tsb hari itu,
+// avail = asset − NA, util = UTIL. Tanggal off & kolom yg belum diisi PIC dilewati (tetap cara lama).
+var JAB_PILOT_OWNER_ROWS = { FBI:'JAB_FBI', KLS:'JAB_KLS' };
+function applyJabSyntheticFromPilot() {
+  var data = PILOT_DATA && PILOT_DATA.JABABEKA;
+  if (!data || !data.dates || !data.dates.length || !UTIL_ROWS || !UTIL_ROWS.length) return 0;
+  var idx = {}, n = 0;
+  UTIL_ROWS.forEach(function(u){ if (u.site === 'JAB_FBI' || u.site === 'JAB_KLS') idx[u.site + '|' + u.date] = u; });
+  var rows = [];
+  Object.keys(data.types).forEach(function(t){ rows = rows.concat(data.types[t]); });
+  data.dates.forEach(function(d, i) {
+    if (isUtilOffDate(d, 'JABABEKA') || (data.unfilled && data.unfilled[d])) return;
+    Object.keys(JAB_PILOT_OWNER_ROWS).forEach(function(own) {
+      var a = 0, na = 0, ut = 0;
+      rows.forEach(function(r) {
+        if (r.owner !== own) return;
+        var c = r.cells[i]; if (!c) return;
+        a++; if (c.s === 'NA') na++; else if (c.s === 'UTIL') ut++;
+      });
+      if (!a) return;
+      var site = JAB_PILOT_OWNER_ROWS[own], key = site + '|' + d, u = idx[key];
+      if (!u) { u = { site: site, date: d }; UTIL_ROWS.push(u); idx[key] = u; }
+      u.arm_assets = a; u.arm_avail = a - na; u.arm_util = ut; u.arm_idle = a - na - ut; u.arm_service = na;
+      u.jab_nopol_status = true; n++;
+    });
+  });
+  if (n) ['JAB_FBI','JAB_KLS'].forEach(function(s){ delete UTIL_HARDCODED_ASSETS[s]; });
+  return n;
 }
 function applyPilotLKTransitImputation(siteKey) {
   var data = PILOT_DATA[siteKey];
