@@ -6666,7 +6666,13 @@ function openPresentation() {
       //     Hari pilot belum diisi PIC (<20% sel) → pakai Master Asset × Master LC penuh.
       //  2) site tanpa pilot (Tallo/Tamora): Master Asset × Master LC (noLcIdleList).
       var usedNoLc=false;
-      function addC(type, nopol){ var l=tLbl(String(type).replace(/^CDELC$/,'CDE LC').replace(/^CDDLC$/,'CDD LC').replace(/^CDE PICKUP$/,'CDE PICK UP').replace(/ LONG CHASSIS$/,' LC')); cnt[l]=(cnt[l]||0)+1; (nopolsByType[l]=nopolsByType[l]||{})[nopol]=1; }
+      var curD='', seg={ wk:{cnt:{},nop:{}}, sat:{cnt:{},nop:{}} };
+      function addC(type, nopol){
+        var l=tLbl(String(type).replace(/^CDELC$/,'CDE LC').replace(/^CDDLC$/,'CDD LC').replace(/^CDE PICKUP$/,'CDE PICK UP').replace(/ LONG CHASSIS$/,' LC'));
+        cnt[l]=(cnt[l]||0)+1; (nopolsByType[l]=nopolsByType[l]||{})[nopol]=1;
+        var g = (curD && new Date(curD+'T00:00:00').getDay()===6) ? seg.sat : seg.wk;
+        g.cnt[l]=(g.cnt[l]||0)+1; (g.nop[l]=g.nop[l]||{})[nopol]=1;
+      }
       var hasNoLc = typeof NOLC_ROSTER_PREFIX!=='undefined' && NOLC_ROSTER_PREFIX[site];
       // Berjenjang per hari idle, berhenti begitu jumlah nopol >= idle sheet Utilisasi:
       //  T1 kode IDL di tab Availability (Cikupa) · T2 sel kosong di tab Availability + gak ada LC di Master LC
@@ -6674,7 +6680,7 @@ function openPresentation() {
       //  Nopol yg di tab Availability berkode jalan/NA/SAP gak pernah disebut. Tallo/Tamora langsung T4.
       var av=(typeof AVAIL_TAB!=='undefined')?AVAIL_TAB[site]:null;
       days.forEach(function(d){
-        var need=Math.round(byD[d]), got=0, seen={}, block={};
+        curD=d; var need=Math.round(byD[d]), got=0, seen={}, block={};
         function take(type,nopol){ var k=String(nopol).toUpperCase(); if(seen[k]||block[k]) return; if(!/^[A-Z]{1,2}\d{1,4}[A-Z]{0,3}$/.test(k)) return; /* cuma nopol kendaraan; no. kontainer TCIU…/FUKU… dibuang */ seen[k]=1; addC(type,nopol); got++; }
         var avIx = av&&av.dates ? av.dates.indexOf(d) : -1, avFilled=false;
         if(avIx>=0){
@@ -6714,13 +6720,20 @@ function openPresentation() {
           if(L){ if(!pilotSet && !avFilled && NOLC_FULL_SITES[site]) usedNoLc=true; L.forEach(function(x){ take(x.type, x.nopol); }); }
         }
       });
-      var uniqN=Object.keys(nopolsByType).reduce(function(a,l){ return a+Object.keys(nopolsByType[l]).length; },0);
-      var types=Object.keys(cnt).sort(function(a,b){ return cnt[b]-cnt[a]; }).map(function(l){
-        return l+' '+cnt[l]+(uniqN<=6 && nopolsByType[l] ? ' ('+Object.keys(nopolsByType[l]).join(', ')+')' : '');
-      }).join(', ');
-      // jumlah nopol dari sumber per-nopol ≠ idle sheet Utilisasi → sebut "kandidat" (lagi divalidasi PIC)
-      var totIdle=Math.round(uc.armIdleTot), totCand=Object.keys(cnt).reduce(function(a,l){ return a+cnt[l]; },0);
-      var candLbl = usedNoLc ? ' — nopol tanpa LC (unit-hari): ' : (totCand===totIdle ? ' — jenis (unit-hari): ' : ' — kandidat (unit-hari): ');
+      // Ringkasan jenis TANPA angka unit-hari (biar gak tabrakan sama rata2 unit/hari): Sen–Jum vs Sabtu,
+      // dominan armada besar (Wingbox/Fuso/Tractor Head/Cont/Tronton) atau kecil (CDD LC ke bawah). Nopol disebut kalau ≤3 unik per kelompok.
+      var BIG=/WINGBOX|FUSO|TRACTOR|CONT|TRONTON|TRAILER|BUILD/i;
+      function segTxt(g, lbl){
+        var ks=Object.keys(g.cnt); if(!ks.length) return '';
+        var big=0, all=0; ks.forEach(function(l){ all+=g.cnt[l]; if(BIG.test(l)) big+=g.cnt[l]; });
+        var uq=ks.reduce(function(a,l){ return a+Object.keys(g.nop[l]).length; },0);
+        var top=ks.sort(function(a,b){ return g.cnt[b]-g.cnt[a]; }).slice(0, uq<=3?ks.length:3).map(function(l){ return l+(uq<=3?' '+Object.keys(g.nop[l]).join(', '):''); }).join(', ');
+        var dom = big*2===all ? 'campuran armada besar & kecil' : 'dominan armada '+(big*2>all?'besar':'kecil');
+        return lbl+' '+dom+' ('+top+')';
+      }
+      var segs=[segTxt(seg.wk,'Sen–Jum'), segTxt(seg.sat,'Sabtu')].filter(Boolean);
+      var types=segs.join('; ');
+      var candLbl=' — ';
       function dd(d){ return parseInt(d.slice(8,10)); }
       var rng='';
       if(days.length){
