@@ -6,7 +6,7 @@
 <title>NDC & RDC — Performance Dashboard</title>
 <!-- v2.1 full-month-fix -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+<!-- pptxgenjs di-load saat Generate Slide PPT diklik (lihat loadPptxLib) — bundle-nya bawa polyfill core-js yang ganti String.trim dll. dan bikin semua view lemot -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
@@ -548,7 +548,7 @@ function getSiteFiles(site) {
 var SITE_CACHE = {};
 // Versi data = waktu build. Browser boleh cache file data (~40 MB) sampai build berikutnya,
 // jadi buka ulang dashboard gak download ulang semua. Tombol Refresh tetap paksa ambil terbaru.
-var DATA_VER = '27 Nov 2026 16:12 WIB';
+var DATA_VER = '27 Nov 2026 16:40 WIB';
 var FORCE_FRESH = false;
 function dataVer() {
   if (FORCE_FRESH || DATA_VER.indexOf('{{') === 0) return String(Date.now());
@@ -673,11 +673,33 @@ function getMonthRange(mo) {
 }
 
 var BU_OWNER_MAP = {HCI:['HCI'], AHI:['AHI','NKA','TGI'], FBI:['FBI'], KLS:['KLS']};
+// Index tanggal per array rows (dibangun sekali, di-cache): filterRows dipanggil per hari/bulan/site,
+// jadi tanpa index tiap panggilan nge-scan semua row setahun. Urutan asli row tetap dipertahankan.
+var _ROW_DATE_IDX = (typeof WeakMap !== 'undefined') ? new WeakMap() : null;
+function rowsInRange(rows, start, end) {
+  if (!_ROW_DATE_IDX || !rows || rows.length < 5000)
+    return rows.filter(function(r){ return r.date && r.date >= start && r.date <= end; });
+  var ix = _ROW_DATE_IDX.get(rows);
+  if (!ix || ix.n !== rows.length) {
+    var ord = [];
+    for (var i = 0; i < rows.length; i++) if (rows[i] && rows[i].date) ord.push(i);
+    ord.sort(function(a, b){ var da = rows[a].date, db = rows[b].date; return da < db ? -1 : da > db ? 1 : a - b; });
+    ix = { n: rows.length, ord: ord, dates: ord.map(function(i){ return rows[i].date; }) };
+    _ROW_DATE_IDX.set(rows, ix);
+  }
+  function lb(v){ var lo = 0, hi = ix.dates.length; while (lo < hi) { var m = (lo + hi) >> 1; if (ix.dates[m] < v) lo = m + 1; else hi = m; } return lo; }
+  function ub(v){ var lo = 0, hi = ix.dates.length; while (lo < hi) { var m = (lo + hi) >> 1; if (ix.dates[m] <= v) lo = m + 1; else hi = m; } return lo; }
+  var a = lb(start), b = ub(end);
+  if (a >= b) return [];
+  var sel = ix.ord.slice(a, b).sort(function(x, y){ return x - y; });
+  var out = new Array(sel.length);
+  for (var k = 0; k < sel.length; k++) out[k] = rows[sel[k]];
+  return out;
+}
 function filterRows(rows, start, end, site) {
   const sub = SUB_SITES[site];
-  let out = rows.filter(r => {
+  let out = rowsInRange(rows, start, end).filter(r => {
     if (!r.date) return false;
-    if (r.date < start || r.date > end) return false;
     if (sub) {
       if (r.site !== sub.baseSite) return false;
       return sub.owners.some(o => (r.owner||'').toUpperCase() === o.toUpperCase());
@@ -5845,8 +5867,23 @@ function renderSlide(results, summary, start, end) {
     </div>`;
 }
 
+var PPTX_LIB_URL = 'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+var _pptxLibPromise = null;
+function loadPptxLib() {
+  if (typeof PptxGenJS !== 'undefined') return Promise.resolve();
+  if (!_pptxLibPromise) _pptxLibPromise = new Promise(function(res, rej) {
+    var sc = document.createElement('script'); sc.src = PPTX_LIB_URL;
+    sc.onload = function(){ res(); }; sc.onerror = function(){ _pptxLibPromise = null; rej(); };
+    document.head.appendChild(sc);
+  });
+  return _pptxLibPromise;
+}
 function generatePPT() {
-  if(typeof PptxGenJS === 'undefined') { document.getElementById('pptStatus').textContent = '❌ Library belum load, refresh dulu'; return; }
+  if(typeof PptxGenJS === 'undefined') {
+    document.getElementById('pptStatus').textContent = '⏳ Memuat library PPT...';
+    loadPptxLib().then(generatePPT, function(){ document.getElementById('pptStatus').textContent = '❌ Library PPT gagal load, cek koneksi lalu coba lagi'; });
+    return;
+  }
   document.getElementById('pptStatus').textContent = '⏳ Generating...';
 
   var {start:s, end:e} = getRange();
