@@ -437,7 +437,8 @@ let ROWS = [];
 let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
 let MASTER_ASSET = {}; // { 'YYYY-MM': { site: { type: [nopol,...] } } } from data_master_asset.json
 let MASTER_ASSET_WINDOWS = {}; // { 'YYYY-MM': { site: { nopol: [fromISO|null, toISO|null] } } } — in-month effective dates parsed from Master Asset 'Keterangan' (e.g. 'Dikirim ke Jababeka Tgl 24/10/2026')
-let AVAIL_TAB = { CIKUPA: null }; // status harian per nopol dari tab sheet Availability (format SDA): data_<site>_avail.json
+let AVAIL_TAB = { CIKUPA: null, SDA: null };
+var AVAIL_BLANK_IS_IDLE = { CIKUPA: 1 }; // SDA: sel kosong = unit gak dihitung (slot MRP / gak di site), bukan idle → cuma kode IDL // status harian per nopol dari tab sheet Availability (format SDA): data_<site>_avail.json
 let PILOT_DATA = { JABABEKA: null, CIKUPA: null }; // per-site NOPOL-level pilot status (data_<site>_nopol_status.json). Add a new key here + a fetch in Step 3c when a new site's pilot sheet arrives.
 let currentNav  = 'overview';
 let currentSite = 'ALL';
@@ -6682,7 +6683,7 @@ function openPresentation() {
           if(avFilled){
             av.units.forEach(function(u){ var v=u.c[avIx]; if(v && v!=='IDL') block[u.nopol]=1; });
             av.units.forEach(function(u){ if(u.c[avIx]==='IDL') take(u.type,u.nopol); });                               // T1
-            if(got<need) av.units.forEach(function(u){ if(!u.c[avIx] && !/^MIN VAN/.test(u.type) && !(hasNoLc && noLcIsActive(site,d,u.nopol))) take(u.type,u.nopol); }); // T2
+            if(got<need && AVAIL_BLANK_IS_IDLE[site]) av.units.forEach(function(u){ if(!u.c[avIx] && !/^MIN VAN/.test(u.type) && !(hasNoLc && noLcIsActive(site,d,u.nopol))) take(u.type,u.nopol); }); // T2
           }
         }
         var pilotSet=null;
