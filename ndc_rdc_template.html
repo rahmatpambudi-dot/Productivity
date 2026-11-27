@@ -437,6 +437,7 @@ let ROWS = [];
 let UTIL_ROWS = []; // utilisasi data from data_utilisasi.json
 let MASTER_ASSET = {}; // { 'YYYY-MM': { site: { type: [nopol,...] } } } from data_master_asset.json
 let MASTER_ASSET_WINDOWS = {}; // { 'YYYY-MM': { site: { nopol: [fromISO|null, toISO|null] } } } — in-month effective dates parsed from Master Asset 'Keterangan' (e.g. 'Dikirim ke Jababeka Tgl 24/10/2026')
+let AVAIL_TAB = { CIKUPA: null }; // status harian per nopol dari tab sheet Availability (format SDA): data_<site>_avail.json
 let PILOT_DATA = { JABABEKA: null, CIKUPA: null }; // per-site NOPOL-level pilot status (data_<site>_nopol_status.json). Add a new key here + a fetch in Step 3c when a new site's pilot sheet arrives.
 let currentNav  = 'overview';
 let currentSite = 'ALL';
@@ -607,6 +608,9 @@ async function loadData() {
       { key: 'JABABEKA', file: 'data_jababeka_nopol_status.json' },
       { key: 'CIKUPA', file: 'data_cikupa_nopol_status.json' }
     ];
+    for (const ak of Object.keys(AVAIL_TAB)) {
+      try { const aRes = await fetch('data_'+ak.toLowerCase()+'_avail.json?t=' + Date.now()); if (aRes.ok) AVAIL_TAB[ak] = await aRes.json(); } catch (eAv) { AVAIL_TAB[ak] = null; }
+    }
     for (const ps of PILOT_SITE_FILES) {
       try {
         const psRes = await fetch(ps.file + '?t=' + Date.now());
@@ -3300,7 +3304,8 @@ function applyPilotLKTransitImputation(siteKey) {
 // Roster = Master Asset bulan tsb (prefix site, PASSENGER dibuang, forward-fill bulan terakhir).
 // Nopol dianggap jalan kalau ada LC di Master LC (ROWS) pada tgl tsb ATAU lagi transit LK (lead time LEADTIME_MAP).
 // Nopol tanpa LC ≥ PILOT_LONG_IDLE_DAYS hari kerja berturut-turut → Not Available (aturan sama dgn heatmap pilot), bukan idle.
-var NOLC_ROSTER_PREFIX = { TAMORA:'RDC TAMORA', TALLO:'RDC MAKASAR' };
+var NOLC_ROSTER_PREFIX = { TAMORA:['RDC TAMORA'], TALLO:['RDC MAKASAR'], CIKUPA:['NDC CIKUPA'], JABABEKA:['NDC JABABEKA','NDC KLS JABABEKA'] };
+var NOLC_FULL_SITES = { TAMORA:1, TALLO:1 }; // site tanpa pilot → kandidat full dari Master Asset × Master LC; site pilot (JAB/CKP) cuma dipakai buat konfirmasi + tambal
 var _noLcCache = {};
 function noLcActiveMap(site) {
   if (_noLcCache[site]) return _noLcCache[site];
@@ -3319,12 +3324,16 @@ function noLcRoster(site, dateStr) {
   var M = months.length ? MASTER_ASSET[months[months.length-1]] : null; if (!M) return null;
   var out = {};
   Object.keys(M).forEach(function(st){
-    if (st.indexOf(pre) !== 0) return;
-    Object.keys(M[st]).forEach(function(t){ if (t === 'PASSENGER') return; M[st][t].forEach(function(n){ out[String(n).toUpperCase()] = t; }); });
+    if (!pre.some(function(p){ return st.indexOf(p) === 0; })) return;
+    var bu = (st.match(/\b(HCI|AHI|FBI|KLS)\b/)||[])[1] || '';
+    Object.keys(M[st]).forEach(function(t){ if (t === 'PASSENGER' || t === 'MOTOR') return; M[st][t].forEach(function(n){ out[String(n).toUpperCase()] = { type:t, bu:bu }; }); });
   });
   return out;
 }
-function noLcIdleList(site, dateStr) {
+function noLcIsActive(site, dateStr, nopol) { var a = noLcActiveMap(site)[dateStr]; return !!(a && a[String(nopol).toUpperCase()]); }
+// opt.exclude: {nopol:1} dilewati (mis. nopol yg sudah tercatat di pilot); opt.bus: ['AHI',...] filter BU pemilik
+function noLcIdleList(site, dateStr, opt) {
+  opt = opt || {};
   var roster = noLcRoster(site, dateStr); if (!roster) return null;
   var act = noLcActiveMap(site), maxD = (ROWS||[]).reduce(function(m,r){ return (r.site===site && r.date>m) ? r.date : m; }, '');
   function isOff(d){ return HOLIDAYS_2026.has(d) || new Date(d+'T00:00:00').getDay() === 0; }
@@ -3332,12 +3341,14 @@ function noLcIdleList(site, dateStr) {
   function noLc(n, d){ return !(act[d] && act[d][n]); }
   var res = [];
   Object.keys(roster).forEach(function(n){
+    if (opt.exclude && opt.exclude[n]) return;
+    if (opt.bus && opt.bus.length && opt.bus.indexOf(roster[n].bu) < 0) return;
     if (!noLc(n, dateStr)) return;
     var run = 1, d, g;
     for (d = step(dateStr,-1), g = 0; g < 20 && run < PILOT_LONG_IDLE_DAYS; d = step(d,-1), g++) { if (isOff(d)) continue; if (noLc(n,d)) run++; else break; }
     for (d = step(dateStr, 1), g = 0; g < 20 && run < PILOT_LONG_IDLE_DAYS && d <= maxD; d = step(d, 1), g++) { if (isOff(d)) continue; if (noLc(n,d)) run++; else break; }
     if (run >= PILOT_LONG_IDLE_DAYS) return; // idle panjang → Not Available
-    res.push({ nopol:n, type:roster[n] });
+    res.push({ nopol:n, type:roster[n].type, bu:roster[n].bu });
   });
   return res;
 }
@@ -6647,39 +6658,76 @@ function openPresentation() {
       });
       var pd=(typeof PILOT_DATA!=='undefined')?PILOT_DATA[site]:null;
       function tLbl(t){ return t.split(' ').map(function(w){ return /^(LC|CDE|CDD|MVB)$/.test(w)?w:w.charAt(0)+w.slice(1).toLowerCase(); }).join(' ').replace(/ Pick UP$/,' Pick Up'); }
-      var cnt={};
-      if(pd && pd.dates && pd.types) days.forEach(function(d){
-        var ix=pd.dates.indexOf(d); if(ix<0) return;
-        // hari dianggap sudah diisi PIC kalau ≥20% sel terisi (sel imputasi Transit LK bukan isian PIC)
-        var nF=0, nT=0;
-        Object.keys(pd.types).forEach(function(t){ (pd.types[t]||[]).forEach(function(r){ var x=r.cells&&r.cells[ix]; nT++; if(x&&(x.s!=='EMPTY'||x.d)&&!/^Transit LK/.test(x.d||'')) nF++; }); });
-        if(!nT || nF/nT<0.2) return;
-        Object.keys(pd.types).forEach(function(t){
-          (pd.types[t]||[]).forEach(function(r){
-            if(bus.length && bus.indexOf(r.owner)<0) return;
-            var x=r.cells&&r.cells[ix]; if(!x||x.s!=='EMPTY') return;
-            var l=tLbl(t); cnt[l]=(cnt[l]||0)+1;
-          });
-        });
-      });
-      // Site tanpa pilot (Tallo/Tamora): kandidat = nopol roster Master Asset yg gak ada LC di Master LC (lihat noLcIdleList)
-      var nopolsByType={}, usedNoLc=false;
-      if(!pd && typeof NOLC_ROSTER_PREFIX!=='undefined' && NOLC_ROSTER_PREFIX[site]) days.forEach(function(d){
-        var L=noLcIdleList(site,d); if(!L) return; usedNoLc=true;
-        L.forEach(function(x){ var l=tLbl(x.type.replace(/^CDELC$/,'CDE LC').replace(/^CDDLC$/,'CDD LC')); cnt[l]=(cnt[l]||0)+1; (nopolsByType[l]=nopolsByType[l]||{})[x.nopol]=1; });
+      var cnt={}, nopolsByType={};
+      // Jenis/nopol per hari idle (jumlah tetap dari sheet Utilisasi):
+      //  1) site pilot (JAB/CKP): sel EMPTY di NOPOL_PAIRED_LC, dibuang kalau ternyata ada LC/transit LK di Master LC hari itu;
+      //     kalau masih < idle UTL → tambal dari Master Asset × Master LC utk nopol yg gak tercatat di pilot.
+      //     Hari pilot belum diisi PIC (<20% sel) → pakai Master Asset × Master LC penuh.
+      //  2) site tanpa pilot (Tallo/Tamora): Master Asset × Master LC (noLcIdleList).
+      var usedNoLc=false;
+      function addC(type, nopol){ var l=tLbl(String(type).replace(/^CDELC$/,'CDE LC').replace(/^CDDLC$/,'CDD LC').replace(/^CDE PICKUP$/,'CDE PICK UP').replace(/ LONG CHASSIS$/,' LC')); cnt[l]=(cnt[l]||0)+1; (nopolsByType[l]=nopolsByType[l]||{})[nopol]=1; }
+      var hasNoLc = typeof NOLC_ROSTER_PREFIX!=='undefined' && NOLC_ROSTER_PREFIX[site];
+      // Berjenjang per hari idle, berhenti begitu jumlah nopol >= idle sheet Utilisasi:
+      //  T1 kode IDL di tab Availability (Cikupa) · T2 sel kosong di tab Availability + gak ada LC di Master LC
+      //  T3 sel EMPTY NOPOL_PAIRED_LC + gak ada LC · T4 Master Asset × Master LC (noLcIdleList).
+      //  Nopol yg di tab Availability berkode jalan/NA/SAP gak pernah disebut. Tallo/Tamora langsung T4.
+      var av=(typeof AVAIL_TAB!=='undefined')?AVAIL_TAB[site]:null;
+      days.forEach(function(d){
+        var need=Math.round(byD[d]), got=0, seen={}, block={};
+        function take(type,nopol){ var k=String(nopol).toUpperCase(); if(seen[k]||block[k]) return; if(!/^[A-Z]{1,2}\d{1,4}[A-Z]{0,3}$/.test(k)) return; /* cuma nopol kendaraan; no. kontainer TCIU…/FUKU… dibuang */ seen[k]=1; addC(type,nopol); got++; }
+        var avIx = av&&av.dates ? av.dates.indexOf(d) : -1, avFilled=false;
+        if(avIx>=0){
+          var filled=av.units.filter(function(u){ return u.c[avIx]; }).length;
+          avFilled = filled/Math.max(1,av.units.length) >= 0.5;
+          if(avFilled){
+            av.units.forEach(function(u){ var v=u.c[avIx]; if(v && v!=='IDL') block[u.nopol]=1; });
+            av.units.forEach(function(u){ if(u.c[avIx]==='IDL') take(u.type,u.nopol); });                               // T1
+            if(got<need) av.units.forEach(function(u){ if(!u.c[avIx] && !/^MIN VAN/.test(u.type) && !(hasNoLc && noLcIsActive(site,d,u.nopol))) take(u.type,u.nopol); }); // T2
+          }
+        }
+        var pilotSet=null;
+        if(got<need && pd && pd.dates && pd.types){                                                                         // T3
+          var ix=pd.dates.indexOf(d);
+          if(ix>=0){
+            var nF=0, nT=0; // hari dianggap sudah diisi PIC kalau ≥20% sel terisi (sel imputasi Transit LK bukan isian PIC)
+            Object.keys(pd.types).forEach(function(t){ (pd.types[t]||[]).forEach(function(r){ var x=r.cells&&r.cells[ix]; nT++; if(x&&(x.s!=='EMPTY'||x.d)&&!/^Transit LK/.test(x.d||'')) nF++; }); });
+            if(nT && nF/nT>=0.2){
+              pilotSet={};
+              Object.keys(pd.types).forEach(function(t){
+                (pd.types[t]||[]).forEach(function(r){
+                  pilotSet[String(r.nopol).toUpperCase()]=1;
+                  if(bus.length && bus.indexOf(r.owner)<0) return;
+                  var x=r.cells&&r.cells[ix]; if(!x||x.s!=='EMPTY') return;
+                  if(hasNoLc && noLcIsActive(site,d,r.nopol)) return; // ternyata jalan (ada LC / transit LK)
+                  take(t, r.nopol);
+                });
+              });
+            }
+          }
+        }
+        if(got<need && hasNoLc){                                                                                              // T4
+          var excl={}; Object.keys(seen).forEach(function(k){ excl[k]=1; }); Object.keys(block).forEach(function(k){ excl[k]=1; });
+          if(pilotSet) Object.keys(pilotSet).forEach(function(k){ excl[k]=1; });
+          if(avFilled) av.units.forEach(function(u){ excl[u.nopol]=1; });
+          var L=noLcIdleList(site,d,{ exclude:excl, bus:bus });
+          if(L){ if(!pilotSet && !avFilled && NOLC_FULL_SITES[site]) usedNoLc=true; L.forEach(function(x){ take(x.type, x.nopol); }); }
+        }
       });
       var uniqN=Object.keys(nopolsByType).reduce(function(a,l){ return a+Object.keys(nopolsByType[l]).length; },0);
       var types=Object.keys(cnt).sort(function(a,b){ return cnt[b]-cnt[a]; }).map(function(l){
-        return l+' '+cnt[l]+(usedNoLc && uniqN<=6 ? ' ('+Object.keys(nopolsByType[l]).join(', ')+')' : '');
+        return l+' '+cnt[l]+(uniqN<=6 && nopolsByType[l] ? ' ('+Object.keys(nopolsByType[l]).join(', ')+')' : '');
       }).join(', ');
+      // jumlah nopol dari sumber per-nopol ≠ idle sheet Utilisasi → sebut "kandidat" (lagi divalidasi PIC)
+      var totIdle=Math.round(uc.armIdleTot), totCand=Object.keys(cnt).reduce(function(a,l){ return a+cnt[l]; },0);
+      var candLbl = usedNoLc ? ' — nopol tanpa LC (unit-hari): ' : (totCand===totIdle ? ' — jenis (unit-hari): ' : ' — kandidat (unit-hari): ');
       function dd(d){ return parseInt(d.slice(8,10)); }
       var rng='';
       if(days.length){
         var f=days[0], l=days[days.length-1];
         rng = f===l ? dd(f)+' '+MN[+f.slice(5,7)-1] : (f.slice(0,7)===l.slice(0,7) ? dd(f)+'–'+dd(l)+' '+MN[+l.slice(5,7)-1] : dd(f)+' '+MN[+f.slice(5,7)-1]+'–'+dd(l)+' '+MN[+l.slice(5,7)-1]);
       }
-      return '<b>Idle Armada</b>: <b>'+(c>=1?c.toLocaleString('id-ID'):'&lt;1')+' unit/hari</b>'+(bus.length?' ('+bus.join(', ')+')':'')
-        +(days.length?', '+days.length+' hari kerja ('+rng+')':'')+(types?(usedNoLc?' — nopol tanpa LC (unit-hari): ':' — jenis (unit-hari): ')+types:'')+'.';
+      return '<b>Idle Armada</b>: <b>'+(c>=1?c.toLocaleString('id-ID'):'&lt;1')+' unit/hari</b>'+(c<1?' (total '+Math.round(uc.armIdleTot).toLocaleString('id-ID')+' unit-hari)':'')+(bus.length?' ('+bus.join(', ')+')':'')
+        +(days.length?', '+days.length+' hari kerja ('+rng+')':'')+(types?candLbl+types:'')+'.';
     }
     function insBox(title, lines) {
       return '<div class="prs-ins-col"><div class="prs-ins-h">'+title+'</div>'
