@@ -632,6 +632,7 @@ async function loadData() {
     }
     // Step 3c-2: Avl/Utl FBI & KLS Jababeka dari status per nopol (NOPOL_PAIRED_LC), bukan dari trip data
     try { applyJabSyntheticFromPilot(); } catch(eJP) { console.warn('applyJabSyntheticFromPilot', eJP); }
+    try { applyJabSyntheticFromSheet(); } catch(eJS) { console.warn('applyJabSyntheticFromSheet', eJS); }
 
     // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
     try {
@@ -3349,10 +3350,31 @@ function applyJabSyntheticFromPilot() {
       var site = JAB_PILOT_OWNER_ROWS[own], key = site + '|' + d, u = idx[key];
       if (!u) { u = { site: site, date: d }; UTIL_ROWS.push(u); idx[key] = u; }
       u.arm_assets = a; u.arm_avail = a - na; u.arm_util = ut; u.arm_idle = a - na - ut; u.arm_service = na;
+      u.arm_util_sheet = ut; // nilai dasar utk bump transit LK
       u.jab_nopol_status = true; n++;
     });
   });
   if (n) ['JAB_FBI','JAB_KLS'].forEach(function(s){ delete UTIL_HARDCODED_ASSETS[s]; });
+  return n;
+}
+// ── FBI & KLS Jababeka: prioritas sheet Utilisasi (baris 'FBI JABABEKA' / 'KLS JABABEKA', ada sejak Agu 2026) ──
+// Urutan sumber per tanggal: sheet Utilisasi (resmi) > pilot NOPOL_PAIRED_LC > baris sintetis trip data.
+// Dipanggil SETELAH applyJabSyntheticFromPilot supaya angka sheet yg menang.
+var JAB_SHEET_ROWS = { 'FBI JABABEKA':'JAB_FBI', 'KLS JABABEKA':'JAB_KLS' };
+function applyJabSyntheticFromSheet() {
+  if (!UTIL_ROWS || !UTIL_ROWS.length) return 0;
+  var idx = {}, n = 0;
+  UTIL_ROWS.forEach(function(u){ if (u.site === 'JAB_FBI' || u.site === 'JAB_KLS') idx[u.site + '|' + u.date] = u; });
+  UTIL_ROWS.slice().forEach(function(r){
+    var site = JAB_SHEET_ROWS[r.site];
+    if (!site || !r.date || !(r.arm_util > 0) || r.arm_avail == null) return;
+    var key = site + '|' + r.date, u = idx[key];
+    if (!u) { u = { site: site, date: r.date }; UTIL_ROWS.push(u); idx[key] = u; }
+    ['arm_assets','arm_avail','arm_util','arm_idle','arm_service'].forEach(function(f){ if (r[f] != null) u[f] = r[f]; });
+    if (r.arm_idle == null) u.arm_idle = Math.max(0, r.arm_avail - r.arm_util);
+    u.arm_util_sheet = r.arm_util; // dipakai fungsi bump transit LK sebagai nilai dasar tiap render
+    u.jab_sheet = true; n++;
+  });
   return n;
 }
 function applyPilotLKTransitImputation(siteKey) {
