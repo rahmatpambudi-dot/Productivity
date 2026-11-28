@@ -2495,6 +2495,7 @@ function filterUtilRows(start, end, site) {
     if(HOLIDAYS_2026.has(r.date)) return false;
     if(CUTI_BERSAMA_LEBARAN_2026.has(r.date)) return false; // cuti bersama Idulfitri (SKB 3 Menteri)
     if(new Date(r.date).getDay()===0) return false; // Minggu
+    if(/KLS/.test(r.site) && new Date(r.date).getDay()===6) return false; // KLS (B2B) libur Sabtu & Minggu
     if(isSODate(r.date, r.site)) return false; // Shut Out (berlaku juga ke sub-BU, mis. SDA_HCI)
     return r.arm_util != null && r.arm_util > 0;
   });
