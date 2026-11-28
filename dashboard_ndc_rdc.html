@@ -552,7 +552,7 @@ function getSiteFiles(site) {
 var SITE_CACHE = {};
 // Versi data = waktu build. Browser boleh cache file data (~40 MB) sampai build berikutnya,
 // jadi buka ulang dashboard gak download ulang semua. Tombol Refresh tetap paksa ambil terbaru.
-var DATA_VER = '28 Nov 2026 09:46 WIB';
+var DATA_VER = '28 Nov 2026 09:55 WIB';
 var FORCE_FRESH = false;
 function dataVer() {
   if (FORCE_FRESH || DATA_VER.indexOf('{{') === 0) return String(Date.now());
@@ -633,6 +633,7 @@ async function loadData() {
     // Step 3c-2: Avl/Utl FBI & KLS Jababeka dari status per nopol (NOPOL_PAIRED_LC), bukan dari trip data
     try { applyJabSyntheticFromPilot(); } catch(eJP) { console.warn('applyJabSyntheticFromPilot', eJP); }
     try { applyJabSyntheticFromSheet(); } catch(eJS) { console.warn('applyJabSyntheticFromSheet', eJS); }
+    try { applyJabSyntheticFromMasterLC(); } catch(eJM) { console.warn('applyJabSyntheticFromMasterLC', eJM); }
 
     // Step 4: Load Insentif & OT pairing (LC-level, partial coverage)
     try {
@@ -3377,6 +3378,23 @@ function applyJabSyntheticFromSheet() {
   });
   return n;
 }
+// ── FBI & KLS Jababeka: isi tanggal yg BELUM ada di sheet Utilisasi maupun pilot (FBI Jan–Jul, KLS s/d 26 Agu) ──
+// Estimasi Master Asset × Master LC (noLcStatusCounts). Baris yg sudah dari sheet (jab_sheet) / pilot (jab_nopol_status) gak disentuh.
+// Catatan validasi Sep–Nov vs sheet: asset ~sama; avail estimasi ~2–3 pts & UTL ~6–7 pts lebih rendah (LC gak selalu ke-pair ke nopolnya).
+function applyJabSyntheticFromMasterLC() {
+  if (!UTIL_ROWS || !UTIL_ROWS.length || typeof noLcStatusCounts !== 'function') return 0;
+  var n = 0;
+  UTIL_ROWS.forEach(function(u){
+    var bu = u.site === 'JAB_FBI' ? 'FBI' : (u.site === 'JAB_KLS' ? 'KLS' : null);
+    if (!bu || u.jab_sheet || u.jab_nopol_status || !u.date) return;
+    if (HOLIDAYS_2026.has(u.date) || new Date(u.date+'T00:00:00').getDay() === 0) return;
+    var e = noLcStatusCounts('JABABEKA', u.date, bu); if (!e) return;
+    u.arm_assets = e.asset; u.arm_avail = e.asset - e.na; u.arm_util = e.util; u.arm_idle = e.idle; u.arm_service = e.na;
+    u.arm_util_sheet = e.util; u.jab_est = true; n++;
+  });
+  if (n) ['JAB_FBI','JAB_KLS'].forEach(function(s){ delete UTIL_HARDCODED_ASSETS[s]; });
+  return n;
+}
 function applyPilotLKTransitImputation(siteKey) {
   var data = PILOT_DATA[siteKey];
   if (!data || !data.dates || !data.dates.length) return;
@@ -3445,6 +3463,27 @@ function noLcRoster(site, dateStr) {
 }
 function noLcIsActive(site, dateStr, nopol) { var a = noLcActiveMap(site)[dateStr]; return !!(a && a[String(nopol).toUpperCase()]); }
 // opt.exclude: {nopol:1} dilewati (mis. nopol yg sudah tercatat di pilot); opt.bus: ['AHI',...] filter BU pemilik
+// Status armada per BU dari Master Asset × Master LC (dipakai utk ngisi tanggal yg belum ada di sheet Utilisasi / pilot):
+// asset = roster BU tsb bulan itu; util = nopol ada LC / transit LK; NA = gak ada LC ≥ PILOT_LONG_IDLE_DAYS hari kerja berturut2; idle = sisanya.
+function noLcStatusCounts(site, dateStr, bu) {
+  var roster = noLcRoster(site, dateStr); if (!roster) return null;
+  var act = noLcActiveMap(site);
+  function isOff(d){ return HOLIDAYS_2026.has(d) || new Date(d+'T00:00:00').getDay() === 0; }
+  function step(d, k){ var x = new Date(d+'T00:00:00'); x.setDate(x.getDate()+k); return localISO(x); }
+  function noLc(n, d){ return !(act[d] && act[d][n]); }
+  var maxD = (ROWS||[]).reduce(function(m,r){ return (r.site===site && r.date>m) ? r.date : m; }, '');
+  var o = { asset:0, util:0, idle:0, na:0 };
+  Object.keys(roster).forEach(function(n){
+    if (roster[n].bu !== bu) return;
+    o.asset++;
+    if (!noLc(n, dateStr)) { o.util++; return; }
+    var run = 1, d, g;
+    for (d = step(dateStr,-1), g = 0; g < 20 && run < PILOT_LONG_IDLE_DAYS; d = step(d,-1), g++) { if (isOff(d)) continue; if (noLc(n,d)) run++; else break; }
+    for (d = step(dateStr, 1), g = 0; g < 20 && run < PILOT_LONG_IDLE_DAYS && d <= maxD; d = step(d, 1), g++) { if (isOff(d)) continue; if (noLc(n,d)) run++; else break; }
+    if (run >= PILOT_LONG_IDLE_DAYS) o.na++; else o.idle++;
+  });
+  return o.asset ? o : null;
+}
 function noLcIdleList(site, dateStr, opt) {
   opt = opt || {};
   var roster = noLcRoster(site, dateStr); if (!roster) return null;
