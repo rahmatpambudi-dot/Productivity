@@ -552,7 +552,7 @@ function getSiteFiles(site) {
 var SITE_CACHE = {};
 // Versi data = waktu build. Browser boleh cache file data (~40 MB) sampai build berikutnya,
 // jadi buka ulang dashboard gak download ulang semua. Tombol Refresh tetap paksa ambil terbaru.
-var DATA_VER = '28 Nov 2026 09:55 WIB';
+var DATA_VER = '28 Nov 2026 10:11 WIB';
 var FORCE_FRESH = false;
 function dataVer() {
   if (FORCE_FRESH || DATA_VER.indexOf('{{') === 0) return String(Date.now());
@@ -2495,6 +2495,7 @@ function filterUtilRows(start, end, site) {
     if(HOLIDAYS_2026.has(r.date)) return false;
     if(CUTI_BERSAMA_LEBARAN_2026.has(r.date)) return false; // cuti bersama Idulfitri (SKB 3 Menteri)
     if(new Date(r.date).getDay()===0) return false; // Minggu
+    if(/KLS/.test(r.site) && new Date(r.date).getDay()===6) return false; // KLS (B2B) libur Sabtu & Minggu
     if(isSODate(r.date, r.site)) return false; // Shut Out (berlaku juga ke sub-BU, mis. SDA_HCI)
     return r.arm_util != null && r.arm_util > 0;
   });
